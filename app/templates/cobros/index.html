@@ -41,7 +41,7 @@
 <table class="grid">
   <thead>
     <tr>{{ th('Inquilino','inquilino') }}{{ th('Inmueble','inmueble') }}{{ th('A cobrar','esperado','r') }}
-        {{ th('Cobrado','cobrado','r') }}{{ th('Estado','estado') }}<th></th></tr>
+        {{ th('Cobrado','cobrado','r') }}{{ th('Estado','estado') }}<th></th><th class="wa-col"></th></tr>
   </thead>
   <tbody>
     {% for f in filas %}
@@ -67,12 +67,12 @@
         {% else %}
           <a class="btn ok sm" href="{{ url_for('cobros.nuevo', cid=f.c.id, mes=mes, anio=anio) }}">💵 Cobrar</a>
         {% endif %}
-        <span class="wa-slot">
-          {% if f.estado!='Pagado' and f.c.inquilino %}
-            {% set msj = "Hola " ~ f.c.inquilino.nombre ~ "! Te escribo por el alquiler de " ~ f.c.inmueble.direccion ~ ". El período " ~ meses[mes] ~ " " ~ anio ~ " figura " ~ (f.estado|lower) ~ (" (falta $" ~ f.saldo|money ~ ")" if f.estado=='Parcial' else "") ~ ". ¿Podés confirmarme cuándo lo abonás? ¡Gracias!" %}
-            {{ wa_icon(f.c.inquilino.telefono, msj, "Recordatorio de pago por WhatsApp") }}
-          {% endif %}
-        </span>
+      </td>
+      <td class="wa-col">
+        {% if f.estado!='Pagado' and f.c.inquilino %}
+          {% set msj = "Hola " ~ f.c.inquilino.nombre ~ "! Te escribo por el alquiler de " ~ f.c.inmueble.direccion ~ ". El período " ~ meses[mes] ~ " " ~ anio ~ " figura " ~ (f.estado|lower) ~ (" (falta $" ~ f.saldo|money ~ ")" if f.estado=='Parcial' else "") ~ ". ¿Podés confirmarme cuándo lo abonás? ¡Gracias!" %}
+          {{ wa_icon(f.c.inquilino.telefono, msj, "Recordatorio de pago por WhatsApp") }}
+        {% endif %}
       </td>
     </tr>
     {% endfor %}
