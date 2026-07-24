@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Aplicar aumento{% endblock %}
+{% block content %}
+<div class="pagehead"><h1>Aplicar aumento</h1></div>
+
+<div class="panel" style="margin-bottom:14px">
+  <b>{{ (c.inmueble.codigo ~ ' · ' if c.inmueble.codigo else '') }}{{ c.inmueble.direccion }}</b> ·
+  Inquilino: {{ c.inquilino.nombre if c.inquilino else '—' }}<br>
+  <span class="k">Precio actual:</span> <b>{{ c.moneda }} {{ precio_actual|money }}</b> ·
+  <span class="k">Método del contrato:</span>
+  {% if c.metodo_ajuste=='indice' %}Índice {{ indice_nombre.get(c.indice_tipo, c.indice_tipo) }}{% elif c.metodo_ajuste=='porcentaje' %}Porcentaje{% else %}Sin ajuste{% endif %}
+</div>
+
+<form method="post" class="cardform" data-precio="{{ precio_actual }}">
+  <div class="grid2">
+    <div><label>Método</label>
+      <select name="metodo" id="metodo" onchange="toggle()">
+        <option value="porcentaje" {{ 'selected' if c.metodo_ajuste=='porcentaje' }}>Por porcentaje</option>
+        <option value="indice" {{ 'selected' if c.metodo_ajuste!='porcentaje' }}>Por índice</option>
+      </select></div>
+    <div><label>Vigente desde</label>
+      <input type="date" name="fecha_vigencia" value="{{ hoy.isoformat() }}"></div>
+  </div>
+
+  <div id="box_pct">
+    <div class="grid2">
+      <div><label>Porcentaje (%)</label>
+        <input name="porcentaje" id="porcentaje" value="{{ pct_sugerido }}" oninput="calc()"></div>
+    </div>
+  </div>
+
+  <div id="box_idx">
+    <div class="grid2">
+      <div><label>Índice</label>
+        <select name="indice_tipo" id="indice_tipo">
+          {% for t in tipos %}<option value="{{ t }}" {{ 'selected' if (c.indice_tipo or 'ICL')==t }}>{{ indice_nombre.get(t,t) }}</option>{% endfor %}
+        </select></div>
+      <div><label>Mes base</label>
+        <input type="month" name="periodo_base" id="periodo_base"
+               value="{{ per_base.strftime('%Y-%m') if per_base }}"></div>
+      <div><label>Mes destino</label>
+        <input type="month" name="periodo_destino" id="periodo_destino"
+               value="{{ per_dest.strftime('%Y-%m') if per_dest }}"></div>
+    </div>
+    <p class="hint" id="idx_info">
+      {% if v_base and v_dest %}
+        Valores cargados: base {{ v_base }} → destino {{ v_dest }} · factor {{ '%.4f'|format(v_dest / v_base) }}.
+      {% else %}
+        ⚠️ Faltan valores del índice para esos meses.
+        <a href="{{ url_for('aumentos.indices') }}">Cargalos en Índices</a> y volvé.
+      {% endif %}
+    </p>
+  </div>
+
+  <div class="panel" style="background:#f7f9fc;margin-top:12px">
+    <span class="k">Nuevo precio estimado:</span>
+    <b id="preview" style="font-size:18px">—</b>
+  </div>
+
+  <label style="margin-top:10px">Observaciones</label>
+  <textarea name="observaciones" rows="2"></textarea>
+
+  <div class="formbtns">
+    <button class="btn" type="submit">Aplicar aumento</button>
+    <a class="btn sec" href="{{ url_for('contratos.ver', cid=c.id) }}">Cancelar</a>
+  </div>
+</form>
+
+<script>
+const PRECIO = parseFloat(document.querySelector('form.cardform').dataset.precio) || 0;
+const V_BASE = {{ v_base if v_base else 'null' }};
+const V_DEST = {{ v_dest if v_dest else 'null' }};
+function fmt(n){ return n.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function toggle(){
+  const m = document.getElementById('metodo').value;
+  document.getElementById('box_pct').style.display = m==='porcentaje'?'block':'none';
+  document.getElementById('box_idx').style.display = m==='indice'?'block':'none';
+  calc();
+}
+function calc(){
+  const m = document.getElementById('metodo').value;
+  let nuevo = null;
+  if(m==='porcentaje'){
+    const pct = parseFloat((document.getElementById('porcentaje').value||'').replace(',','.'));
+    if(!isNaN(pct)) nuevo = PRECIO*(1+pct/100);
+  } else if(V_BASE && V_DEST){
+    nuevo = PRECIO*(V_DEST/V_BASE);
+  }
+  document.getElementById('preview').textContent = nuevo!==null ? '{{ c.moneda }} '+fmt(Math.round(nuevo*100)/100) : '—';
+}
+toggle();
+</script>
+{% endblock %}

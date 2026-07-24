@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Contratos{% endblock %}
+{% macro th(label, key, cls='') %}
+  {% set cur = request.args.get('sort') %}
+  {% set curdir = request.args.get('dir','asc') %}
+  {% set nd = 'desc' if (cur==key and curdir=='asc') else 'asc' %}
+  <th class="{{ cls }}"><a class="sorth" href="{{ url_for(request.endpoint, **dict(request.args, sort=key, dir=nd)) }}">{{ label }}<span class="arr">{{ ' ▲' if cur==key and curdir=='asc' else (' ▼' if cur==key else '') }}</span></a></th>
+{% endmacro %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Contratos</h1>
+    <p class="sub">Alquileres cargados. Desde acá registrás cobros y aumentos.</p>
+  </div>
+  <div class="quick">
+    <a class="btn" href="{{ url_for('contratos.nuevo') }}">+ Alta directa</a>
+    <a class="btn sec" href="{{ url_for('contratos.generador') }}">📝 Generar contrato</a>
+  </div>
+</div>
+
+<form class="filters" method="get">
+  <input name="q" value="{{ q }}" placeholder="🔎 Buscar por inquilino, propietario, inmueble o código">
+  <select name="estado">
+    <option value="">Todos los estados</option>
+    {% for e in estados %}<option value="{{ e }}" {{ 'selected' if estado==e }}>{{ e }}</option>{% endfor %}
+  </select>
+  <button class="btn sec" type="submit">Filtrar</button>
+</form>
+
+{% if contratos %}
+<table class="grid">
+  <thead>
+    <tr>{{ th('Inquilino','inquilino') }}{{ th('Propietario','propietario') }}{{ th('Inmueble','inmueble') }}
+        {{ th('Precio actual','precio','r') }}{{ th('Ajuste','ajuste') }}{{ th('Estado','estado') }}<th></th></tr>
+  </thead>
+  <tbody>
+    {% for c in contratos %}
+    <tr>
+      <td><a href="{{ url_for('contratos.ver', cid=c.id) }}"><b>{{ c.inquilino.nombre if c.inquilino else '—' }}</b></a></td>
+      <td>{{ c.propietario.nombre if c.propietario else '—' }}</td>
+      <td>{{ c.inmueble.direccion }}
+        {% if c.inmueble.localidad %}<div class="hint" style="margin:0">{{ c.inmueble.localidad }}</div>{% endif %}
+      </td>
+      <td class="r">{{ c.moneda }} {{ c.precio_actual|money }}</td>
+      <td>
+        {% if c.metodo_ajuste=='indice' %}{{ c.indice_tipo }}
+        {% elif c.metodo_ajuste=='porcentaje' %}{{ c.porcentaje_ajuste }}%
+        {% else %}—{% endif %}
+      </td>
+      <td><span class="badge {{ c.estado|lower }}">{{ c.estado }}</span></td>
+      <td class="actions">
+        <a class="btn ok sm" href="{{ url_for('cobros.nuevo', cid=c.id) }}">💵 Cobrar</a>
+        <div class="rowmenu">
+          <button class="menu-trigger" type="button">⋯ Más</button>
+          <div class="menu-pop">
+            <a href="{{ url_for('contratos.ver', cid=c.id) }}">👁 Ver</a>
+            {% if c.documento_html %}
+            <a href="{{ url_for('contratos.documento', cid=c.id) }}" target="_blank">📄 Ver contrato</a>
+            {% endif %}
+            {% if c.estado=='Vigente' %}
+            <form method="post" action="{{ url_for('contratos.rescindir', cid=c.id) }}"
+                  onsubmit="return confirm('¿Rescindir el contrato de {{ c.inquilino.nombre if c.inquilino else '' }}? El inmueble queda disponible y se conserva el historial de pagos.')">
+              <button class="warn" type="submit">⛔ Rescindir</button>
+            </form>
+            {% endif %}
+            <form method="post" action="{{ url_for('contratos.eliminar', cid=c.id) }}"
+                  onsubmit="return confirm('¿Eliminar definitivamente este contrato? Solo se permite si no tiene pagos registrados.')">
+              <button class="danger" type="submit">🗑 Eliminar</button>
+            </form>
+          </div>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+  <div class="em">📄</div>
+  <h3>No hay contratos {{ 'con ese filtro' if q or estado else 'todavía' }}</h3>
+  <p>Cargá un alquiler en curso con “Alta directa”, o generá un contrato nuevo con el asistente.</p>
+  <a class="btn" href="{{ url_for('contratos.nuevo') }}">+ Alta directa</a>
+</div>
+{% endif %}
+
+<script>
+document.querySelectorAll('.rowmenu').forEach(function(m){
+  const t=m.querySelector('.menu-trigger'), p=m.querySelector('.menu-pop');
+  let hide;
+  function show(){clearTimeout(hide);const r=t.getBoundingClientRect();
+    p.style.display='block';
+    const w=p.offsetWidth||170;
+    p.style.top=(r.bottom+4)+'px';
+    p.style.left=Math.max(8,r.right-w)+'px';}
+  function ocultar(){p.style.display='none';}
+  m.addEventListener('mouseenter',show);
+  m.addEventListener('mouseleave',function(){hide=setTimeout(ocultar,180);});
+  t.addEventListener('click',function(e){e.preventDefault();
+    p.style.display==='block'?ocultar():show();});
+});
+document.addEventListener('scroll',function(){
+  document.querySelectorAll('.menu-pop').forEach(p=>p.style.display='none');},true);
+</script>
+{% endblock %}

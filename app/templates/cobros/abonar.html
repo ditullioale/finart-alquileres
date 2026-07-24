@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Abonar saldo{% endblock %}
+{% block content %}
+<div class="pagehead"><h1>Registrar cobro a cuenta</h1></div>
+
+<div class="panel" style="margin-bottom:14px">
+  <b>{{ (pago.contrato.inmueble.codigo ~ ' · ' if pago.contrato.inmueble.codigo else '') }}{{ pago.contrato.inmueble.direccion }}</b> ·
+  Período {{ meses[pago.periodo_mes] if pago.periodo_mes }} {{ pago.periodo_anio }}<br>
+  <span class="k">Total:</span> {{ pago.moneda }} {{ pago.total|money }} ·
+  <span class="k">Ya pagado:</span> {{ pago.moneda }} {{ pago.pagado|money }} ·
+  <span class="k">Saldo pendiente:</span> <b class="txt-danger">{{ pago.moneda }} {{ saldo|money }}</b>
+</div>
+
+<form method="post" class="cardform">
+  <div class="grid2">
+    <div><label>Monto a cobrar ahora *</label><input name="monto" value="{{ saldo }}" required></div>
+    <div><label>Fecha del cobro</label><input type="date" name="fecha_pago"></div>
+    <div><label>Forma de pago</label>
+      <select name="forma_pago">{% for f in formas %}<option>{{ f }}</option>{% endfor %}</select></div>
+  </div>
+  <label>Observaciones</label>
+  <textarea name="observaciones" rows="2" placeholder="opcional"></textarea>
+  <div class="formbtns">
+    <button class="btn" type="submit">Registrar cobro</button>
+    <a class="btn sec" href="{{ url_for('cobros.detalle', cid=pago.contrato_id) }}">Cancelar</a>
+  </div>
+  <p class="hint" style="margin-top:10px">El monto se suma a lo ya pagado. Si cubre el saldo, el pago queda como “Pagado”; si no, sigue “Parcial”.</p>
+</form>
+{% endblock %}

@@ -1,0 +1,313 @@
+"""Registro de cobros: pagos, mora, gastos extras, historial y deuda."""
+from datetime import date
+
+from flask import (Blueprint, render_template, redirect, url_for, request,
+                   flash, abort)
+from flask_login import login_required
+
+from .. import db
+from ..models import Contrato, Pago, GastoExtra
+from ..utils import (parse_fecha, parse_num, vencimiento, calcular_mora,
+                     periodo_siguiente, MESES_ES)
+
+cobros_bp = Blueprint("cobros", __name__, url_prefix="/cobros")
+
+FORMAS_PAGO = ["Efectivo", "Transferencia", "Transferencia prop / inmo", "Cheque", "Otro"]
+
+
+# --------------------------------------------------------------------------- #
+#  Helpers de resumen
+# --------------------------------------------------------------------------- #
+def _resumen(contrato):
+    pagos = sorted(contrato.pagos, key=lambda p: (p.periodo_anio or 0, p.periodo_mes or 0))
+    deuda = sum(float(p.saldo or 0) for p in contrato.pagos)
+    if pagos:
+        ult = pagos[-1]
+        mes, anio = periodo_siguiente(ult.periodo_mes or 1, ult.periodo_anio or date.today().year)
+        nro = (max((p.numero or 0) for p in contrato.pagos)) + 1
+    else:
+        fi = contrato.fecha_inicio or date.today()
+        mes, anio, nro = fi.month, fi.year, 1
+    prox_vto = vencimiento(anio, mes, contrato.dia_vencimiento or 10)
+    return dict(deuda=deuda, prox_mes=mes, prox_anio=anio, prox_nro=nro,
+                prox_vto=prox_vto, monto_prox=float(contrato.precio_actual or contrato.precio_inicial or 0))
+
+
+def _leer_gastos(pago):
+    pago.gastos.clear()
+    descs = request.form.getlist("gasto_desc")
+    montos = request.form.getlist("gasto_monto")
+    total = 0.0
+    for i, desc in enumerate(descs):
+        monto = parse_num(montos[i]) if i < len(montos) else None
+        if desc.strip() and monto is not None:
+            pago.gastos.append(GastoExtra(descripcion=desc.strip(), monto=monto))
+            total += monto
+    return total
+
+
+def _estado_saldo(pago):
+    """Recalcula saldo y estado a partir del total y lo pagado."""
+    total = float(pago.total or 0)
+    pagado = float(pago.pagado or 0)
+    pago.saldo = round(total - pagado, 2)
+    if pagado <= 0:
+        pago.estado = "Pendiente"
+    elif pago.saldo > 0.005:
+        pago.estado = "Parcial"
+    else:
+        pago.estado = "Pagado"
+
+
+def _recalcular(pago, gastos_total):
+    precio = float(pago.precio_alquiler or 0)
+    mora = float(pago.mora or 0)
+    pago.total = round(precio + mora + gastos_total, 2)
+    _estado_saldo(pago)
+
+
+def _deuda_previa(contrato, excluir_id=None):
+    """Suma de saldos pendientes de otros pagos del contrato."""
+    return sum(float(p.saldo or 0) for p in contrato.pagos
+               if (p.saldo or 0) > 0 and p.id != excluir_id)
+
+
+# --------------------------------------------------------------------------- #
+#  Panel de cobranzas del mes
+# --------------------------------------------------------------------------- #
+@cobros_bp.route("/")
+@login_required
+def index():
+    hoy = date.today()
+    mes = parse_num(request.args.get("mes"), entero=True) or hoy.month
+    anio = parse_num(request.args.get("anio"), entero=True) or hoy.year
+    filtro = request.args.get("f", "")  # "", "pendiente", "cobrado"
+    q = request.args.get("q", "").strip().lower()
+
+    filas = []
+    tot_esperado = tot_cobrado = tot_pendiente = 0.0
+    contratos = Contrato.query.filter_by(estado="Vigente").all()
+    for c in contratos:
+        if q:
+            campos = " ".join(filter(None, [
+                c.inmueble.codigo if c.inmueble else "",
+                c.inmueble.direccion if c.inmueble else "",
+                c.inquilino.nombre if c.inquilino else "",
+                c.propietario.nombre if c.propietario else "",
+            ])).lower()
+            if q not in campos:
+                continue
+        # ¿el contrato ya arrancó y no terminó en ese período?
+        pago = next((p for p in c.pagos
+                     if p.periodo_mes == mes and p.periodo_anio == anio), None)
+        esperado = float(c.precio_actual or c.precio_inicial or 0)
+        if pago:
+            estado = pago.estado
+            cobrado = float(pago.pagado or 0)
+            saldo = float(pago.saldo or 0)
+        else:
+            estado = "Sin registrar"
+            cobrado = 0.0
+            saldo = esperado
+        tot_esperado += esperado
+        tot_cobrado += cobrado
+        if estado != "Pagado":
+            tot_pendiente += saldo
+        filas.append(dict(c=c, pago=pago, esperado=esperado, estado=estado,
+                          cobrado=cobrado, saldo=saldo))
+
+    if filtro == "pendiente":
+        filas = [f for f in filas if f["estado"] not in ("Pagado",)]
+    elif filtro == "cobrado":
+        filas = [f for f in filas if f["estado"] == "Pagado"]
+
+    sort = request.args.get("sort", "")
+    rev = request.args.get("dir", "asc") == "desc"
+    claves = {
+        "inquilino": lambda f: (f["c"].inquilino.nombre if f["c"].inquilino else "").lower(),
+        "inmueble": lambda f: (f["c"].inmueble.direccion or "").lower(),
+        "esperado": lambda f: f["esperado"],
+        "cobrado": lambda f: f["cobrado"],
+        "estado": lambda f: f["estado"],
+    }
+    if sort in claves:
+        filas.sort(key=claves[sort], reverse=rev)
+    else:
+        filas.sort(key=lambda f: (f["estado"] == "Pagado",
+                                  (f["c"].inquilino.nombre if f["c"].inquilino else "")))
+
+    return render_template("cobros/index.html", filas=filas, mes=mes, anio=anio,
+                           filtro=filtro, meses=MESES_ES,
+                           totales=dict(esperado=tot_esperado, cobrado=tot_cobrado,
+                                        pendiente=tot_pendiente),
+                           anios=list(range(hoy.year - 4, hoy.year + 2)))
+
+
+# --------------------------------------------------------------------------- #
+#  Detalle de pagos por contrato
+# --------------------------------------------------------------------------- #
+@cobros_bp.route("/contrato/<int:cid>")
+@login_required
+def detalle(cid):
+    contrato = db.session.get(Contrato, cid) or abort(404)
+    pagos = sorted(contrato.pagos,
+                   key=lambda p: (p.periodo_anio or 0, p.periodo_mes or 0), reverse=True)
+    return render_template("cobros/detalle.html", c=contrato, pagos=pagos,
+                           resumen=_resumen(contrato), meses=MESES_ES)
+
+
+# --------------------------------------------------------------------------- #
+#  Alta / edición de pago
+# --------------------------------------------------------------------------- #
+def _leer_pago(pago, contrato):
+    pago.numero = parse_num(request.form.get("numero"), entero=True)
+    pago.periodo_mes = parse_num(request.form.get("periodo_mes"), entero=True)
+    pago.periodo_anio = parse_num(request.form.get("periodo_anio"), entero=True)
+    pago.fecha_pago = parse_fecha(request.form.get("fecha_pago"))
+    pago.precio_alquiler = parse_num(request.form.get("precio_alquiler")) or 0
+    pago.moneda = contrato.moneda or "Pesos"
+    pago.forma_pago = request.form.get("forma_pago", "")
+    pago.observaciones = request.form.get("observaciones", "").strip()
+    pago.recibo_numero = request.form.get("recibo_numero", "").strip()
+
+    # Mora: usa la ingresada, o si se pide, la calcula automáticamente.
+    if request.form.get("mora_auto"):
+        venc = vencimiento(pago.periodo_anio, pago.periodo_mes, contrato.dia_vencimiento or 10)
+        pago.mora = calcular_mora(pago.precio_alquiler, contrato.mora_diaria_pct,
+                                  venc, pago.fecha_pago)
+    else:
+        pago.mora = parse_num(request.form.get("mora")) or 0
+
+    pago.pagado = parse_num(request.form.get("pagado"))
+    if request.form.get("pagado_al_propietario"):
+        pago.pagado_al_propietario = parse_fecha(request.form.get("fecha_prop")) or date.today()
+    else:
+        pago.pagado_al_propietario = None
+
+
+@cobros_bp.route("/contrato/<int:cid>/nuevo", methods=["GET", "POST"])
+@login_required
+def nuevo(cid):
+    contrato = db.session.get(Contrato, cid) or abort(404)
+    if request.method == "POST":
+        pago = Pago(contrato_id=contrato.id)
+        _leer_pago(pago, contrato)
+        error = _validar(pago)
+        if error:
+            flash(error, "error")
+            return render_template("cobros/form_pago.html", c=contrato, pago=pago,
+                                   formas=FORMAS_PAGO, meses=MESES_ES, nuevo=True)
+        gastos_total = _leer_gastos(pago)
+
+        # Arrastrar saldo pendiente de meses anteriores a este pago.
+        arrastrado = 0.0
+        if request.form.get("arrastrar_saldo"):
+            previos = [p for p in contrato.pagos if (p.saldo or 0) > 0]
+            arrastrado = sum(float(p.saldo) for p in previos)
+            if arrastrado > 0:
+                pago.gastos.append(GastoExtra(descripcion="Saldo período(s) anterior(es)",
+                                              monto=round(arrastrado, 2)))
+                gastos_total += arrastrado
+                destino = f"{MESES_ES[pago.periodo_mes]} {pago.periodo_anio}"
+                for p in previos:
+                    nota = f"Saldo {float(p.saldo):.2f} arrastrado a {destino}."
+                    p.observaciones = ((p.observaciones or "") + " " + nota).strip()
+                    p.saldo = 0
+                    p.estado = "Arrastrado"
+
+        if pago.pagado is None:
+            pago.pagado = round(float(pago.precio_alquiler or 0) + float(pago.mora or 0)
+                                + gastos_total - arrastrado, 2)
+        _recalcular(pago, gastos_total)
+        db.session.add(pago)
+        db.session.commit()
+        msg = f"Pago del período {MESES_ES[pago.periodo_mes]} {pago.periodo_anio} registrado."
+        if arrastrado > 0:
+            msg += f" Se arrastró {contrato.moneda} {arrastrado:,.2f} de saldo anterior."
+        flash(msg, "ok")
+        if request.form.get("guardar_seguir"):
+            return redirect(url_for("cobros.nuevo", cid=contrato.id))
+        return redirect(url_for("cobros.detalle", cid=contrato.id))
+
+    r = _resumen(contrato)
+    # Permite prefijar el período desde el panel de cobranzas (?mes=&anio=).
+    mes = parse_num(request.args.get("mes"), entero=True) or r["prox_mes"]
+    anio = parse_num(request.args.get("anio"), entero=True) or r["prox_anio"]
+    pago = Pago(numero=r["prox_nro"], periodo_mes=mes, periodo_anio=anio,
+                fecha_pago=date.today(),
+                precio_alquiler=contrato.precio_actual or contrato.precio_inicial)
+    return render_template("cobros/form_pago.html", c=contrato, pago=pago,
+                           formas=FORMAS_PAGO, meses=MESES_ES, nuevo=True,
+                           deuda_previa=_deuda_previa(contrato))
+
+
+@cobros_bp.route("/pago/<int:pid>/editar", methods=["GET", "POST"])
+@login_required
+def editar(pid):
+    pago = db.session.get(Pago, pid) or abort(404)
+    contrato = pago.contrato
+    if request.method == "POST":
+        _leer_pago(pago, contrato)
+        error = _validar(pago)
+        if error:
+            flash(error, "error")
+            return render_template("cobros/form_pago.html", c=contrato, pago=pago,
+                                   formas=FORMAS_PAGO, meses=MESES_ES, nuevo=False)
+        gastos_total = _leer_gastos(pago)
+        if pago.pagado is None:
+            pago.pagado = 0
+        _recalcular(pago, gastos_total)
+        db.session.commit()
+        flash("Pago actualizado.", "ok")
+        return redirect(url_for("cobros.detalle", cid=contrato.id))
+    return render_template("cobros/form_pago.html", c=contrato, pago=pago,
+                           formas=FORMAS_PAGO, meses=MESES_ES, nuevo=False)
+
+
+@cobros_bp.route("/pago/<int:pid>/eliminar", methods=["POST"])
+@login_required
+def eliminar(pid):
+    pago = db.session.get(Pago, pid) or abort(404)
+    cid = pago.contrato_id
+    db.session.delete(pago)
+    db.session.commit()
+    flash("Pago eliminado.", "ok")
+    return redirect(url_for("cobros.detalle", cid=cid))
+
+
+@cobros_bp.route("/pago/<int:pid>/abonar", methods=["GET", "POST"])
+@login_required
+def abonar(pid):
+    """Registra un pago a cuenta sobre un saldo pendiente (se acumula)."""
+    pago = db.session.get(Pago, pid) or abort(404)
+    saldo = float(pago.saldo or 0)
+    if request.method == "POST":
+        monto = parse_num(request.form.get("monto"))
+        if not monto or monto <= 0:
+            flash("Ingresá un monto mayor a 0.", "error")
+            return render_template("cobros/abonar.html", pago=pago, saldo=saldo,
+                                   formas=FORMAS_PAGO, meses=MESES_ES)
+        pago.pagado = round(float(pago.pagado or 0) + monto, 2)
+        if request.form.get("fecha_pago"):
+            pago.fecha_pago = parse_fecha(request.form.get("fecha_pago")) or pago.fecha_pago
+        if request.form.get("forma_pago"):
+            pago.forma_pago = request.form.get("forma_pago")
+        nota = request.form.get("observaciones", "").strip()
+        if nota:
+            pago.observaciones = ((pago.observaciones or "") + " " + nota).strip()
+        _estado_saldo(pago)
+        db.session.commit()
+        flash(f"Cobro a cuenta registrado. Saldo restante: {pago.moneda} {float(pago.saldo):,.2f}.", "ok")
+        return redirect(url_for("cobros.detalle", cid=pago.contrato_id))
+    return render_template("cobros/abonar.html", pago=pago, saldo=saldo,
+                           formas=FORMAS_PAGO, meses=MESES_ES)
+
+
+def _validar(pago):
+    if not pago.periodo_mes or not pago.periodo_anio:
+        return "Indicá el mes y el año del pago."
+    if not pago.precio_alquiler or pago.precio_alquiler <= 0:
+        return "El precio del alquiler debe ser mayor a 0."
+    if not pago.fecha_pago:
+        return "Indicá la fecha de pago."
+    return None

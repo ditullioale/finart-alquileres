@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Nuevo recibo manual{% endblock %}
+{% block content %}
+<div class="pagehead"><h1>Nuevo recibo manual</h1></div>
+
+<form method="post" class="cardform">
+  <h2>Cliente</h2>
+  <div class="grid2">
+    <div><label>Nombre y apellido *</label><input name="cliente" required autofocus></div>
+    <div><label>DNI / CUIT</label><input name="cliente_dni"></div>
+    <div class="full"><label>Domicilio</label><input name="cliente_domicilio"></div>
+  </div>
+
+  <h2 style="margin-top:18px">Recibo</h2>
+  <div class="grid2">
+    <div><label>Fecha</label><input type="date" name="fecha" value="{{ hoy.isoformat() }}"></div>
+    <div><label>En concepto de</label><input name="concepto_general" placeholder="ej. Seña reserva depto Belgrano 639"></div>
+    <div><label>Moneda</label><select name="moneda"><option>Pesos</option><option>Dólares</option></select></div>
+    <div><label>Forma de pago</label>
+      <select name="forma_pago">{% for f in formas %}<option>{{ f }}</option>{% endfor %}</select></div>
+  </div>
+
+  <h2 style="margin-top:18px">Conceptos</h2>
+  <p class="hint">Detalle de lo cobrado. Para un descuento, monto en negativo.</p>
+  <div id="conceptos"></div>
+  <button type="button" class="btn sec" style="margin-top:8px" onclick="addConcepto()">+ Agregar concepto</button>
+
+  <div class="panel" style="background:#f7f9fc;margin-top:14px">
+    <span class="k">Total del recibo:</span> <b id="total" style="font-size:20px">0,00</b>
+  </div>
+
+  <label style="margin-top:10px">Observaciones</label>
+  <textarea name="observaciones" rows="2"></textarea>
+
+  <div class="formbtns">
+    <button class="btn" type="submit">Guardar recibo</button>
+    <a class="btn sec" href="{{ url_for('recibos.manuales') }}">Cancelar</a>
+  </div>
+</form>
+
+<script>
+function num(v){ v=(v||'').toString().trim(); if(v==='')return 0;
+  if(v.indexOf(',')>=0) v=v.replace(/\./g,'').replace(',','.'); return parseFloat(v)||0; }
+function addConcepto(){
+  const div=document.createElement('div'); div.className='gasto-row';
+  div.innerHTML=`<input placeholder="Descripción" name="concepto_desc" style="flex:2">
+    <input placeholder="Monto" name="concepto_monto" style="flex:1" oninput="recalc()">
+    <button type="button" class="btn sec" onclick="this.parentNode.remove();recalc()">✕</button>`;
+  document.getElementById('conceptos').appendChild(div);
+}
+function recalc(){
+  let t=0; document.querySelectorAll('input[name=concepto_monto]').forEach(i=>t+=num(i.value));
+  document.getElementById('total').textContent=t.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+addConcepto();
+</script>
+{% endblock %}

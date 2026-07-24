@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Liquidación {{ prop.nombre }} — {{ meses[mes] }} {{ anio }}</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:0;background:#f0f0f0}
+  .toolbar{background:#12263f;color:#fff;padding:10px 16px;display:flex;gap:10px;align-items:center}
+  .toolbar a{color:#cfe0f5;text-decoration:none}
+  .toolbar button{border:0;border-radius:7px;padding:8px 16px;font-weight:600;cursor:pointer}
+  .toolbar .print{background:#2f6fed;color:#fff}
+  .toolbar .gen{background:#1f9d55;color:#fff}
+  .hoja{max-width:800px;margin:16px auto;background:#fff;padding:26px}
+  .doc{border:1.5px solid #111}
+  .cab{display:flex;justify-content:space-between;padding:12px 14px;border-bottom:1.5px solid #111}
+  .cab .nom{font-weight:bold;font-size:15px}
+  .cab .datos{font-size:11px;line-height:1.4;margin-top:3px;color:#333}
+  .tt{font-size:22px;font-weight:bold;text-align:right}
+  .tt .n{font-size:13px;font-weight:normal}
+  .band{background:#f2f2f2;border-bottom:1.5px solid #111;padding:6px 14px;font-weight:bold;text-align:center;font-size:12px}
+  .info{padding:10px 14px;font-size:12.5px;border-bottom:1.5px solid #111}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{padding:7px 14px;text-align:left}
+  thead th{background:#f7f7f7;border-bottom:1px solid #ccc;font-size:11px;text-transform:uppercase;color:#555}
+  tbody td{border-bottom:1px solid #eee}
+  .r{text-align:right}
+  .tot{padding:10px 14px;border-top:1.5px solid #111}
+  .tot .l{display:flex;justify-content:space-between;margin:3px 0;font-size:13px}
+  .tot .neto{font-size:17px;font-weight:bold}
+  .neg{color:#b00}
+  .letras{padding:8px 14px;font-size:12px;color:#333}
+  .firma{border-top:1px solid #333;width:240px;text-align:center;padding-top:3px;margin:44px 14px 14px}
+  .aviso{max-width:800px;margin:10px auto;font-size:12px;color:#14663a;background:#eefaf1;border:1px solid #a9dcbb;padding:8px 12px;border-radius:8px}
+  @media print{ .toolbar,.aviso{display:none} body{background:#fff} .hoja{margin:0;max-width:none;padding:0} }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <a href="{{ url_for('liquidaciones.gestionar', pid=prop.id, mes=mes, anio=anio) }}">← Volver</a>
+  <span style="flex:1"></span>
+  <button class="print" onclick="window.print()">🖨️ Imprimir / PDF</button>
+</div>
+
+{% if liq %}<div class="aviso">Liquidación <b>{{ liq.numero }}</b>{% if individual %} (individual){% endif %} generada el {{ liq.fecha.strftime('%d/%m/%Y') if liq.fecha }}.</div>{% endif %}
+{% if not items %}<div class="aviso" style="background:#fdecec;border-color:#f0b4b4;color:#9c2020">No hay cobros para este período.</div>{% endif %}
+
+<div class="hoja">
+  <div class="doc">
+    <div class="cab">
+      <div>
+        <div class="nom">{{ a.nombre }}</div>
+        <div class="datos">
+          {% if a.direccion %}{{ a.direccion }}<br>{% endif %}
+          {% if a.localidad %}{{ a.localidad }}{% endif %}{% if a.telefono %} · Tel: {{ a.telefono }}{% endif %}<br>
+          {% if a.cuit %}C.U.I.T: {{ a.cuit }}{% endif %}
+        </div>
+      </div>
+      <div>
+        <div class="tt">LIQUIDACIÓN</div>
+        <div class="tt n">{{ liq.numero if liq else '(sin generar)' }}</div>
+        <div class="datos r">{{ (liq.fecha if liq else hoy).strftime('%d/%m/%Y') }}</div>
+      </div>
+    </div>
+    <div class="band">LIQUIDACIÓN AL PROPIETARIO · PERÍODO {{ meses[mes]|upper }} {{ anio }}</div>
+    <div class="info">
+      <b>Propietario:</b> {{ prop.nombre }}{% if prop.cuit %} · <b>CUIT:</b> {{ prop.cuit }}{% endif %}
+    </div>
+    <table>
+      <thead>
+        <tr><th>Inmueble</th><th>Inquilino</th><th class="r">Alquiler</th><th class="r">Comisión</th><th class="r">Neto</th></tr>
+      </thead>
+      <tbody>
+        {% for it in items %}
+        <tr>
+          <td>{{ it.inmueble.codigo or '' }} {{ it.inmueble.direccion }}</td>
+          <td>{{ it.inquilino.nombre if it.inquilino else '—' }}</td>
+          <td class="r">{{ it.alquiler|money }}</td>
+          <td class="r neg">- {{ it.comision|money }} <span style="color:#999">({{ it.pct }}%)</span></td>
+          <td class="r">{{ it.neto|money }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="tot">
+      <div class="l"><span>Total cobrado</span><span>{{ ingresos|money }}</span></div>
+      <div class="l neg"><span>Comisión por administración</span><span>- {{ comision|money }}</span></div>
+      <div class="l neto"><span>Neto a pagar al propietario</span><span>{{ neto|money }}</span></div>
+    </div>
+    <div class="letras">Son: {{ neto_letras }}.</div>
+    <div class="firma">Firma y aclaración</div>
+  </div>
+</div>
+</body>
+</html>

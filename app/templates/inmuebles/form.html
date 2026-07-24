@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Editar' if inmueble.id else 'Nuevo' }} inmueble{% endblock %}
+{% block content %}
+<div class="pagehead"><h1>{{ 'Editar' if inmueble.id else 'Nuevo' }} inmueble</h1></div>
+
+<form method="post" class="cardform">
+  <div class="grid2">
+    <div><label>Código</label><input name="codigo" value="{{ inmueble.codigo or '' }}" placeholder="DE17"></div>
+    <div><label>Tipo</label>
+      <select name="tipo">
+        <option value="">—</option>
+        {% for t in tipos %}<option value="{{ t }}" {{ 'selected' if inmueble.tipo==t }}>{{ t }}</option>{% endfor %}
+      </select></div>
+    <div class="full"><label>Dirección *</label>
+      <input name="direccion" value="{{ inmueble.direccion or '' }}" required></div>
+    <div><label>Localidad</label><input name="localidad" value="{{ inmueble.localidad or '' }}"></div>
+    <div><label>Provincia</label><input name="provincia" value="{{ inmueble.provincia or '' }}"></div>
+    <div><label>Barrio</label><input name="barrio" value="{{ inmueble.barrio or '' }}"></div>
+    <div><label>Estado</label>
+      <select name="estado">
+        {% for e in estados %}<option value="{{ e }}" {{ 'selected' if inmueble.estado==e }}>{{ e }}</option>{% endfor %}
+      </select></div>
+    <div><label>Dormitorios</label><input name="dormitorios" value="{{ inmueble.dormitorios if inmueble.dormitorios is not none else '' }}"></div>
+    <div><label>Baños</label><input name="banos" value="{{ inmueble.banos if inmueble.banos is not none else '' }}"></div>
+    <div><label>Propietario</label>
+      <select name="propietario_id">
+        <option value="">—</option>
+        {% for p in propietarios %}
+          <option value="{{ p.id }}" {{ 'selected' if inmueble.propietario_id==p.id }}>{{ p.nombre }}</option>
+        {% endfor %}
+      </select>
+      <span class="hint">¿No aparece? Marcalo como propietario en Personas.</span></div>
+    <div><label>Moneda</label>
+      <select name="moneda">
+        <option {{ 'selected' if inmueble.moneda=='Pesos' }}>Pesos</option>
+        <option {{ 'selected' if inmueble.moneda=='Dólares' }}>Dólares</option>
+      </select></div>
+    <div><label>Precio de referencia</label>
+      <input name="precio_referencia" value="{{ inmueble.precio_referencia if inmueble.precio_referencia is not none else '' }}"></div>
+    <div><label>% Comisión al propietario</label>
+      <input name="comision_pct" value="{{ inmueble.comision_pct if inmueble.comision_pct is not none else '' }}"></div>
+  </div>
+
+  <label>Descripción</label>
+  <textarea name="descripcion" rows="3">{{ inmueble.descripcion or '' }}</textarea>
+  <label>Observaciones</label>
+  <textarea name="observaciones" rows="2">{{ inmueble.observaciones or '' }}</textarea>
+
+  <div class="formbtns">
+    <button class="btn" type="submit">Guardar</button>
+    <a class="btn sec" href="{{ url_for('inmuebles.listar') }}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

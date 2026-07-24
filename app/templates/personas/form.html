@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Editar' if persona.id else 'Nueva' }} persona{% endblock %}
+{% block content %}
+<div class="pagehead"><h1>{{ 'Editar' if persona.id else 'Nueva' }} persona</h1></div>
+
+<form method="post" class="cardform">
+  <div class="grid2">
+    <div class="full"><label>Nombre y apellido *</label>
+      <input name="nombre" value="{{ persona.nombre or '' }}" required autofocus></div>
+    <div><label>DNI</label><input name="dni" value="{{ persona.dni or '' }}"></div>
+    <div><label>CUIT / CUIL</label><input name="cuit" value="{{ persona.cuit or '' }}"></div>
+    <div class="full"><label>Domicilio</label>
+      <input name="domicilio" value="{{ persona.domicilio or '' }}"></div>
+    <div><label>Localidad</label><input name="localidad" value="{{ persona.localidad or '' }}"></div>
+    <div><label>Condición IVA</label>
+      <input name="cond_iva" value="{{ persona.cond_iva or 'Consumidor Final' }}"></div>
+    <div><label>Teléfono</label><input name="telefono" value="{{ persona.telefono or '' }}"></div>
+    <div><label>Email</label><input name="email" value="{{ persona.email or '' }}"></div>
+  </div>
+
+  <div class="checks">
+    <label class="chk"><input type="checkbox" name="es_propietario"
+      {{ 'checked' if persona.es_propietario }}> Es propietario</label>
+    <label class="chk"><input type="checkbox" name="es_inquilino"
+      {{ 'checked' if persona.es_inquilino }}> Es inquilino</label>
+  </div>
+
+  <label>Observaciones</label>
+  <textarea name="observaciones" rows="3">{{ persona.observaciones or '' }}</textarea>
+
+  <div class="formbtns">
+    <button class="btn" type="submit">Guardar</button>
+    <a class="btn sec" href="{{ url_for('personas.listar') }}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

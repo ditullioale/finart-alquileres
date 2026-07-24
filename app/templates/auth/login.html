@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Ingresar{% endblock %}
+{% block content %}
+<div class="login-box">
+  <h1>🏠 Gestión de Alquileres</h1>
+  <p class="sub">Iniciá sesión para continuar</p>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
+  {% endwith %}
+  <form method="post">
+    <label>Usuario</label>
+    <input name="username" autofocus required>
+    <label>Contraseña</label>
+    <input name="password" type="password" required>
+    <button class="btn" type="submit">Ingresar</button>
+  </form>
+  <p class="hint">Usuario inicial: <b>admin</b> · contraseña: <b>admin123</b> (cambiala luego).</p>
+</div>
+{% endblock %}

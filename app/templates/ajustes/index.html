@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Ajustes{% endblock %}
+{% block content %}
+<div class="pagehead"><h1>Ajustes de la inmobiliaria</h1></div>
+<p class="hint" style="margin-bottom:14px">Estos datos aparecen en los recibos, liquidaciones y pagarés.</p>
+
+<form method="post" class="cardform">
+  <div class="grid2">
+    <div class="full"><label>Nombre / Razón social</label><input name="nombre" value="{{ a.nombre or '' }}"></div>
+    <div><label>CUIT</label><input name="cuit" value="{{ a.cuit or '' }}"></div>
+    <div><label>Ingresos Brutos</label><input name="ing_brutos" value="{{ a.ing_brutos or '' }}"></div>
+    <div><label>Inicio de actividades</label><input name="inicio_actividades" value="{{ a.inicio_actividades or '' }}" placeholder="01/03/2003"></div>
+    <div><label>Condición IVA</label><input name="cond_iva" value="{{ a.cond_iva or '' }}"></div>
+    <div class="full"><label>Dirección</label><input name="direccion" value="{{ a.direccion or '' }}"></div>
+    <div><label>Localidad</label><input name="localidad" value="{{ a.localidad or '' }}"></div>
+    <div><label>Teléfono</label><input name="telefono" value="{{ a.telefono or '' }}"></div>
+    <div class="full"><label>Horario (pie del recibo)</label><input name="horario" value="{{ a.horario or '' }}" placeholder="9:30 a 19hs | Lunes a Viernes"></div>
+    <div class="full"><label>URL del logo</label><input name="logo_url" value="{{ a.logo_url or '' }}" placeholder="https://... (opcional)"></div>
+  </div>
+
+  <h2 style="margin-top:18px">Numeración y pagarés</h2>
+  <div class="grid2">
+    <div><label>Prefijo de recibo</label><input name="recibo_prefijo" value="{{ a.recibo_prefijo or '0001' }}"></div>
+    <div><label>Próximo número de recibo</label><input name="recibo_proximo" value="{{ a.recibo_proximo or 1 }}"></div>
+    <div><label>Meses por pagaré (por defecto)</label><input name="pagare_meses" value="{{ a.pagare_meses or 10 }}"></div>
+    <div><label>Lugar de pago del pagaré</label><input name="pagare_lugar" value="{{ a.pagare_lugar or '' }}"></div>
+  </div>
+
+  <div class="formbtns"><button class="btn" type="submit">Guardar ajustes</button></div>
+</form>
+
+<div class="cardform" style="margin-top:16px">
+  <h2>Cambiar contraseña</h2>
+  <form method="post" action="{{ url_for('ajustes.cambiar_clave') }}">
+    <div class="grid2">
+      <div><label>Contraseña actual</label><input type="password" name="actual" required></div>
+      <div></div>
+      <div><label>Nueva contraseña</label><input type="password" name="nueva" required></div>
+      <div><label>Repetir nueva</label><input type="password" name="repetir" required></div>
+    </div>
+    <div class="formbtns"><button class="btn sec" type="submit">Cambiar contraseña</button></div>
+  </form>
+</div>
+{% endblock %}

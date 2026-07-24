@@ -1,0 +1,17 @@
+Flask==3.0.3
+Flask-SQLAlchemy==3.1.1
+Flask-Login==0.6.3
+SQLAlchemy==2.0.34
+python-dotenv==1.0.1
+Werkzeug==3.0.4
+# Driver de PostgreSQL (para uso multiusuario en red):
+psycopg2-binary>=2.9.10
+# Para el importador de datos de Inmosoft (Excel):
+pandas>=2.2.3
+openpyxl>=3.1.5
+# Servidor para uso multiusuario en red:
+waitress>=3.0.0
+# Servidor para producción en la nube:
+gunicorn>=22.0.0
+# Para recibos/liquidaciones en PDF (Sprint 5):
+# weasyprint==62.3

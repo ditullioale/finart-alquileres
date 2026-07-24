@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Liquidar — {{ prop.nombre }}{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Liquidar a {{ prop.nombre }}</h1>
+    <p class="sub">Período {{ meses[mes] }} {{ anio }} · elegí liquidar todas juntas o cada inmueble por separado.</p>
+  </div>
+  <a class="btn sec" href="{{ url_for('liquidaciones.index', mes=mes, anio=anio) }}">← Volver</a>
+</div>
+
+{% if items %}
+<div class="cards" style="grid-template-columns:repeat(3,1fr)">
+  <div class="card"><div class="ic">💵</div><div class="num" style="font-size:22px">$ {{ ingresos|money }}</div><div class="lbl">Total cobrado</div></div>
+  <div class="card"><div class="ic">✂️</div><div class="num" style="font-size:22px;color:#8a5a00">$ {{ comision|money }}</div><div class="lbl">Comisión</div></div>
+  <div class="card"><div class="ic">✅</div><div class="num" style="font-size:22px;color:var(--ok)">$ {{ neto|money }}</div><div class="lbl">Neto a pagar</div></div>
+</div>
+
+<div class="panel" style="margin-bottom:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+  <b>Liquidar todo junto:</b>
+  <span class="hint" style="display:inline;margin:0">{{ pendientes }} inmueble(s) pendiente(s) de liquidar</span>
+  <span style="flex:1"></span>
+  <a class="btn sec" href="{{ url_for('liquidaciones.ver', pid=prop.id, mes=mes, anio=anio) }}" target="_blank">Ver / Imprimir todo</a>
+  {% if pendientes > 0 %}
+  <form method="post" action="{{ url_for('liquidaciones.generar') }}" style="margin:0"
+        onsubmit="return confirm('¿Liquidar TODAS las propiedades pendientes de {{ prop.nombre }} juntas?')">
+    <input type="hidden" name="propietario_id" value="{{ prop.id }}">
+    <input type="hidden" name="mes" value="{{ mes }}"><input type="hidden" name="anio" value="{{ anio }}">
+    <button class="btn ok" type="submit">✓ Liquidar todas juntas</button>
+  </form>
+  {% endif %}
+</div>
+
+<table class="grid">
+  <thead>
+    <tr><th>Inmueble</th><th>Inquilino</th><th class="r">Alquiler</th>
+        <th class="r">Comisión</th><th class="r">Neto</th><th>Estado</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for it in items %}
+    <tr>
+      <td><b>{{ it.inmueble.direccion }}</b></td>
+      <td>{{ it.inquilino.nombre if it.inquilino else '—' }}</td>
+      <td class="r">{{ it.alquiler|money }}</td>
+      <td class="r">- {{ it.comision|money }} <span class="hint" style="display:inline">({{ it.pct }}%)</span></td>
+      <td class="r"><b>{{ it.neto|money }}</b></td>
+      <td>{% if it.liquidada %}<span class="badge pagado">Liquidada</span>{% else %}<span class="badge parcial">Pendiente</span>{% endif %}</td>
+      <td class="actions">
+        <a href="{{ url_for('liquidaciones.ver', pid=prop.id, mes=mes, anio=anio, contrato=it.contrato.id) }}" target="_blank">Imprimir</a>
+        {% if not it.liquidada %}
+        <form method="post" action="{{ url_for('liquidaciones.generar') }}" style="margin:0"
+              onsubmit="return confirm('¿Liquidar solo este inmueble ({{ it.inmueble.direccion }})?')">
+          <input type="hidden" name="propietario_id" value="{{ prop.id }}">
+          <input type="hidden" name="contrato_id" value="{{ it.contrato.id }}">
+          <input type="hidden" name="mes" value="{{ mes }}"><input type="hidden" name="anio" value="{{ anio }}">
+          <button class="btn ok sm" type="submit">Liquidar</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+  <div class="em">🧾</div>
+  <h3>No hay cobros para liquidar</h3>
+  <p>Este propietario no tiene alquileres cobrados en {{ meses[mes] }} {{ anio }}.</p>
+</div>
+{% endif %}
+{% endblock %}

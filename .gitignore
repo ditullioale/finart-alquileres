@@ -1,0 +1,13 @@
+# Nunca subir secretos ni datos locales
+.env
+*.db
+*.db-journal
+
+# Entorno de Python
+venv/
+__pycache__/
+*.pyc
+
+# Sistema
+.DS_Store
+Thumbs.db

@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Editar' if c.id else 'Alta directa de' }} contrato{% endblock %}
+{% block content %}
+<div class="pagehead"><h1>{{ 'Editar contrato' if c.id else 'Alta directa de contrato' }}</h1></div>
+
+{% if not c.id %}
+<div class="flash ok" style="background:#eaf0fb;border-color:#b9cdf0;color:#274b8f">
+  Usá esta alta para cargar un alquiler <b>ya en curso</b>: podés poner la fecha de inicio real
+  (aunque sea pasada) y el precio actual ya aumentado. El historial de pagos se carga luego en Cobros.
+</div>
+{% endif %}
+
+<form method="post" class="cardform">
+  <h2>Partes e inmueble</h2>
+  <div class="grid2">
+    <div><label>Inmueble *</label>
+      <select name="inmueble_id" id="inmueble_id" required>
+        <option value="">— elegí —</option>
+        {% for i in inmuebles %}
+        <option value="{{ i.id }}" data-prop="{{ i.propietario_id or '' }}" {{ 'selected' if c.inmueble_id==i.id }}>
+          {{ (i.codigo ~ ' · ' if i.codigo else '') }}{{ i.direccion }}</option>
+        {% endfor %}
+      </select>
+      <span class="hint">¿No está? <a href="{{ url_for('inmuebles.nuevo') }}" target="_blank">Cargá el inmueble</a>.</span></div>
+    <div><label>Número de contrato</label><input name="numero" value="{{ c.numero or '' }}" placeholder="opcional"></div>
+    <div><label>Inquilino *</label>
+      <select name="inquilino_id" required>
+        <option value="">— elegí —</option>
+        {% for p in inquilinos %}<option value="{{ p.id }}" {{ 'selected' if c.inquilino_id==p.id }}>{{ p.nombre }}</option>{% endfor %}
+      </select>
+      <span class="hint">¿No está? <a href="{{ url_for('personas.nueva') }}" target="_blank">Cargá la persona</a> como inquilino.</span></div>
+    <div><label>Propietario</label>
+      <select name="propietario_id" id="propietario_id">
+        <option value="">— (toma el del inmueble) —</option>
+        {% for p in propietarios %}<option value="{{ p.id }}" {{ 'selected' if c.propietario_id==p.id }}>{{ p.nombre }}</option>{% endfor %}
+      </select></div>
+  </div>
+
+  <h2 style="margin-top:18px">Condiciones</h2>
+  <div class="grid2">
+    <div><label>Fecha de inicio *</label>
+      <input type="date" name="fecha_inicio" value="{{ c.fecha_inicio.isoformat() if c.fecha_inicio }}" required></div>
+    <div><label>Duración (meses)</label><input name="duracion_meses" value="{{ c.duracion_meses or '' }}" placeholder="ej. 36"></div>
+    <div><label>Fecha de fin</label>
+      <input type="date" name="fecha_fin" value="{{ c.fecha_fin.isoformat() if c.fecha_fin }}">
+      <span class="hint">Si la dejás vacía, se calcula con inicio + duración.</span></div>
+    <div><label>Moneda</label>
+      <select name="moneda"><option {{ 'selected' if c.moneda=='Pesos' }}>Pesos</option>
+        <option {{ 'selected' if c.moneda=='Dólares' }}>Dólares</option></select></div>
+    <div><label>Precio inicial *</label><input name="precio_inicial" value="{{ c.precio_inicial if c.precio_inicial is not none else '' }}" required></div>
+    <div><label>Precio actual (ya aumentado)</label>
+      <input name="precio_actual" value="{{ c.precio_actual if c.precio_actual is not none else '' }}">
+      <span class="hint">Para alquileres en curso. Si lo dejás vacío, usa el inicial.</span></div>
+    <div><label>Día de vencimiento</label><input name="dia_vencimiento" value="{{ c.dia_vencimiento or '' }}"></div>
+    <div><label>Mora diaria (%)</label><input name="mora_diaria_pct" value="{{ c.mora_diaria_pct if c.mora_diaria_pct is not none else '' }}"></div>
+    <div><label>Comisión de administración (%)</label>
+      <input name="comision_pct" value="{{ c.comision_pct if c.comision_pct is not none else '' }}" placeholder="ej. 8">
+      <span class="hint">Se descuenta al liquidar al propietario. Si queda vacía, usa la del inmueble.</span></div>
+  </div>
+
+  <h2 style="margin-top:18px">Aumentos</h2>
+  <div class="grid2">
+    <div><label>Método de ajuste</label>
+      <select name="metodo_ajuste" id="metodo_ajuste" onchange="toggleAjuste()">
+        {% for val,lbl in metodos %}<option value="{{ val }}" {{ 'selected' if c.metodo_ajuste==val }}>{{ lbl }}</option>{% endfor %}
+      </select></div>
+    <div><label>Cada cuántos meses</label><input name="ajuste_cada_meses" value="{{ c.ajuste_cada_meses or '' }}" placeholder="ej. 6"></div>
+    <div id="box_indice"><label>Índice</label>
+      <select name="indice_tipo">
+        <option value="">—</option>
+        {% for val,lbl in indices %}<option value="{{ val }}" {{ 'selected' if c.indice_tipo==val }}>{{ lbl }}</option>{% endfor %}
+      </select></div>
+    <div id="box_pct"><label>Porcentaje por período (%)</label>
+      <input name="porcentaje_ajuste" value="{{ c.porcentaje_ajuste if c.porcentaje_ajuste is not none else '' }}"></div>
+  </div>
+
+  <h2 style="margin-top:18px">Estado y fiadores</h2>
+  <div class="grid2">
+    <div><label>Estado</label>
+      <select name="estado">{% for e in estados %}<option {{ 'selected' if c.estado==e }}>{{ e }}</option>{% endfor %}</select></div>
+  </div>
+
+  <div id="fiadores"></div>
+  <button type="button" class="btn sec" style="margin-top:8px" onclick="addFiador()">+ Agregar fiador</button>
+
+  <label style="margin-top:14px">Observaciones</label>
+  <textarea name="observaciones" rows="2">{{ c.observaciones or '' }}</textarea>
+
+  <div class="formbtns">
+    <button class="btn" type="submit">Guardar contrato</button>
+    <a class="btn sec" href="{{ url_for('contratos.listar') }}">Cancelar</a>
+  </div>
+</form>
+
+<script>
+function toggleAjuste(){
+  const m = document.getElementById('metodo_ajuste').value;
+  document.getElementById('box_indice').style.display = (m==='indice')?'block':'none';
+  document.getElementById('box_pct').style.display = (m==='porcentaje')?'block':'none';
+}
+function addFiador(d){
+  d = d || {};
+  const div = document.createElement('div');
+  div.className = 'card'; div.style.marginTop='10px';
+  div.innerHTML = `<div class="grid2">
+    <div><label>Fiador — nombre</label><input name="fiador_nombre" value="${d.nombre||''}"></div>
+    <div><label>DNI</label><input name="fiador_dni" value="${d.dni||''}"></div>
+    <div><label>Domicilio</label><input name="fiador_dom" value="${d.dom||''}"></div>
+    <div><label>Teléfono</label><input name="fiador_tel" value="${d.tel||''}"></div>
+    <div><label>Email</label><input name="fiador_email" value="${d.email||''}"></div>
+    <div style="align-self:end"><button type="button" class="btn sec" onclick="this.closest('.card').remove()">Quitar</button></div>
+  </div>`;
+  document.getElementById('fiadores').appendChild(div);
+}
+// Autocompletar propietario desde el inmueble
+document.getElementById('inmueble_id').addEventListener('change', function(){
+  const prop = this.options[this.selectedIndex]?.dataset.prop;
+  const sel = document.getElementById('propietario_id');
+  if(prop && !sel.value) sel.value = prop;
+});
+// Fiadores existentes (al editar)
+{% for f in c.fiadores %}
+addFiador({nombre:{{ f.nombre|tojson }}, dni:{{ (f.dni or '')|tojson }}, dom:{{ (f.domicilio or '')|tojson }}, tel:{{ (f.telefono or '')|tojson }}, email:{{ (f.email or '')|tojson }}});
+{% endfor %}
+toggleAjuste();
+</script>
+{% endblock %}

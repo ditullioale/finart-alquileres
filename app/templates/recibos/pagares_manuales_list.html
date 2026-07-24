@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Pagarés manuales{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Pagarés manuales</h1>
+    <p class="sub">Generá uno o varios pagarés sueltos, sin depender de un contrato.</p>
+  </div>
+  <a class="btn" href="{{ url_for('recibos.pagare_manual_nuevo') }}">+ Nuevo pagaré</a>
+</div>
+
+<form class="filters" method="get">
+  <input name="q" value="{{ q }}" placeholder="🔎 Buscar por deudor, beneficiario o concepto">
+  <button class="btn sec" type="submit">Buscar</button>
+</form>
+
+{% if pagares %}
+<table class="grid">
+  <thead>
+    <tr><th>Fecha</th><th>Deudor</th><th>Beneficiario</th><th class="r">Monto c/u</th><th class="r">Cant.</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for pm in pagares %}
+    <tr>
+      <td>{{ pm.fecha.strftime('%d/%m/%Y') if pm.fecha }}</td>
+      <td><b>{{ pm.deudor }}</b></td>
+      <td>{{ pm.beneficiario or '—' }}</td>
+      <td class="r">{{ pm.moneda }} {{ pm.monto|money }}</td>
+      <td class="r">{{ pm.cantidad }}</td>
+      <td class="actions">
+        <a href="{{ url_for('recibos.pagare_manual_ver', pmid=pm.id) }}" target="_blank">Imprimir</a>
+        <form method="post" action="{{ url_for('recibos.pagare_manual_eliminar', pmid=pm.id) }}"
+              onsubmit="return confirm('¿Eliminar este pagaré?')">
+          <button class="link-danger" type="submit">Eliminar</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+  <div class="em">📃</div>
+  <h3>No hay pagarés manuales{{ ' con esa búsqueda' if q }}</h3>
+  <p>Creá pagarés sueltos: garantías, cuotas de convenios, etc.</p>
+  <a class="btn" href="{{ url_for('recibos.pagare_manual_nuevo') }}">+ Nuevo pagaré</a>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Editar aumento{% endblock %}
+{% block content %}
+<div class="pagehead"><h1>Editar aumento</h1></div>
+
+<div class="panel" style="margin-bottom:14px">
+  <b>{{ c.inmueble.direccion }}</b> · {{ c.inquilino.nombre if c.inquilino else '—' }} ·
+  Método: {% if a.metodo=='porcentaje' %}Porcentaje{% else %}Índice {{ indice_nombre.get(a.indice_tipo, a.indice_tipo) }}{% endif %}
+  {% if es_ultimo %}<span class="badge parcial">Es el último aumento: al guardarlo se actualiza el precio actual del contrato</span>{% endif %}
+</div>
+
+<form method="post" class="cardform">
+  <div class="grid2">
+    <div><label>Vigente desde</label>
+      <input type="date" name="fecha_vigencia" value="{{ a.fecha_vigencia.isoformat() if a.fecha_vigencia }}"></div>
+    {% if a.metodo=='porcentaje' %}
+    <div><label>Porcentaje (%)</label><input name="porcentaje" value="{{ a.porcentaje if a.porcentaje is not none else '' }}"></div>
+    {% endif %}
+    <div><label>Precio anterior</label><input name="precio_anterior" value="{{ a.precio_anterior if a.precio_anterior is not none else '' }}"></div>
+    <div><label>Precio nuevo</label><input name="precio_nuevo" value="{{ a.precio_nuevo if a.precio_nuevo is not none else '' }}"></div>
+  </div>
+  <label style="margin-top:10px">Observaciones</label>
+  <textarea name="observaciones" rows="2">{{ a.observaciones or '' }}</textarea>
+  <div class="formbtns">
+    <button class="btn" type="submit">Guardar cambios</button>
+    <a class="btn sec" href="{{ url_for('contratos.ver', cid=c.id) }}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

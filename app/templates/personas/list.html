@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Personas{% endblock %}
+{% macro th(label, key, cls='') %}
+  {% set cur = request.args.get('sort') %}
+  {% set curdir = request.args.get('dir','asc') %}
+  {% set nd = 'desc' if (cur==key and curdir=='asc') else 'asc' %}
+  <th class="{{ cls }}"><a class="sorth" href="{{ url_for(request.endpoint, **dict(request.args, sort=key, dir=nd)) }}">{{ label }}<span class="arr">{{ ' ▲' if cur==key and curdir=='asc' else (' ▼' if cur==key else '') }}</span></a></th>
+{% endmacro %}
+{% block content %}
+<div class="pagehead">
+  <h1>Personas</h1>
+  <a class="btn" href="{{ url_for('personas.nueva') }}">+ Nueva persona</a>
+</div>
+
+<form class="filters" method="get">
+  <input name="q" value="{{ q }}" placeholder="Buscar por nombre, DNI o CUIT">
+  <select name="rol">
+    <option value="">Todos</option>
+    <option value="propietario" {{ 'selected' if rol=='propietario' }}>Propietarios</option>
+    <option value="inquilino" {{ 'selected' if rol=='inquilino' }}>Inquilinos</option>
+  </select>
+  <button class="btn sec" type="submit">Filtrar</button>
+</form>
+
+<table class="grid">
+  <thead>
+    <tr>{{ th('Nombre','nombre') }}{{ th('DNI','dni') }}{{ th('CUIT','cuit') }}<th>Rol</th>{{ th('Teléfono','telefono') }}{{ th('Email','email') }}<th></th></tr>
+  </thead>
+  <tbody>
+    {% for p in personas %}
+    <tr>
+      <td><a href="{{ url_for('personas.editar', pid=p.id) }}">{{ p.nombre }}</a></td>
+      <td>{{ p.dni or '—' }}</td>
+      <td>{{ p.cuit or '—' }}</td>
+      <td>{{ p.roles_texto }}</td>
+      <td>{{ p.telefono or '—' }}</td>
+      <td>{{ p.email or '—' }}</td>
+      <td class="actions">
+        <a href="{{ url_for('personas.editar', pid=p.id) }}">Editar</a>
+        <form method="post" action="{{ url_for('personas.eliminar', pid=p.id) }}"
+              onsubmit="return confirm('¿Eliminar a {{ p.nombre }}?')">
+          <button class="link-danger" type="submit">Eliminar</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="empty">No hay personas cargadas.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

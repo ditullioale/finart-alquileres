@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Pagarés — {{ pm.deudor }}</title>
+<style>
+  body{font-family:'Times New Roman',Georgia,serif;color:#111;margin:0;background:#f0f0f0}
+  .toolbar{background:#12263f;color:#fff;padding:10px 16px;display:flex;gap:10px;align-items:center;font-family:Arial}
+  .toolbar a{color:#cfe0f5;text-decoration:none}
+  .toolbar button{background:#2f6fed;color:#fff;border:0;border-radius:7px;padding:8px 16px;font-weight:600;cursor:pointer}
+  .hoja{max-width:820px;margin:16px auto}
+  .pagare{background:#fffef7;border:2px solid #333;padding:20px 24px;margin:0 auto 20px;font-size:14px;line-height:1.55}
+  .tt{display:flex;justify-content:space-between;font-weight:bold;font-size:15px;border-bottom:1px solid #999;padding-bottom:6px;margin-bottom:10px}
+  .pagare p{margin:9px 0;text-align:justify}
+  .firma{margin-top:34px;border-top:1px solid #333;width:60%;padding-top:5px;font-size:12px}
+  @media print{ .toolbar{display:none} body{background:#fff} .hoja{margin:0;max-width:none} .pagare{page-break-inside:avoid} }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <a href="{{ url_for('recibos.pagares_manuales') }}">← Volver</a>
+  <span style="flex:1"></span>
+  <button onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+</div>
+
+<div class="hoja">
+  {% for pg in pagares %}
+  <div class="pagare">
+    <div class="tt"><span>PAGARÉ {{ pg.n }}/{{ pagares|length }} — SIN PROTESTO</span><span>{{ pm.moneda }} {{ pm.monto|money }}</span></div>
+    <p>{{ pm.lugar or '________' }}, {{ pm.fecha.strftime('%d/%m/%Y') if pm.fecha }}.</p>
+    <p>Vencimiento: <b>{{ pg.venc }}</b>. Por igual valor recibido a mi entera satisfacción, pagaré SIN PROTESTO
+       (art. 50 Dec. Ley 5965/63) a <b>{{ pm.beneficiario or '________' }}</b> o a su orden,
+       la cantidad de <b>{{ pm.moneda }} {{ pm.monto|money }}</b> ({{ monto_letras }}).</p>
+    {% if pm.concepto %}<p>Concepto: {{ pm.concepto }}.</p>{% endif %}
+    <p>Pagadero en {{ pm.lugar or '________' }}.</p>
+    <div class="firma">
+      <b>{{ pm.deudor }}</b><br>
+      D.N.I. / CUIT: {{ pm.deudor_dni or '____________' }}<br>
+      Domicilio: {{ pm.deudor_domicilio or '____________' }}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+</body>
+</html>

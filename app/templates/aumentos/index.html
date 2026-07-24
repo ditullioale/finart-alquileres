@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Aumentos{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1>Aumentos</h1>
+  <a class="btn sec" href="{{ url_for('aumentos.indices') }}">Gestionar índices</a>
+</div>
+
+<div class="panel" style="margin-bottom:16px">
+  <h2 class="txt-danger">Aumentos pendientes ({{ pendientes|length }})</h2>
+  {% if pendientes %}
+  <table class="grid">
+    <thead><tr><th>Vencía</th><th>Inmueble</th><th>Inquilino</th><th>Método</th><th class="r">Precio actual</th><th></th></tr></thead>
+    <tbody>
+      {% for it in pendientes %}
+      <tr>
+        <td class="txt-danger"><b>{{ it.fecha.strftime('%d/%m/%Y') }}</b></td>
+        <td>{{ it.c.inmueble.direccion }}</td>
+        <td>{{ it.c.inquilino.nombre if it.c.inquilino else '—' }}</td>
+        <td>{% if it.c.metodo_ajuste=='indice' %}{{ indice_nombre.get(it.c.indice_tipo, it.c.indice_tipo) }}{% else %}{{ it.c.porcentaje_ajuste }}%{% endif %}</td>
+        <td class="r">{{ it.c.moneda }} {{ it.c.precio_actual|money }}</td>
+        <td class="actions"><a class="btn" href="{{ url_for('aumentos.aplicar', cid=it.c.id) }}">Aplicar</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="hint">No hay aumentos vencidos. 👍</p>{% endif %}
+</div>
+
+<div class="panel" style="margin-bottom:16px">
+  <h2>Próximos (45 días)</h2>
+  {% if proximos %}
+  <table class="grid">
+    <thead><tr><th>Fecha</th><th>Inmueble</th><th>Inquilino</th><th>Método</th><th></th></tr></thead>
+    <tbody>
+      {% for it in proximos %}
+      <tr>
+        <td>{{ it.fecha.strftime('%d/%m/%Y') }}</td>
+        <td>{{ it.c.inmueble.direccion }}</td>
+        <td>{{ it.c.inquilino.nombre if it.c.inquilino else '—' }}</td>
+        <td>{% if it.c.metodo_ajuste=='indice' %}{{ indice_nombre.get(it.c.indice_tipo, it.c.indice_tipo) }}{% else %}{{ it.c.porcentaje_ajuste }}%{% endif %}</td>
+        <td class="actions"><a href="{{ url_for('aumentos.aplicar', cid=it.c.id) }}">Aplicar ahora</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="hint">Nada en los próximos 45 días.</p>{% endif %}
+</div>
+
+<div class="panel">
+  <h2>Últimos aumentos aplicados</h2>
+  {% if ultimos %}
+  <table class="grid">
+    <thead><tr><th>Vigencia</th><th>Contrato</th><th>Método</th><th class="r">Anterior</th><th class="r">Nuevo</th></tr></thead>
+    <tbody>
+      {% for a in ultimos %}
+      <tr>
+        <td>{{ a.fecha_vigencia.strftime('%d/%m/%Y') if a.fecha_vigencia }}</td>
+        <td><a href="{{ url_for('contratos.ver', cid=a.contrato_id) }}">{{ a.contrato.inmueble.direccion }}</a></td>
+        <td>{% if a.metodo=='porcentaje' %}+{{ a.porcentaje }}%{% else %}Índice {{ a.indice_tipo }}{% endif %}</td>
+        <td class="r">{{ a.precio_anterior|money }}</td>
+        <td class="r"><b>{{ a.precio_nuevo|money }}</b></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="hint">Todavía no se aplicaron aumentos.</p>{% endif %}
+</div>
+{% endblock %}

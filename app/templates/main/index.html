@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Inicio{% endblock %}
+{% block content %}
+<h1>Panel principal</h1>
+
+<div class="cards">
+  <a class="card ci" href="{{ url_for('inmuebles.listar') }}">
+    <div class="ic">🏢</div><div class="num">{{ stats.inmuebles }}</div><div class="lbl">Inmuebles</div></a>
+  <a class="card ci" href="{{ url_for('inmuebles.listar', estado='Alquilado') }}">
+    <div class="ic">🔑</div><div class="num">{{ stats.alquilados }}</div><div class="lbl">Alquilados</div></a>
+  <a class="card ci" href="{{ url_for('contratos.listar', estado='Vigente') }}">
+    <div class="ic">📄</div><div class="num">{{ stats.contratos_vigentes }}</div><div class="lbl">Contratos vigentes</div></a>
+  <a class="card ci" href="{{ url_for('personas.listar', rol='propietario') }}">
+    <div class="ic">👤</div><div class="num">{{ stats.propietarios }}</div><div class="lbl">Propietarios</div></a>
+  <a class="card ci" href="{{ url_for('personas.listar', rol='inquilino') }}">
+    <div class="ic">👥</div><div class="num">{{ stats.inquilinos }}</div><div class="lbl">Inquilinos</div></a>
+</div>
+
+<div class="home-grid">
+  <div class="panel">
+    <h2>Accesos rápidos</h2>
+    <div class="quick">
+      <a class="btn" href="{{ url_for('contratos.nuevo') }}">+ Nuevo contrato</a>
+      <a class="btn" href="{{ url_for('contratos.generador') }}">Generar contrato</a>
+      <a class="btn sec" href="{{ url_for('inmuebles.nuevo') }}">+ Nuevo inmueble</a>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Pendientes</h2>
+    <div class="pend" style="grid-template-columns:1fr 1fr 1fr">
+      <a class="pend-item {{ 'alert' if pendientes.deuda > 0 else '' }}" href="{{ url_for('cobros.index') }}">
+        <div class="pv">$ {{ pendientes.deuda|money }}</div>
+        <div class="pl">Deuda registrada</div>
+      </a>
+      <a class="pend-item {{ 'alert' if pendientes.aumentos > 0 else '' }}" href="{{ url_for('aumentos.index') }}">
+        <div class="pv">{{ pendientes.aumentos }}</div>
+        <div class="pl">Aumentos por aplicar</div>
+      </a>
+      <a class="pend-item {{ 'alert' if pendientes.vencen > 0 else '' }}" href="#vencen">
+        <div class="pv">{{ pendientes.vencen }}</div>
+        <div class="pl">Contratos por vencer (60 días)</div>
+      </a>
+    </div>
+  </div>
+</div>
+
+{% if por_vencer %}
+<div class="panel" style="margin-top:16px" id="vencen">
+  <h2>⏰ Contratos que vencen pronto</h2>
+  <table class="grid">
+    <thead><tr><th>Vence</th><th>Inquilino</th><th>Inmueble</th><th class="r">Precio actual</th><th></th></tr></thead>
+    <tbody>
+      {% for c in por_vencer %}
+      <tr>
+        <td><b class="{{ 'txt-danger' if (c.fecha_fin - hoy).days <= 30 }}">{{ c.fecha_fin.strftime('%d/%m/%Y') }}</b>
+          <div class="hint" style="margin:0">en {{ (c.fecha_fin - hoy).days }} días</div></td>
+        <td>{{ c.inquilino.nombre if c.inquilino else '—' }}</td>
+        <td>{{ c.inmueble.direccion }}</td>
+        <td class="r">{{ c.moneda }} {{ c.precio_actual|money }}</td>
+        <td class="actions"><a href="{{ url_for('contratos.ver', cid=c.id) }}">Ver contrato</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

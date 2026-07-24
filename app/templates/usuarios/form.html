@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Editar' if u else 'Nuevo' }} usuario{% endblock %}
+{% block content %}
+<div class="pagehead"><h1>{{ 'Editar usuario' if u else 'Nuevo usuario' }}</h1></div>
+
+<form method="post" class="cardform">
+  <div class="grid2">
+    <div><label>Nombre de usuario *</label>
+      {% if u %}
+        <input value="{{ u.username }}" disabled>
+        <span class="hint">El nombre de usuario no se cambia.</span>
+      {% else %}
+        <input name="username" value="{{ datos.username or '' }}" required autofocus placeholder="ej. maria">
+      {% endif %}
+    </div>
+    <div><label>Nombre y apellido</label><input name="nombre" value="{{ u.nombre if u else (datos.nombre or '') }}"></div>
+    <div><label>Rol</label>
+      <select name="rol">
+        {% for val,lbl in roles %}<option value="{{ val }}" {{ 'selected' if (u.rol if u else datos.rol)==val }}>{{ lbl }}</option>{% endfor %}
+      </select></div>
+    {% if u %}
+    <div><label class="chk" style="margin-top:26px"><input type="checkbox" name="activo" {{ 'checked' if u.activo }}> Usuario activo</label></div>
+    {% endif %}
+    <div><label>{{ 'Nueva contraseña (opcional)' if u else 'Contraseña *' }}</label>
+      <input type="password" name="password" {{ '' if u else 'required' }} placeholder="{{ 'dejar vacío para no cambiarla' if u else '' }}"></div>
+  </div>
+
+  <div class="formbtns">
+    <button class="btn" type="submit">{{ 'Guardar cambios' if u else 'Crear usuario' }}</button>
+    <a class="btn sec" href="{{ url_for('usuarios.listar') }}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

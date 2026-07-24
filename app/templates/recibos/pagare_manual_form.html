@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Nuevo pagaré manual{% endblock %}
+{% block content %}
+<div class="pagehead"><h1>Nuevo pagaré manual</h1></div>
+
+<form method="post" class="cardform">
+  <h2>Deudor (quien firma / paga)</h2>
+  <div class="grid2">
+    <div><label>Nombre y apellido *</label><input name="deudor" required autofocus></div>
+    <div><label>DNI / CUIT</label><input name="deudor_dni"></div>
+    <div class="full"><label>Domicilio</label><input name="deudor_domicilio"></div>
+  </div>
+
+  <h2 style="margin-top:18px">Pagaré</h2>
+  <div class="grid2">
+    <div><label>Beneficiario (a la orden de)</label><input name="beneficiario" value="{{ a.nombre }}"></div>
+    <div><label>Concepto</label><input name="concepto" placeholder="ej. Garantía / Cuota convenio"></div>
+    <div><label>Fecha de libramiento</label><input type="date" name="fecha" value="{{ hoy.isoformat() }}"></div>
+    <div><label>Lugar de pago</label><input name="lugar" value="{{ a.pagare_lugar or a.localidad or '' }}"></div>
+    <div><label>Monto de cada pagaré *</label><input name="monto" required></div>
+    <div><label>Moneda</label><select name="moneda"><option>Pesos</option><option>Dólares</option></select></div>
+  </div>
+
+  <h2 style="margin-top:18px">Cantidad y vencimientos</h2>
+  <div class="grid2">
+    <div><label>Cantidad de pagarés</label><input name="cantidad" value="1"></div>
+    <div><label>Vencimiento del 1º</label>
+      <input type="date" name="primer_venc">
+      <span class="hint">Vacío = todos “a la vista”.</span></div>
+    <div><label>Cada cuántos días vence el siguiente</label><input name="cada_dias" value="30"></div>
+  </div>
+  <p class="hint">Ej: 10 pagarés, primer vencimiento el 10/08, cada 30 días → uno por mes con numeración automática.</p>
+
+  <div class="formbtns">
+    <button class="btn" type="submit">Generar pagarés</button>
+    <a class="btn sec" href="{{ url_for('recibos.pagares_manuales') }}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

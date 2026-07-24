@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Índices{% endblock %}
+{% block content %}
+<div class="pagehead"><h1>Índices de ajuste</h1></div>
+
+<div class="filters">
+  {% for t in tipos %}
+  <a class="btn {{ '' if tipo==t else 'sec' }}" href="{{ url_for('aumentos.indices', tipo=t) }}">{{ indice_nombre.get(t,t) }}</a>
+  {% endfor %}
+</div>
+
+<div class="grid2" style="align-items:start;gap:16px">
+  <div class="panel">
+    <h2>Cargar valor manual</h2>
+    <form method="post" action="{{ url_for('aumentos.indice_nuevo') }}">
+      <input type="hidden" name="tipo" value="{{ tipo }}">
+      <label>Mes</label><input type="month" name="periodo" required>
+      <label>Valor del índice</label><input name="valor" placeholder="ej. 3245.67" required>
+      <button class="btn" type="submit" style="margin-top:12px">Guardar</button>
+    </form>
+
+    <h2 style="margin-top:18px">Importación masiva</h2>
+    <form method="post" action="{{ url_for('aumentos.indice_importar') }}">
+      <input type="hidden" name="tipo" value="{{ tipo }}">
+      <p class="hint">Una línea por mes: <code>2025-01 3245.67</code> (acepta separación por espacio, coma o tab).</p>
+      <textarea name="datos" rows="6" placeholder="2025-01 3245.67&#10;2025-02 3390.12"></textarea>
+      <button class="btn" type="submit" style="margin-top:10px">Importar</button>
+    </form>
+
+    {% if tipo=='ICL' %}
+    <h2 style="margin-top:18px">Traer del BCRA</h2>
+    <form method="post" action="{{ url_for('aumentos.indice_bcra') }}">
+      <p class="hint">Consulta la serie oficial del ICL. Si el servicio no responde, cargalo manualmente.</p>
+      <button class="btn sec" type="submit">Actualizar ICL desde BCRA</button>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h2>{{ indice_nombre.get(tipo, tipo) }} — valores cargados ({{ valores|length }})</h2>
+    <table class="grid">
+      <thead><tr><th>Mes</th><th class="r">Valor</th><th>Fuente</th><th></th></tr></thead>
+      <tbody>
+        {% for v in valores %}
+        <tr>
+          <td>{{ meses[v.periodo.month] }} {{ v.periodo.year }}</td>
+          <td class="r">{{ v.valor }}</td>
+          <td>{{ v.fuente or '—' }}</td>
+          <td class="actions">
+            <form method="post" action="{{ url_for('aumentos.indice_eliminar', vid=v.id) }}"
+                  onsubmit="return confirm('¿Eliminar este valor?')">
+              <button class="link-danger" type="submit">Eliminar</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="empty">Sin valores cargados para {{ tipo }}.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

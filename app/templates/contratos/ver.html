@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Contrato{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1>Contrato {{ c.numero or '#' ~ c.id }}</h1>
+  <div class="quick">
+    <a class="btn ok" href="{{ url_for('cobros.nuevo', cid=c.id) }}">💵 Registrar pago</a>
+    <a class="btn sec" href="{{ url_for('cobros.detalle', cid=c.id) }}">Detalle de pagos</a>
+    {% if c.metodo_ajuste != 'sin_ajuste' %}<a class="btn sec" href="{{ url_for('aumentos.aplicar', cid=c.id) }}">Aplicar aumento</a>{% endif %}
+    {% if c.fiadores %}<a class="btn sec" href="{{ url_for('recibos.pagares', cid=c.id) }}" target="_blank">Pagarés</a>{% endif %}
+    <a class="btn sec" href="{{ url_for('contratos.editar', cid=c.id) }}">Editar</a>
+  </div>
+</div>
+
+<div class="acciones-contrato">
+  {% if c.estado == 'Vigente' %}
+  <form method="post" action="{{ url_for('contratos.rescindir', cid=c.id) }}"
+        onsubmit="return confirm('¿Rescindir este contrato? Se marcará como Rescindido, el inmueble queda disponible y se conserva el historial de pagos.')">
+    <button class="btn warn" type="submit">⛔ Rescindir contrato</button>
+  </form>
+  {% endif %}
+  <form method="post" action="{{ url_for('contratos.eliminar', cid=c.id) }}"
+        onsubmit="return confirm('¿Eliminar definitivamente este contrato? Esta acción no se puede deshacer. (Solo se permite si no tiene pagos registrados.)')">
+    <button class="btn danger" type="submit">🗑 Eliminar contrato</button>
+  </form>
+</div>
+
+<div class="panel">
+  <div class="grid2">
+    <div><span class="k">Inmueble</span><br>{{ (c.inmueble.codigo ~ ' · ' if c.inmueble.codigo else '') }}{{ c.inmueble.direccion }}</div>
+    <div><span class="k">Estado</span><br><span class="badge {{ c.estado|lower }}">{{ c.estado }}</span>
+         {% if c.origen=='generador' %}<span class="badge reservado">Desde generador</span>{% endif %}</div>
+    <div><span class="k">Inquilino</span><br>{{ c.inquilino.nombre if c.inquilino else '—' }}</div>
+    <div><span class="k">Propietario</span><br>{{ c.propietario.nombre if c.propietario else '—' }}</div>
+    <div><span class="k">Inicio</span><br>{{ c.fecha_inicio.strftime('%d/%m/%Y') if c.fecha_inicio }}</div>
+    <div><span class="k">Fin</span><br>{{ c.fecha_fin.strftime('%d/%m/%Y') if c.fecha_fin else '—' }} ({{ c.duracion_meses or '?' }} meses)</div>
+    <div><span class="k">Precio inicial</span><br>{{ c.moneda }} {{ c.precio_inicial|money }}</div>
+    <div><span class="k">Precio actual</span><br><b>{{ c.moneda }} {{ c.precio_actual|money }}</b></div>
+    <div><span class="k">Día de vencimiento</span><br>{{ c.dia_vencimiento or '—' }}</div>
+    <div><span class="k">Mora diaria</span><br>{{ c.mora_diaria_pct }}%</div>
+    <div><span class="k">Comisión de administración</span><br>
+      {% if c.comision_pct is not none %}{{ c.comision_pct }}%
+      {% elif c.inmueble and c.inmueble.comision_pct is not none %}{{ c.inmueble.comision_pct }}% <span class="hint" style="display:inline">(del inmueble)</span>
+      {% else %}—{% endif %}</div>
+    <div><span class="k">Método de ajuste</span><br>
+      {% if c.metodo_ajuste=='indice' %}Por índice — {{ indice_nombre.get(c.indice_tipo, c.indice_tipo) }}, cada {{ c.ajuste_cada_meses }} meses
+      {% elif c.metodo_ajuste=='porcentaje' %}Por porcentaje — {{ c.porcentaje_ajuste }}% cada {{ c.ajuste_cada_meses }} meses
+      {% else %}Sin ajuste{% endif %}
+    </div>
+    <div><span class="k">Origen</span><br>{{ 'Generador de contratos' if c.origen=='generador' else 'Alta directa' }}</div>
+  </div>
+
+  {% if c.fiadores %}
+  <h2 style="margin-top:18px">Fiadores</h2>
+  <table class="grid">
+    <thead><tr><th>Nombre</th><th>DNI</th><th>Domicilio</th><th>Teléfono</th><th>Email</th></tr></thead>
+    <tbody>
+      {% for f in c.fiadores %}
+      <tr><td>{{ f.nombre }}</td><td>{{ f.dni or '—' }}</td><td>{{ f.domicilio or '—' }}</td>
+          <td>{{ f.telefono or '—' }}</td><td>{{ f.email or '—' }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if c.observaciones %}<p style="margin-top:14px"><span class="k">Observaciones:</span> {{ c.observaciones }}</p>{% endif %}
+</div>
+
+<div class="panel" style="margin-top:16px">
+  <h2>Historial de aumentos</h2>
+  {% set aumentos = c.aumentos|sort(attribute='fecha_vigencia') %}
+  {% if aumentos %}
+  <table class="grid">
+    <thead><tr><th>Vigencia</th><th>Método</th><th class="r">Anterior</th><th class="r">Nuevo</th><th>Detalle</th><th></th></tr></thead>
+    <tbody>
+      {% for a in aumentos %}
+      <tr>
+        <td>{{ a.fecha_vigencia.strftime('%d/%m/%Y') if a.fecha_vigencia }}</td>
+        <td>{{ 'Porcentaje' if a.metodo=='porcentaje' else 'Índice ' ~ (a.indice_tipo or '') }}</td>
+        <td class="r">{{ a.precio_anterior|money }}</td>
+        <td class="r"><b>{{ a.precio_nuevo|money }}</b></td>
+        <td>{% if a.metodo=='porcentaje' %}+{{ a.porcentaje }}%
+            {% else %}{{ a.indice_inicio }} → {{ a.indice_fin }}{% endif %}</td>
+        <td class="actions">
+          <a href="{{ url_for('aumentos.editar', aid=a.id) }}">Editar</a>
+          {% if loop.last %}
+          <form method="post" action="{{ url_for('aumentos.eliminar', aid=a.id) }}"
+                onsubmit="return confirm('¿Deshacer este aumento y restaurar el precio anterior?')">
+            <button class="link-danger" type="submit">Deshacer</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="hint">Sin aumentos registrados.</p>
+  {% endif %}
+</div>
+{% endblock %}

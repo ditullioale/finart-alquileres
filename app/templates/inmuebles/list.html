@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Inmuebles{% endblock %}
+{% macro th(label, key, cls='') %}
+  {% set cur = request.args.get('sort') %}
+  {% set curdir = request.args.get('dir','asc') %}
+  {% set nd = 'desc' if (cur==key and curdir=='asc') else 'asc' %}
+  <th class="{{ cls }}"><a class="sorth" href="{{ url_for(request.endpoint, **dict(request.args, sort=key, dir=nd)) }}">{{ label }}<span class="arr">{{ ' ▲' if cur==key and curdir=='asc' else (' ▼' if cur==key else '') }}</span></a></th>
+{% endmacro %}
+{% block content %}
+<div class="pagehead">
+  <h1>Inmuebles</h1>
+  <a class="btn" href="{{ url_for('inmuebles.nuevo') }}">+ Nuevo inmueble</a>
+</div>
+
+<form class="filters" method="get">
+  <input name="q" value="{{ q }}" placeholder="Buscar por dirección o localidad">
+  <select name="estado">
+    <option value="">Todos los estados</option>
+    {% for e in estados %}<option value="{{ e }}" {{ 'selected' if estado==e }}>{{ e }}</option>{% endfor %}
+  </select>
+  <button class="btn sec" type="submit">Filtrar</button>
+</form>
+
+<table class="grid">
+  <thead>
+    <tr>{{ th('Dirección','direccion') }}{{ th('Tipo','tipo') }}{{ th('Localidad','localidad') }}
+        {{ th('Estado','estado') }}{{ th('Propietario','propietario') }}{{ th('Precio ref.','precio','r') }}<th></th></tr>
+  </thead>
+  <tbody>
+    {% for i in inmuebles %}
+    <tr>
+      <td><a href="{{ url_for('inmuebles.editar', iid=i.id) }}"><b>{{ i.direccion }}</b></a></td>
+      <td>{{ i.tipo or '—' }}</td>
+      <td>{{ i.localidad or '—' }}</td>
+      <td><span class="badge {{ i.estado|lower }}">{{ i.estado }}</span></td>
+      <td>{{ i.propietario.nombre if i.propietario else '—' }}</td>
+      <td class="r">{{ (i.moneda ~ ' ' ~ (i.precio_referencia|money)) if i.precio_referencia else '—' }}</td>
+      <td class="actions">
+        <a href="{{ url_for('inmuebles.editar', iid=i.id) }}">Editar</a>
+        <form method="post" action="{{ url_for('inmuebles.eliminar', iid=i.id) }}"
+              onsubmit="return confirm('¿Eliminar este inmueble?')">
+          <button class="link-danger" type="submit">Eliminar</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="empty">No hay inmuebles cargados.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

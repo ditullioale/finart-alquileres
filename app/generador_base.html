@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Generador de Contratos de Locación</title>
+<style>
+  :root{--b:#1f3a5f;--a:#2f6fed;--bd:#cfd8e3;--warn:#8a5a00;--warnbg:#fff6e0;}
+  *{box-sizing:border-box}
+  body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;margin:0;color:#1a2230;background:#f4f6fa}
+  header{background:var(--b);color:#fff;padding:18px 22px}
+  header h1{margin:0;font-size:20px}
+  header p{margin:4px 0 0;font-size:13px;opacity:.85}
+  .wrap{max-width:1150px;margin:0 auto;padding:18px 22px 60px}
+  .layout{display:grid;grid-template-columns:1fr;gap:22px}
+  @media(min-width:1000px){.layout{grid-template-columns:440px 1fr}}
+  fieldset{border:1px solid var(--bd);border-radius:10px;margin:0 0 16px;padding:12px 14px;background:#fff}
+  legend{font-weight:700;color:var(--b);padding:0 6px;font-size:14px}
+  label{display:block;font-size:12px;font-weight:600;color:#41506b;margin:8px 0 3px}
+  input,select,textarea{width:100%;padding:8px 9px;border:1px solid var(--bd);border-radius:7px;font-size:13px;font-family:inherit}
+  textarea{min-height:60px;resize:vertical}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .card{background:#fbfcfe;border:1px solid var(--bd);border-radius:10px;padding:12px;margin-bottom:10px}
+  .card h4{margin:0 0 6px;font-size:13px;color:var(--b)}
+  .btn{background:var(--a);color:#fff;border:0;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer}
+  .btn.sec{background:#eef2f8;color:var(--b);border:1px solid var(--bd)}
+  .btn.mini{padding:5px 9px;font-size:12px}
+  .btn:hover{filter:brightness(.96)}
+  .btns{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 14px}
+  .hint{font-size:11px;color:#6b7890;margin-top:3px}
+  .chk{display:flex;align-items:center;gap:8px;margin-top:8px}
+  .chk input{width:auto}
+  .out{background:#fff;border:1px solid var(--bd);border-radius:10px;overflow:hidden}
+  .tabs{display:flex;border-bottom:1px solid var(--bd);background:#f7f9fc}
+  .tab{padding:10px 14px;font-size:13px;font-weight:600;color:#5a6b86;cursor:pointer;border:0;background:none}
+  .tab.active{color:var(--a);box-shadow:inset 0 -2px 0 var(--a)}
+  .doc{padding:30px 36px;font-family:'Times New Roman',Georgia,serif;font-size:13.5px;line-height:1.5;color:#111}
+  .doc h2{text-align:center;font-size:15px;margin:0 0 14px;letter-spacing:.5px}
+  .doc p{margin:9px 0;text-align:justify}
+  .doc ol{padding-left:20px;margin:8px 0}
+  .doc ol li{margin:9px 0;text-align:justify}
+  .doc .firmas{display:grid;grid-template-columns:1fr 1fr;gap:34px 40px;margin-top:50px}
+  .doc .firma{border-top:1px solid #333;padding-top:6px;text-align:center;font-size:12px}
+  .pagare{border:2px solid #333;padding:18px 22px;margin:0 0 26px;background:#fffef7}
+  .pagare .tt{display:flex;justify-content:space-between;font-weight:bold;font-size:14px;border-bottom:1px solid #999;padding-bottom:6px;margin-bottom:10px}
+  .warn{background:var(--warnbg);border:1px solid #e8cf8a;color:var(--warn);padding:10px 12px;border-radius:8px;font-size:12px;margin:0 0 14px}
+  .toolbar{display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid var(--bd);background:#f7f9fc;flex-wrap:wrap}
+  .valPanel{border-radius:10px;padding:12px 14px;margin-bottom:14px;border:1px solid var(--bd);background:#fff}
+  .valPanel .head{display:flex;align-items:center;gap:10px;font-weight:700;font-size:14px}
+  .valPanel .dot{width:14px;height:14px;border-radius:50%;flex:none}
+  .valPanel.ok{background:#eefaf1;border-color:#a9dcbb}
+  .valPanel.ok .dot{background:#1f9d55}
+  .valPanel.warn{background:#fff8e6;border-color:#e8cf8a}
+  .valPanel.warn .dot{background:#e0a800}
+  .valPanel.err{background:#fdecec;border-color:#f0b4b4}
+  .valPanel.err .dot{background:#d63636}
+  .valPanel ul{margin:8px 0 0;padding-left:6px;list-style:none}
+  .valPanel li{font-size:12.5px;margin:5px 0;display:flex;gap:7px;align-items:flex-start}
+  .valPanel li .ic{flex:none}
+  .valPanel .cnt{margin-left:auto;font-size:12px;font-weight:600;opacity:.75}
+  @media print{
+    body *{visibility:hidden}
+    #printArea,#printArea *{visibility:visible}
+    #printArea{position:absolute;left:0;top:0;width:100%}
+    .toolbar,.tabs{display:none!important}
+    .pagare{page-break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Generador de Contratos de Locación</h1>
+  <p>Modelo base: Rosario, Santa Fe · Contrato de 19 cláusulas + pagarés de fiadores</p>
+</header>
+
+<div class="wrap">
+  <div class="warn">
+    <b>Aviso:</b> genera un borrador a partir de tu modelo. Revisá siempre datos, montos, índices y firmas antes de usar. No sustituye asesoramiento profesional.
+  </div>
+
+  <div class="layout">
+    <!-- ================= FORM ================= -->
+    <div>
+      <div class="btns">
+        <button class="btn" onclick="generar()">Generar documentos ▸</button>
+        <button class="btn sec" onclick="cargarEjemplo()">Cargar ejemplo (Farruggia-Fontana)</button>
+        <button class="btn sec" onclick="limpiar()">Limpiar</button>
+      </div>
+
+      <fieldset>
+        <legend>Firma</legend>
+        <div class="row">
+          <div><label>Ciudad de firma</label><input id="ciudadFirma" value="Rosario"></div>
+          <div><label>Fecha de firma</label><input id="fechaFirma" type="date"></div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Locador (propietario)</legend>
+        <label>Nombre y apellido</label><input id="locNombre">
+        <div class="row">
+          <div><label>D.N.I.</label><input id="locDni"></div>
+          <div><label>Email (domicilio especial)</label><input id="locEmail"></div>
+        </div>
+        <label>Domicilio</label><input id="locDom" placeholder="calle ... de la localidad de ...">
+      </fieldset>
+
+      <fieldset>
+        <legend>Locatario/a (inquilino)</legend>
+        <div class="row">
+          <div><label>Género (para redacción)</label>
+            <select id="latGenero"><option value="f">Femenino (la Locataria)</option><option value="m">Masculino (el Locatario)</option></select>
+          </div>
+          <div><label>Nombre y apellido</label><input id="latNombre"></div>
+        </div>
+        <div class="row3">
+          <div><label>D.N.I.</label><input id="latDni"></div>
+          <div><label>C.U.I.L./C.U.I.T.</label><input id="latCuil"></div>
+          <div><label>Email</label><input id="latEmail"></div>
+        </div>
+        <label>Domicilio</label><input id="latDom">
+      </fieldset>
+
+      <fieldset>
+        <legend>Inmueble</legend>
+        <div class="row">
+          <div><label>Dirección + piso/depto</label><input id="inmDir" placeholder="MONTEVIDEO 1332, piso 01-06"></div>
+          <div><label>Cochera (opcional)</label><input id="inmCochera" placeholder="Unidad U50 polígono 01-06"></div>
+        </div>
+        <div class="row">
+          <div><label>Ciudad</label><input id="inmCiudad" value="ROSARIO"></div>
+          <div><label>Provincia</label><input id="inmProvincia" value="SANTA FE"></div>
+        </div>
+        <label>Descripción detallada del inmueble e inventario (cláusula 1)</label>
+        <textarea id="inmDesc" style="min-height:120px" placeholder="Detalle de ambientes, artefactos, marcas y estado..."></textarea>
+      </fieldset>
+
+      <fieldset>
+        <legend>Condiciones económicas</legend>
+        <div class="row3">
+          <div><label>Plazo (meses)</label><input id="plazo" type="number" min="1" value="24"></div>
+          <div><label>Canon mensual ($)</label><input id="canon" type="number" min="0" step="0.01" value="265000"></div>
+          <div><label>Ajuste cada (meses)</label><input id="ajusteMeses" type="number" min="1" value="6"></div>
+        </div>
+        <label>Índice de ajuste</label>
+        <select id="ajusteIdx"><option>I.C.L</option><option>Casa Propia</option><option>I.P.C.</option><option>Sin ajuste</option></select>
+        <div class="row3">
+          <div><label>Pago desde día</label><input id="pagoDesde" type="number" min="1" max="31" value="1"></div>
+          <div><label>Pago hasta día</label><input id="pagoHasta" type="number" min="1" max="31" value="10"></div>
+          <div><label>Punitorio diario (%)</label><input id="punitorio" type="number" step="0.01" value="0.4"></div>
+        </div>
+        <div class="hint">Vencimiento del contrato = fecha de firma + plazo (se calcula solo).</div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Rescisión anticipada y otros</legend>
+        <div class="row3">
+          <div><label>Min. meses p/rescindir</label><input id="rescMeses" type="number" value="6"></div>
+          <div><label>Preaviso (días)</label><input id="preaviso" type="number" value="30"></div>
+          <div><label>Penalidad (%)</label><input id="penalidad" type="number" value="10"></div>
+        </div>
+        <div class="chk"><input type="checkbox" id="mascotas"><label for="mascotas" style="margin:0">Permitir mascotas (si se destilda, quedan prohibidas)</label></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Fiadores / Garantes</legend>
+        <div id="fiadores"></div>
+        <button class="btn sec mini" onclick="addFiador()">+ Agregar fiador</button>
+      </fieldset>
+
+      <fieldset>
+        <legend>Pagarés</legend>
+        <div class="row">
+          <div><label>Meses de alquiler por pagaré</label><input id="pagMeses" type="number" min="1" value="10"></div>
+          <div><label>Lugar de pago</label><input id="pagLugar" value="Rosario"></div>
+        </div>
+        <div class="hint">Se genera un pagaré por cada fiador, por el equivalente a esa cantidad de meses (cláusula 17). Vencimiento siempre <b>a la vista</b>.</div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Revisión con IA (opcional)</legend>
+        <div class="row">
+          <div><label>Proveedor</label>
+            <select id="aiProv" onchange="ajustarModelo()">
+              <option value="anthropic">Anthropic (Claude)</option>
+              <option value="openai">OpenAI (GPT)</option>
+            </select>
+          </div>
+          <div><label>Modelo</label><input id="aiModelo" value="claude-sonnet-4-5"></div>
+        </div>
+        <label>API Key</label>
+        <input id="aiKey" type="password" placeholder="Pegá tu clave (sk-...)" autocomplete="off">
+        <div class="chk"><input type="checkbox" id="aiRecordar"><label for="aiRecordar" style="margin:0">Recordar la clave en este equipo (localStorage)</label></div>
+        <button class="btn mini" style="margin-top:10px" onclick="revisarIA()">🤖 Revisar con IA</button>
+        <div class="hint">La clave queda solo en tu navegador. Al revisar, el texto del contrato se envía al proveedor elegido. No usa IA si no apretás el botón.</div>
+      </fieldset>
+    </div>
+
+    <!-- ================= OUTPUT ================= -->
+    <div>
+      <div id="valPanel" class="valPanel" style="display:none"></div>
+      <div id="aiPanel" class="valPanel" style="display:none"></div>
+      <div class="out">
+        <div class="toolbar">
+          <button class="btn mini" onclick="imprimir()">🖨️ Imprimir / PDF</button>
+          <button class="btn sec mini" onclick="copiar()">📋 Copiar texto</button>
+          <button class="btn sec mini" onclick="descargar()">⬇️ Descargar HTML</button>
+        </div>
+        <div class="tabs">
+          <button class="tab active" id="tabC" onclick="verTab('contrato')">Contrato</button>
+          <button class="tab" id="tabP" onclick="verTab('pagares')">Pagarés</button>
+        </div>
+        <div id="printArea">
+          <div id="contrato" class="doc"><p style="text-align:center;color:#889">Completá el formulario y presioná <b>Generar documentos</b>.</p></div>
+          <div id="pagares" class="doc" style="display:none"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let nFiador=0;
+function addFiador(d){
+  d=d||{};const id=++nFiador;
+  const div=document.createElement('div');div.className='card';
+  div.innerHTML=`<h4>Fiador ${id} <button class="btn sec mini" style="float:right" onclick="this.closest('.card').remove()">✕</button></h4>
+    <label>Nombre y apellido</label><input class="f-nombre" value="${d.nombre||''}">
+    <div class="row"><div><label>D.N.I.</label><input class="f-dni" value="${d.dni||''}"></div>
+    <div><label>Teléfono</label><input class="f-tel" value="${d.tel||''}"></div></div>
+    <label>Domicilio</label><input class="f-dom" value="${d.dom||''}">
+    <label>Email</label><input class="f-email" value="${d.email||''}">`;
+  document.getElementById('fiadores').appendChild(div);
+}
+function getFiadores(){
+  return [...document.querySelectorAll('#fiadores .card')].map(c=>({
+    nombre:c.querySelector('.f-nombre').value.trim(),
+    dni:c.querySelector('.f-dni').value.trim(),
+    dom:c.querySelector('.f-dom').value.trim(),
+    email:c.querySelector('.f-email').value.trim(),
+    tel:c.querySelector('.f-tel').value.trim(),
+  })).filter(f=>f.nombre);
+}
+const V=id=>{const e=document.getElementById(id);return e?e.value.trim():''};
+const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+function cap(s){return s?s.charAt(0).toUpperCase()+s.slice(1):s}
+function fmt(n){return new Intl.NumberFormat('es-AR',{minimumFractionDigits:0,maximumFractionDigits:2}).format(n||0)}
+function partes(iso){if(!iso)return null;const[y,m,d]=iso.split('-').map(Number);return{y,m,d}}
+function fechaTexto(iso){const p=partes(iso);if(!p)return '____ de __________ de ______';return `${String(p.d).padStart(2,'0')} de ${cap(MESES[p.m-1])} de ${p.y}`}
+function addMeses(iso,meses){const p=partes(iso);if(!p)return '';let m=p.m-1+ (parseInt(meses)||0);let y=p.y+Math.floor(m/12);m=((m%12)+12)%12;return `${String(p.d).padStart(2,'0')} de ${cap(MESES[m])} de ${y}`}
+
+// número a letras
+function numLetras(num){
+  num=Math.floor(Math.abs(num));if(num===0)return 'cero';
+  const uni=['','uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','once','doce','trece','catorce','quince','dieciséis','diecisiete','dieciocho','diecinueve','veinte'];
+  const dec=['','','veinti','treinta','cuarenta','cincuenta','sesenta','setenta','ochenta','noventa'];
+  const cen=['','ciento','doscientos','trescientos','cuatrocientos','quinientos','seiscientos','setecientos','ochocientos','novecientos'];
+  function sec(n){let s='';const c=Math.floor(n/100),r=n%100;if(c)s+=(n===100?'cien':cen[c]);
+    if(r){if(s)s+=' ';if(r<=20)s+=uni[r];else{const d=Math.floor(r/10),u=r%10;if(d===2)s+=u?('veinti'+uni[u]):'veinte';else{s+=dec[d];if(u)s+=' y '+uni[u];}}}return s;}
+  let res='';const mill=Math.floor(num/1000000),mil=Math.floor((num%1000000)/1000),resto=num%1000;
+  if(mill)res+=(mill===1?'un millón':sec(mill)+' millones');
+  if(mil)res+=(res?' ':'')+(mil===1?'mil':sec(mil)+' mil');
+  if(resto)res+=(res?' ':'')+sec(resto);
+  return res;
+}
+function pesosLetras(n){const e=Math.floor(n),c=Math.round((n-e)*100);let s=numLetras(e)+' pesos';if(c)s+=' con '+String(c).padStart(2,'0')+'/100';return s;}
+
+function generar(){
+  const gf=V('latGenero')==='f';
+  const elLa=gf?'la':'el', locatario=gf?'Locataria':'Locatario';
+  const canon=parseFloat(V('canon'))||0;
+  const plazo=parseInt(V('plazo'))||0;
+  const fiadores=getFiadores();
+  const pagMeses=parseInt(V('pagMeses'))||0;
+  const ajIdx=V('ajusteIdx');
+
+  const ajusteFrase = ajIdx==='Sin ajuste'
+    ? 'sin actualización durante la vigencia del contrato.'
+    : `con un aumento acumulativo y progresivo que se aplicará cada ${numLetras(parseInt(V('ajusteMeses')))} meses y hasta finalizar el contrato. Dicho ajuste deberá ser calculado utilizando el índice ${ajIdx}${ajIdx==='I.C.L'?', conformado por partes iguales por las variaciones mensuales del índice de precios al consumidor (IPC) y la remuneración imponible promedio de los trabajadores estables (RIPTE), elaborado y publicado mensualmente por el Banco Central de la República Argentina (BCRA). En caso de que este índice dejara de publicarse se utilizará en forma subsidiaria, a elección del locador, los índices Casa Propia o I.P.C.':'.'}`;
+
+  const fiadorEnc = fiadores.map(f=>`<b>${f.nombre}</b>, D.N.I. ${f.dni||'—'}, con domicilio en ${f.dom||'—'}${f.email?`, correo electrónico ${f.email}`:''}${f.tel?`, tel ${f.tel}`:''}`).join('; ');
+
+  const c=`
+  <h2>CONTRATO DE LOCACIÓN</h2>
+  <p>En la ciudad de ${V('ciudadFirma')||'________'}, a los ${fechaTexto(V('fechaFirma'))}, entre <b>${V('locNombre')||'________'}</b>, titular de D.N.I. ${V('locDni')||'—'}, con domicilio en ${V('locDom')||'—'}, en adelante el <b>Locador</b> y <b>${V('latNombre')||'________'}</b>, titular de D.N.I. ${V('latDni')||'—'}${V('latCuil')?`, C.U.I.L. ${V('latCuil')}`:''}, con domicilio en ${V('latDom')||'—'}${V('latEmail')?` (mail ${V('latEmail')})`:''}, en adelante ${elLa} <b>${locatario}</b>, han convenido celebrar el presente contrato de locación que se regirá por las siguientes cláusulas:</p>
+  <ol>
+    <li>El Locador alquila al ${locatario} una vivienda ubicada en la calle <b>${V('inmDir')||'________'}</b>${V('inmCochera')?`, y su correspondiente cochera designada como ${V('inmCochera')}`:''}, en la ciudad de ${V('inmCiudad')||'________'}, provincia de ${V('inmProvincia')||'________'}. ${V('inmDesc')||'[Descripción del inmueble e inventario].'} Todos los elementos y artefactos mencionados se encuentran en perfecto estado de uso y conservación, y deben ser devueltos al finalizar el contrato de alquiler en las mismas condiciones en que se recibieron.</li>
+    <li>El término de este contrato es de <b>${numLetras(plazo)} meses</b> por lo que su vencimiento se operará de pleno derecho el día <b>${addMeses(V('fechaFirma'),plazo)}</b> sin necesidad de notificación o requerimiento alguno por parte del locador.</li>
+    <li>El alquiler se fija en la suma de <b>$${fmt(canon)}</b> — ${pesosLetras(canon)} — ${ajusteFrase}</li>
+    <li>El alquiler será abonado por adelantado del ${V('pagoDesde')||'1'} al ${V('pagoHasta')||'10'} de cada mes en el domicilio del Locador constituido en el presente, o en cualquier otro que indicare en el futuro, siendo entendido que el mero vencimiento del plazo hará incurrir al ${locatario} en mora de pleno derecho, la misma devengará un interés punitorio de ${V('punitorio')||'0.4'}% por cada día de atraso. El alquiler se pacta por períodos de mes entero y aunque ${elLa} ${locatario} se mudara antes de finalizar el mes, pagará íntegramente el alquiler correspondiente a ese mes.</li>
+    <li>${cap(elLa)} ${locatario} recibe el inmueble desocupado, en excelente estado y en perfecto estado de aseo, con todos sus vidrios, herrajes, llaves y demás accesorios, obligándose a mantener y devolver el inmueble en las mismas condiciones, y a pagar el importe de los objetos que faltaren o estuvieren rotos y los deterioros ocasionados.</li>
+    <li>El inmueble se recibe recién pintado en su totalidad, todo por pintor profesional en color blanco, y deberá ser entregado pintado de la misma forma, por pintor profesional a elección del locador, haciéndose cargo ${elLa} ${locatario} del costo de la mano de obra y los materiales (pintura de calidad media, ej. Tersuave). Esta cláusula es esencial. Al momento de la desocupación se deberá entregar el piso de madera nuevamente plastificado.</li>
+    <li>${cap(elLa)} ${locatario} se obliga a no subarrendar el todo o parte de la propiedad, a no transferir, ni ceder, ni vender este contrato, so pena de rescindirse el mismo.</li>
+    <li>${cap(elLa)} ${locatario} ocupará la propiedad locada para vivienda y no podrá cambiar su destino ni hacer modificaciones sin consentimiento previo por escrito del Locador; las mejoras quedarán a beneficio de la propiedad sin remuneración alguna. No podrá tener cosas que afecten la seguridad ni realizar actos contrarios a las normas municipales. ${V('mascotas')&&document.getElementById('mascotas').checked?'Se permiten mascotas dentro de la unidad.':'Se encuentra prohibido tener mascotas dentro de la unidad.'}</li>
+    <li>Los gastos correspondientes a tasas municipales (T.G.I.) y agua correrán por cuenta ${gf?'de la locataria':'del locatario'}, como así también los consumos de gas, energía eléctrica y expensas ordinarias, la conservación de artefactos y la reparación de desperfectos menores por su uso. ${cap(elLa)} ${locatario} dará inmediata cuenta al locador de cualquier desperfecto, permitiendo el libre acceso para inspección y trabajos de conservación, y se obliga a contratar un seguro de incendios.</li>
+    <li>El Locador no se responsabiliza por daños y perjuicios al ${locatario} o su familia por inundaciones, filtraciones y desprendimientos provenientes de roturas o desperfectos de caños, techos o cualquier accidente en la propiedad.</li>
+    <li>La falta de cumplimiento de cualquiera de las cláusulas dará opción al Locador para exigir el desalojo de la propiedad locada.</li>
+    <li>En caso de consignación de llaves, el alquiler regirá hasta el día en que el locador tome posesión real y efectiva de la propiedad, actualizándose el mismo.</li>
+    <li>Si ${elLa} ${locatario} diera motivo a juicio de desalojo, se compromete a pagar, desde la iniciación del juicio y hasta que el Locador reciba las llaves, el doble del alquiler pactado por cada mes transcurrido hasta la efectiva posesión.</li>
+    <li>La entrega de las llaves deberá justificarse con documento escrito emanado del locador, no admitiéndose otro medio de prueba.</li>
+    <li>Transcurridos los primeros ${numLetras(parseInt(V('rescMeses')))} meses de locación se podrá rescindir el presente contrato otorgando un preaviso de ${V('preaviso')||'30'} días y abonando el ${V('penalidad')||'10'}% del tiempo que faltare para finalizar el contrato.</li>
+    <li>El locador podrá inspeccionar el inmueble en forma bimestral; en caso de roturas o desperfectos por mal uso, podrá intimar a la reparación en 30 días bajo pena de rescisión. ${cap(elLa)} ${locatario} deberá dar inmediato aviso de cualquier desperfecto (ej. filtraciones de humedad), caso contrario correrán por su cuenta los daños ocasionados por su omisión.</li>
+    <li>${fiadorEnc||'[Datos de los fiadores]'}, quienes declaran aceptar todas las cláusulas del presente contrato, y se constituyen en <b>fiadores solidarios y principales pagadores</b>, con expresa renuncia a los beneficios de excusión y división, por el cumplimiento de todas las obligaciones; garantizan el pago de honorarios y gastos de los juicios que se promuevan por desalojo, daños y perjuicios y cobro de alquileres. La fianza subsistirá aun vencido el contrato y hasta que ${elLa} ${locatario} entregue de conformidad las llaves o finalicen las acciones legales. Cada fiador firma en garantía un <b>pagaré por el monto equivalente a ${numLetras(pagMeses)} (${pagMeses}) meses de alquiler</b>, que quedará en guarda del locador, quien se compromete a no hacerlo circular hasta la finalización del contrato y el cumplimiento de todas las obligaciones. El monto del pagaré no limita en forma alguna la fianza prestada.</li>
+    <li>Todos los contratantes se someten, para cualquier divergencia, a la jurisdicción de los tribunales ordinarios de ${V('ciudadFirma')||'Rosario'}, renunciando al derecho a recusar sin causa. Alternativamente, podrán someter la cuestión al Tribunal de Arbitraje del Colegio de Abogados de ${V('ciudadFirma')||'Rosario'}, conforme su reglamento.</li>
+    <li>Las partes constituyen domicilios especiales: a) el LOCADOR en su domicilio real y en la casilla ${V('locEmail')||'________'}; b) ${elLa} ${locatario} en el inmueble locado y en su casilla de mail; y los FIADORES en los domicilios denunciados y sus correos. Las comunicaciones podrán efectuarse por vía electrónica y se tendrán por válidas y plenamente eficaces (art. 75 CCyC).</li>
+  </ol>
+  <p>En prueba de conformidad, se firman tres ejemplares de un mismo tenor y a un solo efecto, quedando el original en poder del Locador, una copia en poder ${gf?'de la Locataria':'del Locatario'} y otra copia en poder del/los Fiador/es.</p>
+  <div class="firmas">
+    <div class="firma">${V('locNombre')||'________________'}<br>LOCADOR</div>
+    <div class="firma">${V('latNombre')||'________________'}<br>${locatario.toUpperCase()}</div>
+    ${fiadores.map(f=>`<div class="firma">${f.nombre}<br>FIADOR/A</div>`).join('')}
+  </div>`;
+  document.getElementById('contrato').innerHTML=c;
+
+  // PAGARÉS
+  const monto=canon*pagMeses;
+  const lugar=V('pagLugar')||V('ciudadFirma')||'________';
+  let ph='<h2 style="margin-bottom:18px">PAGARÉS EN GARANTÍA</h2>';
+  if(!fiadores.length)ph+='<p style="color:#889">Agregá al menos un fiador para generar pagarés.</p>';
+  fiadores.forEach((f,i)=>{
+    ph+=`<div class="pagare">
+      <div class="tt"><span>PAGARÉ ${i+1}/${fiadores.length} — SIN PROTESTO</span><span>$ ${fmt(monto)}</span></div>
+      <p>${lugar}, ${fechaTexto(V('fechaFirma'))}.</p>
+      <p>Vencimiento: <b>a la vista</b>. Por igual valor recibido a mi entera satisfacción, pagaré SIN PROTESTO (art. 50 Dec. Ley 5965/63) a <b>${V('locNombre')||'________'}</b> o a su orden, la cantidad de <b>$ ${fmt(monto)}</b> (${pesosLetras(monto)}), equivalente a ${numLetras(pagMeses)} (${pagMeses}) meses de alquiler.</p>
+      <p>Pagadero en ${lugar}. Librado en garantía de las obligaciones del contrato de locación del inmueble sito en ${V('inmDir')||'________'}, ${V('inmCiudad')}.</p>
+      <div style="margin-top:34px;border-top:1px solid #333;width:60%;padding-top:5px;font-size:12px">
+        <b>${f.nombre}</b> — Fiador/a<br>D.N.I.: ${f.dni||'____________'}<br>Domicilio: ${f.dom||'____________'}</div>
+    </div>`;
+  });
+  document.getElementById('pagares').innerHTML=ph;
+  validar();
+  verTab('contrato');
+}
+
+// ---------- VALIDACIÓN (chequeos locales) ----------
+function soloDigitos(s){return (s||'').replace(/\D/g,'')}
+function cuitValido(cuit){
+  const d=soloDigitos(cuit);if(d.length!==11)return false;
+  const pesos=[5,4,3,2,7,6,5,4,3,2];let s=0;
+  for(let i=0;i<10;i++)s+=parseInt(d[i])*pesos[i];
+  let v=11-(s%11);if(v===11)v=0;if(v===10)v=9;
+  return v===parseInt(d[10]);
+}
+function validar(){
+  const R=[]; // {lvl:'err'|'warn', msg}
+  const err=(m)=>R.push({lvl:'err',msg:m});
+  const warn=(m)=>R.push({lvl:'warn',msg:m});
+  const canon=parseFloat(V('canon'))||0;
+  const plazo=parseInt(V('plazo'))||0;
+  const fiadores=getFiadores();
+  const pagMeses=parseInt(V('pagMeses'))||0;
+
+  // Campos obligatorios
+  const oblig=[['fechaFirma','fecha de firma'],['ciudadFirma','ciudad de firma'],
+    ['locNombre','nombre del locador'],['locDni','DNI del locador'],['locDom','domicilio del locador'],
+    ['latNombre','nombre del locatario'],['latDni','DNI del locatario'],['latDom','domicilio del locatario'],
+    ['inmDir','dirección del inmueble'],['inmCiudad','ciudad del inmueble'],['inmProvincia','provincia del inmueble']];
+  oblig.forEach(([id,lbl])=>{if(!V(id))err('Falta completar: '+lbl+'.')});
+
+  // Recomendados
+  if(!V('inmDesc'))warn('La descripción del inmueble (cláusula 1) está vacía.');
+  if(!V('locEmail'))warn('Falta el email del locador (domicilio especial, cláusula 19).');
+  if(!V('latEmail'))warn('Falta el email del locatario.');
+
+  // Montos y plazos
+  if(canon<=0)err('El canon mensual debe ser mayor a 0.');
+  else if(canon<10000||canon>100000000)warn('El canon ($'+fmt(canon)+') parece fuera de un rango habitual: revisalo.');
+  if(plazo<=0)err('El plazo debe ser mayor a 0 meses.');
+  const rescM=parseInt(V('rescMeses'))||0;
+  if(plazo && rescM && rescM>plazo)warn('El mínimo para rescindir ('+rescM+' meses) es mayor que el plazo total ('+plazo+' meses).');
+  const ajM=parseInt(V('ajusteMeses'))||0;
+  if(V('ajusteIdx')!=='Sin ajuste' && ajM>plazo && plazo)warn('La periodicidad de ajuste ('+ajM+' meses) supera el plazo del contrato: no llegaría a aplicarse.');
+
+  // Días de pago
+  const pd=parseInt(V('pagoDesde'))||0, ph2=parseInt(V('pagoHasta'))||0;
+  if(pd&&ph2&&pd>ph2)err('El día "desde" de pago ('+pd+') es posterior al día "hasta" ('+ph2+').');
+  if(ph2>31||pd>31)err('Los días de pago deben estar entre 1 y 31.');
+
+  // DNI / CUIL locatario
+  if(V('latDni')){const nd=soloDigitos(V('latDni'));if(nd.length<7||nd.length>8)warn('El DNI del locatario ('+V('latDni')+') no tiene 7 u 8 dígitos.');}
+  if(V('locDni')){const nd=soloDigitos(V('locDni'));if(nd.length<7||nd.length>8)warn('El DNI del locador ('+V('locDni')+') no tiene 7 u 8 dígitos.');}
+  if(V('latCuil')){
+    if(!cuitValido(V('latCuil')))warn('El C.U.I.L./C.U.I.T. del locatario ('+V('latCuil')+') no supera la verificación del dígito.');
+    else{const dc=soloDigitos(V('latCuil')).slice(2,10), dni=soloDigitos(V('latDni')).padStart(8,'0');
+      if(V('latDni')&&dc!==dni)warn('El C.U.I.L. del locatario no coincide con su DNI (el CUIL contiene '+dc.replace(/^0+/,'')+').');}
+  }
+
+  // Fiadores y pagarés
+  if(fiadores.length===0)warn('No cargaste fiadores: el contrato menciona fiadores y no se generan pagarés.');
+  fiadores.forEach((f,i)=>{
+    if(!f.dni)warn('El fiador '+(i+1)+' ('+f.nombre+') no tiene DNI.');
+    else if(soloDigitos(f.dni).length<7||soloDigitos(f.dni).length>8)warn('El DNI del fiador '+(i+1)+' ('+f.dni+') no tiene 7 u 8 dígitos.');
+    if(!f.dom)warn('El fiador '+(i+1)+' ('+f.nombre+') no tiene domicilio.');
+  });
+  if(pagMeses<=0)err('Los meses por pagaré deben ser mayores a 0.');
+  else if(plazo && pagMeses>plazo)warn('El pagaré cubre '+pagMeses+' meses, más que el plazo del contrato ('+plazo+' meses).');
+
+  // ---- Render semáforo ----
+  const nErr=R.filter(r=>r.lvl==='err').length, nWarn=R.filter(r=>r.lvl==='warn').length;
+  const panel=document.getElementById('valPanel');
+  let cls,titulo;
+  if(nErr){cls='err';titulo='Revisar: '+nErr+' error'+(nErr>1?'es':'')+(nWarn?' y '+nWarn+' advertencia'+(nWarn>1?'s':''):'');}
+  else if(nWarn){cls='warn';titulo=nWarn+' advertencia'+(nWarn>1?'s':'')+' a revisar';}
+  else{cls='ok';titulo='Sin observaciones: el contrato pasó todos los chequeos.';}
+  const orden={err:0,warn:1};
+  R.sort((a,b)=>orden[a.lvl]-orden[b.lvl]);
+  panel.className='valPanel '+cls;
+  panel.style.display='block';
+  panel.innerHTML=`<div class="head"><span class="dot"></span><span>${titulo}</span><span class="cnt">${nErr} ● ${nWarn} ▲</span></div>`+
+    (R.length?`<ul>${R.map(r=>`<li><span class="ic">${r.lvl==='err'?'🔴':'🟡'}</span><span>${r.msg}</span></li>`).join('')}</ul>`:'');
+}
+
+// ---------- REVISIÓN CON IA (opcional) ----------
+function ajustarModelo(){
+  document.getElementById('aiModelo').value = V('aiProv')==='openai' ? 'gpt-4o' : 'claude-sonnet-4-5';
+}
+function aiRender(cls,titulo,html){
+  const p=document.getElementById('aiPanel');
+  p.className='valPanel '+cls;p.style.display='block';
+  p.innerHTML=`<div class="head"><span class="dot"></span><span>🤖 Revisión con IA — ${titulo}</span></div>`+(html||'');
+}
+async function revisarIA(){
+  const key=V('aiKey'), prov=V('aiProv'), modelo=V('aiModelo')||'claude-sonnet-4-5';
+  const contrato=document.getElementById('contrato').innerText.trim();
+  if(!contrato||contrato.length<80){aiRender('err','sin contrato',' Generá primero el contrato.');return;}
+  if(!key){aiRender('err','falta la clave','<div style="font-size:12.5px;margin-top:6px">Pegá tu API key para usar la revisión con IA.</div>');return;}
+  // guardar/borrar clave
+  try{ if(document.getElementById('aiRecordar').checked)localStorage.setItem('ai_'+prov,key); else localStorage.removeItem('ai_'+prov);}catch(e){}
+  aiRender('warn','analizando…','<div style="font-size:12.5px;margin-top:6px">Enviando el contrato al modelo, esperá unos segundos…</div>');
+
+  const prompt=`Actuás como abogado/a argentino/a especializado en locaciones. Revisá el siguiente CONTRATO DE LOCACIÓN (Rosario, Santa Fe) y sus pagarés en garantía. Detectá incongruencias, errores, datos inconsistentes, cláusulas faltantes o riesgosas, y montos/fechas dudosas. Considerá normativa argentina (CCyC y régimen vigente).
+Respondé EXCLUSIVAMENTE con un JSON válido, sin texto adicional, con esta forma:
+{"resumen":"una frase","observaciones":[{"nivel":"error|advertencia|ok","detalle":"..."}]}
+Usá "error" para lo que impide firmar, "advertencia" para lo revisable, y si algo está correcto podés incluir "ok". Máximo 12 observaciones.
+
+=== CONTRATO ===
+${contrato}`;
+
+  try{
+    let texto;
+    if(prov==='anthropic'){
+      const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
+        headers:{'x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true','content-type':'application/json'},
+        body:JSON.stringify({model:modelo,max_tokens:1600,messages:[{role:'user',content:prompt}]})});
+      const d=await r.json();
+      if(!r.ok)throw new Error(d.error?.message||('HTTP '+r.status));
+      texto=(d.content||[]).map(c=>c.text).join('');
+    }else{
+      const r=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',
+        headers:{'Authorization':'Bearer '+key,'content-type':'application/json'},
+        body:JSON.stringify({model:modelo,messages:[{role:'user',content:prompt}]})});
+      const d=await r.json();
+      if(!r.ok)throw new Error(d.error?.message||('HTTP '+r.status));
+      texto=d.choices?.[0]?.message?.content||'';
+    }
+    // parsear JSON del texto
+    let obj;try{obj=JSON.parse(texto.slice(texto.indexOf('{'),texto.lastIndexOf('}')+1));}catch(e){
+      aiRender('warn','respuesta recibida','<div style="font-size:12.5px;margin-top:6px;white-space:pre-wrap">'+texto.replace(/</g,'&lt;')+'</div>');return;}
+    const obs=obj.observaciones||[];
+    const nErr=obs.filter(o=>o.nivel==='error').length, nWarn=obs.filter(o=>o.nivel==='advertencia').length;
+    const cls=nErr?'err':(nWarn?'warn':'ok');
+    const ic={error:'🔴',advertencia:'🟡',ok:'🟢'};
+    const orden={error:0,advertencia:1,ok:2};
+    obs.sort((a,b)=>(orden[a.nivel]??3)-(orden[b.nivel]??3));
+    aiRender(cls,(obj.resumen||'análisis completo'),
+      obs.length?`<ul>${obs.map(o=>`<li><span class="ic">${ic[o.nivel]||'•'}</span><span>${(o.detalle||'').replace(/</g,'&lt;')}</span></li>`).join('')}</ul>`:'');
+  }catch(e){
+    aiRender('err','error de conexión','<div style="font-size:12.5px;margin-top:6px">No se pudo completar la revisión: '+String(e.message).replace(/</g,'&lt;')+'<br>Verificá la clave, el modelo y tu conexión.</div>');
+  }
+}
+
+function verTab(t){
+  document.getElementById('contrato').style.display=t==='contrato'?'block':'none';
+  document.getElementById('pagares').style.display=t==='pagares'?'block':'none';
+  document.getElementById('tabC').classList.toggle('active',t==='contrato');
+  document.getElementById('tabP').classList.toggle('active',t==='pagares');
+}
+function imprimir(){window.print()}
+function copiar(){const el=document.getElementById(document.getElementById('contrato').style.display!=='none'?'contrato':'pagares');navigator.clipboard.writeText(el.innerText).then(()=>alert('Texto copiado.'))}
+function descargar(){
+  const html=`<!doctype html><meta charset="utf-8"><title>Contrato y pagarés</title>
+  <style>body{font-family:'Times New Roman',serif;max-width:820px;margin:30px auto;padding:0 26px;line-height:1.5;text-align:justify}
+  h2{text-align:center}ol li{margin:9px 0}.firmas{display:grid;grid-template-columns:1fr 1fr;gap:34px;margin-top:50px}
+  .firma{border-top:1px solid #333;text-align:center;padding-top:6px}
+  .pagare{border:2px solid #333;padding:16px 20px;margin:20px 0;page-break-inside:avoid}
+  .tt{display:flex;justify-content:space-between;font-weight:bold;border-bottom:1px solid #999;padding-bottom:6px;margin-bottom:10px}</style>
+  ${document.getElementById('contrato').innerHTML}<div style="page-break-before:always"></div>${document.getElementById('pagares').innerHTML}`;
+  const b=new Blob([html],{type:'text/html'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='contrato-y-pagares.html';a.click();
+}
+
+function cargarEjemplo(){
+  const s=(id,v)=>document.getElementById(id).value=v;
+  s('ciudadFirma','Rosario');s('fechaFirma','2024-08-01');
+  s('locNombre','LUCIANO DAVID FARRUGGIA');s('locDni','28.274.852');s('locEmail','ditullioale@gmail.com');
+  s('locDom','calle Liniers 1153 de la localidad de Fighiera');
+  s('latGenero','f');s('latNombre','MARIA FONTANA');s('latDni','34.123.573');s('latCuil','27-34123573-7');
+  s('latEmail','fontana.maria@hotmail.com');s('latDom','Montevideo 1332 01 06 de la ciudad de Rosario');
+  s('inmDir','MONTEVIDEO 1332, piso 01-06');s('inmCochera','Unidad U50 polígono 01-06');s('inmCiudad','ROSARIO');s('inmProvincia','SANTA FE');
+  s('inmDesc','La propiedad incluye un dormitorio, un living-estar con ventanal hacia el patio, una kitchenette con barra desayunadora, un baño completamente equipado, una habitación comodín, un placard, lavadero y un patio. En la cocina hay un anafe de dos hornallas marca ORMAY, un calefón a gas natural marca ORBIS en funcionamiento, mesada de mármol negro con bacha de acero inoxidable, grifería monocomando, portero eléctrico marca SURIX y pisos de porcelanato. El baño cuenta con sanitarios marca ROCA. El living tiene pisos de madera lustrados y plastificados, calefactor marca EMEGE y aire acondicionado split. Los pisos de madera fueron plastificados recientemente y están en excelente estado.');
+  s('canon','265000');s('plazo','24');s('ajusteMeses','6');
+  s('pagoDesde','1');s('pagoHasta','10');s('punitorio','0.4');
+  s('rescMeses','6');s('preaviso','30');s('penalidad','10');
+  s('pagMeses','10');s('pagLugar','Rosario');
+  document.getElementById('fiadores').innerHTML='';nFiador=0;
+  addFiador({nombre:'PIERETTI ANTONELLA',dni:'37.155.280',dom:'calle Soldado Baigorria 985 Bis de la ciudad de Arroyo Seco',email:'antopieretti1@hotmail.com',tel:'341-3619817'});
+  addFiador({nombre:'CALLEGARI PABLO FERNANDO',dni:'32.659.527',dom:'calle Córdoba 1589 5º D de la ciudad de Rosario',email:'paliwey@live.com.ar',tel:'341-5793228'});
+  addFiador({nombre:'FONTANA GREGORIO',dni:'37.170.908',dom:'calle Santiago 103 de la ciudad de Rosario',email:'gregofontana@icloud.com',tel:'341-2479807'});
+  addFiador({nombre:'CALZETTI ROMINA BELEN',dni:'35.447.345',dom:'calle Viamonte 3721 de la ciudad de Rosario',email:'romina.b.calzetti@hotmail.com',tel:'341-6603555'});
+  generar();
+}
+function limpiar(){document.querySelectorAll('input,textarea').forEach(e=>{if(e.type==='checkbox')e.checked=false;else if(e.type!=='button')e.value=''});document.getElementById('fiadores').innerHTML='';nFiador=0;addFiador();document.getElementById('contrato').innerHTML='<p style="text-align:center;color:#889">Completá el formulario y presioná Generar documentos.</p>';document.getElementById('pagares').innerHTML='';}
+
+addFiador();
+// cargar clave guardada si existe
+try{const p=V('aiProv');const k=localStorage.getItem('ai_'+p);if(k){document.getElementById('aiKey').value=k;document.getElementById('aiRecordar').checked=true;}}catch(e){}
+</script>
+</body>
+</html>

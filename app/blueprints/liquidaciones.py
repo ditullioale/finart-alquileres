@@ -1,0 +1,211 @@
+"""Liquidaciones a propietarios: por período, todas juntas o individuales."""
+from datetime import date
+
+from flask import (Blueprint, render_template, redirect, url_for, request,
+                   flash, abort)
+from flask_login import login_required
+
+from .. import db
+from ..models import Contrato, Pago, Persona, Liquidacion, Ajustes
+from ..utils import parse_num, pesos_letras, MESES_ES
+
+liquidaciones_bp = Blueprint("liquidaciones", __name__, url_prefix="/liquidaciones")
+
+
+def _pagos_periodo(propietario_id, mes, anio, contrato_id=None, solo_pendientes=False):
+    """Pagos cobrados (pagado>0) de ese propietario en el período.
+
+    - contrato_id: si se indica, solo ese contrato.
+    - solo_pendientes: solo los que aún NO fueron liquidados al propietario.
+    """
+    pagos = []
+    for p in Pago.query.filter_by(periodo_mes=mes, periodo_anio=anio).all():
+        c = p.contrato
+        if not c or float(p.pagado or 0) <= 0:
+            continue
+        prop = c.propietario_id or (c.inmueble.propietario_id if c.inmueble else None)
+        if prop != propietario_id:
+            continue
+        if contrato_id and c.id != contrato_id:
+            continue
+        if solo_pendientes and p.pagado_al_propietario:
+            continue
+        pagos.append(p)
+    return pagos
+
+
+def _comision_pct(c):
+    if c.comision_pct is not None:
+        return float(c.comision_pct)
+    return float(c.inmueble.comision_pct or 0) if c.inmueble else 0
+
+
+def _detalle(pagos):
+    """Arma el detalle con comisión por inmueble y totales."""
+    items, ingresos, comision = [], 0.0, 0.0
+    for p in pagos:
+        c = p.contrato
+        pct = _comision_pct(c)
+        alq = float(p.precio_alquiler or 0)
+        com = round(alq * pct / 100.0, 2)
+        ingresos += alq
+        comision += com
+        items.append(dict(pago=p, contrato=c, inmueble=c.inmueble,
+                          inquilino=c.inquilino, alquiler=alq, pct=pct, comision=com,
+                          neto=round(alq - com, 2),
+                          liquidada=p.pagado_al_propietario is not None))
+    return items, round(ingresos, 2), round(comision, 2), round(ingresos - comision, 2)
+
+
+# --------------------------------------------------------------------------- #
+#  Panel por período
+# --------------------------------------------------------------------------- #
+@liquidaciones_bp.route("/")
+@login_required
+def index():
+    hoy = date.today()
+    mes = parse_num(request.args.get("mes"), entero=True) or hoy.month
+    anio = parse_num(request.args.get("anio"), entero=True) or hoy.year
+
+    por_prop = {}
+    for p in Pago.query.filter_by(periodo_mes=mes, periodo_anio=anio).all():
+        c = p.contrato
+        if not c or float(p.pagado or 0) <= 0:
+            continue
+        prop_id = c.propietario_id or (c.inmueble.propietario_id if c.inmueble else None)
+        if not prop_id:
+            continue
+        por_prop.setdefault(prop_id, []).append(p)
+
+    filas = []
+    for prop_id, pagos in por_prop.items():
+        prop = db.session.get(Persona, prop_id)
+        _, ingresos, comision, neto = _detalle(pagos)
+        liquidados = sum(1 for p in pagos if p.pagado_al_propietario)
+        if liquidados == 0:
+            estado = "Pendiente"
+        elif liquidados == len(pagos):
+            estado = "Liquidada"
+        else:
+            estado = "Parcial"
+        filas.append(dict(prop=prop, cant=len(pagos), ingresos=ingresos,
+                          comision=comision, neto=neto, estado=estado))
+    filas.sort(key=lambda f: f["prop"].nombre if f["prop"] else "")
+
+    return render_template("liquidaciones/index.html", filas=filas, mes=mes, anio=anio,
+                           meses=MESES_ES, anios=list(range(hoy.year - 4, hoy.year + 2)),
+                           tot_neto=sum(f["neto"] for f in filas))
+
+
+# --------------------------------------------------------------------------- #
+#  Gestión por propietario (elegir todas o individual)
+# --------------------------------------------------------------------------- #
+@liquidaciones_bp.route("/propietario/<int:pid>")
+@login_required
+def gestionar(pid):
+    prop = db.session.get(Persona, pid) or abort(404)
+    hoy = date.today()
+    mes = parse_num(request.args.get("mes"), entero=True) or hoy.month
+    anio = parse_num(request.args.get("anio"), entero=True) or hoy.year
+    pagos = _pagos_periodo(pid, mes, anio)
+    items, ingresos, comision, neto = _detalle(pagos)
+    pendientes = sum(1 for it in items if not it["liquidada"])
+    return render_template("liquidaciones/gestionar.html", prop=prop, items=items,
+                           ingresos=ingresos, comision=comision, neto=neto,
+                           pendientes=pendientes, mes=mes, anio=anio, meses=MESES_ES)
+
+
+@liquidaciones_bp.route("/imprimir/<int:pid>")
+@login_required
+def ver(pid):
+    """Liquidación imprimible. Con ?contrato=<id> imprime solo ese inmueble."""
+    prop = db.session.get(Persona, pid) or abort(404)
+    hoy = date.today()
+    mes = parse_num(request.args.get("mes"), entero=True) or hoy.month
+    anio = parse_num(request.args.get("anio"), entero=True) or hoy.year
+    contrato_id = parse_num(request.args.get("contrato"), entero=True)
+    pagos = _pagos_periodo(pid, mes, anio, contrato_id=contrato_id)
+    items, ingresos, comision, neto = _detalle(pagos)
+    liq = Liquidacion.query.filter_by(propietario_id=pid, periodo_mes=mes,
+                                      periodo_anio=anio, contrato_id=contrato_id).first()
+    a = Ajustes.get()
+    return render_template("liquidaciones/ver.html", prop=prop, items=items,
+                           ingresos=ingresos, comision=comision, neto=neto,
+                           neto_letras=pesos_letras(neto), mes=mes, anio=anio,
+                           meses=MESES_ES, a=a, liq=liq, hoy=hoy,
+                           individual=bool(contrato_id))
+
+
+@liquidaciones_bp.route("/generar", methods=["POST"])
+@login_required
+def generar():
+    pid = parse_num(request.form.get("propietario_id"), entero=True)
+    mes = parse_num(request.form.get("mes"), entero=True)
+    anio = parse_num(request.form.get("anio"), entero=True)
+    contrato_id = parse_num(request.form.get("contrato_id"), entero=True)
+    prop = db.session.get(Persona, pid) or abort(404)
+
+    pagos = _pagos_periodo(pid, mes, anio, contrato_id=contrato_id, solo_pendientes=True)
+    if not pagos:
+        flash("No hay cobros pendientes de liquidar en ese período.", "error")
+        return redirect(url_for("liquidaciones.gestionar", pid=pid, mes=mes, anio=anio))
+
+    _, ingresos, comision, neto = _detalle(pagos)
+    a = Ajustes.get()
+    liq = Liquidacion(numero=a.siguiente_liquidacion(), propietario_id=pid,
+                      periodo_mes=mes, periodo_anio=anio, contrato_id=contrato_id,
+                      fecha=date.today(), total_ingresos=ingresos,
+                      total_comision=comision, total_neto=neto,
+                      moneda=pagos[0].moneda or "Pesos")
+    db.session.add(liq)
+    for p in pagos:
+        p.pagado_al_propietario = date.today()
+    db.session.commit()
+
+    if contrato_id:
+        flash(f"Liquidación individual {liq.numero} generada.", "ok")
+        return redirect(url_for("liquidaciones.ver", pid=pid, mes=mes, anio=anio,
+                                contrato=contrato_id))
+    flash(f"Liquidación {liq.numero} generada (todas juntas) para {prop.nombre}.", "ok")
+    return redirect(url_for("liquidaciones.ver", pid=pid, mes=mes, anio=anio))
+
+
+# --------------------------------------------------------------------------- #
+#  Resumen mensual (todos los inmuebles, cobrados o no)
+# --------------------------------------------------------------------------- #
+@liquidaciones_bp.route("/resumen/<int:pid>")
+@login_required
+def resumen(pid):
+    prop = db.session.get(Persona, pid) or abort(404)
+    hoy = date.today()
+    mes = parse_num(request.args.get("mes"), entero=True) or hoy.month
+    anio = parse_num(request.args.get("anio"), entero=True) or hoy.year
+
+    filas, tot_alq, tot_com, tot_neto, tot_pend = [], 0.0, 0.0, 0.0, 0.0
+    for c in Contrato.query.filter_by(estado="Vigente").all():
+        prop_id = c.propietario_id or (c.inmueble.propietario_id if c.inmueble else None)
+        if prop_id != pid:
+            continue
+        pago = next((p for p in c.pagos
+                     if p.periodo_mes == mes and p.periodo_anio == anio), None)
+        pct = _comision_pct(c)
+        if pago and float(pago.pagado or 0) > 0:
+            alq = float(pago.precio_alquiler or 0)
+            com = round(alq * pct / 100.0, 2)
+            neto = round(alq - com, 2)
+            estado = "Cobrado"
+            tot_alq += alq; tot_com += com; tot_neto += neto
+        else:
+            alq = float(c.precio_actual or c.precio_inicial or 0)
+            com = neto = 0.0
+            estado = "Pendiente"
+            tot_pend += alq
+        filas.append(dict(c=c, estado=estado, alquiler=alq, pct=pct,
+                          comision=com, neto=neto))
+    filas.sort(key=lambda f: f["estado"])
+
+    a = Ajustes.get()
+    return render_template("liquidaciones/resumen.html", prop=prop, filas=filas,
+                           mes=mes, anio=anio, meses=MESES_ES, a=a, hoy=hoy,
+                           tot_alq=tot_alq, tot_com=tot_com, tot_neto=tot_neto,
+                           tot_pend=tot_pend, neto_letras=pesos_letras(tot_neto))

@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Nuevo' if nuevo else 'Editar' }} pago{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>{{ '💵 Registrar pago' if nuevo else 'Editar pago' }}</h1>
+    <p class="sub">{{ c.inmueble.direccion }} · {{ c.inquilino.nombre if c.inquilino else '—' }}
+       · vence el {{ c.dia_vencimiento or '—' }} de cada mes · mora {{ c.mora_diaria_pct }}%/día</p>
+  </div>
+</div>
+
+<form method="post" class="pago-layout"
+      data-mora-pct="{{ c.mora_diaria_pct or 0 }}" data-dia-venc="{{ c.dia_vencimiento or 10 }}">
+
+  <div class="pago-main">
+    <div class="cardform">
+      <h2>1 · Período</h2>
+      <div class="grid2">
+        <div><label>Mes *</label>
+          <select id="periodo_mes" name="periodo_mes" required>
+            {% for m in range(1,13) %}<option value="{{ m }}" {{ 'selected' if pago.periodo_mes==m }}>{{ meses[m] }}</option>{% endfor %}
+          </select></div>
+        <div><label>Año *</label><input id="periodo_anio" name="periodo_anio" value="{{ pago.periodo_anio or '' }}" required></div>
+        <div><label>Fecha de pago *</label>
+          <input type="date" id="fecha_pago" name="fecha_pago" value="{{ pago.fecha_pago.isoformat() if pago.fecha_pago }}" required></div>
+        <div><label>Nro de pago</label><input name="numero" value="{{ pago.numero or '' }}"></div>
+      </div>
+    </div>
+
+    <div class="cardform">
+      <h2>2 · Montos</h2>
+      <div class="grid2">
+        <div><label>Alquiler *</label>
+          <input id="precio_alquiler" name="precio_alquiler" value="{{ pago.precio_alquiler if pago.precio_alquiler is not none else '' }}" required oninput="recalc()"></div>
+        <div><label>Mora</label>
+          <div style="display:flex;gap:8px">
+            <input id="mora" name="mora" value="{{ pago.mora if pago.mora is not none else '0' }}" oninput="recalc()">
+            <button type="button" class="btn sec" onclick="calcularMora()">Calcular</button>
+          </div>
+          <label class="chk" style="margin-top:6px"><input type="checkbox" name="mora_auto"> Recalcular al guardar</label></div>
+      </div>
+
+      {% if nuevo and deuda_previa and deuda_previa > 0 %}
+      <div class="flash" style="background:#fdf0e3;border:1px solid #e8cf8a;color:#8a5a00;margin-top:12px">
+        <label class="chk" style="margin:0">
+          <input type="checkbox" name="arrastrar_saldo" onchange="recalc()">
+          Arrastrar saldo pendiente de meses anteriores (<b>{{ c.moneda }} {{ deuda_previa|money }}</b>)
+        </label>
+      </div>
+      {% endif %}
+
+      <h2 style="margin-top:16px">3 · Gastos extras</h2>
+      <p class="hint">Agua, expensas, etc. Descuento = monto en negativo.</p>
+      <div id="gastos"></div>
+      <button type="button" class="btn sec sm" style="margin-top:8px" onclick="addGasto()">+ Agregar gasto</button>
+    </div>
+
+    <div class="cardform">
+      <h2>4 · Cobro</h2>
+      <div class="grid2">
+        <div><label>Forma de pago</label>
+          <select name="forma_pago">
+            {% for f in formas %}<option {{ 'selected' if pago.forma_pago==f }}>{{ f }}</option>{% endfor %}
+          </select></div>
+        <div><label>Pagado</label>
+          <input id="pagado" name="pagado" value="{{ pago.pagado if pago.pagado is not none else '' }}" oninput="recalc()">
+          <span class="hint">Vacío en un pago nuevo = paga el total.</span></div>
+        <div><label>Nro de recibo</label><input name="recibo_numero" value="{{ pago.recibo_numero or '' }}" placeholder="se asigna al imprimir"></div>
+        <div><label class="chk" style="margin-top:26px"><input type="checkbox" name="pagado_al_propietario"
+           {{ 'checked' if pago.pagado_al_propietario }}> Pagado al propietario</label>
+           <input type="date" name="fecha_prop" value="{{ pago.pagado_al_propietario.isoformat() if pago.pagado_al_propietario }}"></div>
+      </div>
+      <label style="margin-top:10px">Observaciones</label>
+      <textarea name="observaciones" rows="2">{{ pago.observaciones or '' }}</textarea>
+    </div>
+  </div>
+
+  <aside class="pago-side">
+    <div class="cardform resumen-pago">
+      <h2>Resumen</h2>
+      <div class="rp-line"><span>Alquiler</span><b id="r_alq">—</b></div>
+      <div class="rp-line"><span>Mora</span><b id="r_mora">—</b></div>
+      <div class="rp-line"><span>Gastos</span><b id="r_gastos">—</b></div>
+      <div class="rp-total"><span>Total a pagar</span><b id="total">—</b></div>
+      <div class="rp-line"><span>Pagado</span><b id="r_pagado">—</b></div>
+      <div class="rp-saldo"><span>Saldo</span><b id="saldo">—</b></div>
+      <button class="btn ok" type="submit" style="width:100%;justify-content:center;margin-top:14px">✓ Guardar pago</button>
+      {% if nuevo %}
+      <button class="btn sec" type="submit" name="guardar_seguir" value="1" style="width:100%;justify-content:center;margin-top:8px">Guardar y cargar otro</button>
+      {% endif %}
+      <a class="btn sec" href="{{ url_for('cobros.detalle', cid=c.id) }}" style="width:100%;justify-content:center;margin-top:8px">Cancelar</a>
+    </div>
+  </aside>
+</form>
+
+<script>
+const FORM = document.querySelector('form.pago-layout');
+const MORA_PCT = parseFloat(FORM.dataset.moraPct) || 0;
+const DIA_VENC = parseInt(FORM.dataset.diaVenc) || 10;
+const DEUDA_PREVIA = {{ (deuda_previa or 0)|float if nuevo else 0 }};
+
+function num(v){ v=(v||'').toString().trim(); if(v==='')return 0;
+  if(v.indexOf(',')>=0) v=v.replace(/\./g,'').replace(',','.'); return parseFloat(v)||0; }
+function fmt(n){ return n.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+function addGasto(d){
+  d = d || {};
+  const div = document.createElement('div');
+  div.className = 'gasto-row';
+  div.innerHTML = `<input placeholder="Descripción" name="gasto_desc" value="${d.desc||''}" style="flex:2">
+    <input placeholder="Monto" name="gasto_monto" value="${d.monto!==undefined?d.monto:''}" style="flex:1" oninput="recalc()">
+    <button type="button" class="btn sec" onclick="this.parentNode.remove();recalc()">✕</button>`;
+  document.getElementById('gastos').appendChild(div);
+}
+function gastosTotal(){
+  let t=0; document.querySelectorAll('input[name=gasto_monto]').forEach(i=>t+=num(i.value));
+  const arr=document.querySelector('input[name=arrastrar_saldo]');
+  if(arr && arr.checked) t += DEUDA_PREVIA;
+  return t;
+}
+function recalc(){
+  const alq = num(document.getElementById('precio_alquiler').value);
+  const mora = num(document.getElementById('mora').value);
+  const gastos = gastosTotal();
+  const total = alq + mora + gastos;
+  document.getElementById('r_alq').textContent = fmt(alq);
+  document.getElementById('r_mora').textContent = fmt(mora);
+  document.getElementById('r_gastos').textContent = fmt(gastos);
+  document.getElementById('total').textContent = fmt(total);
+  const pagadoRaw = document.getElementById('pagado').value;
+  const pagado = pagadoRaw.trim()===''? total : num(pagadoRaw);
+  document.getElementById('r_pagado').textContent = fmt(pagado);
+  const saldo = total - pagado;
+  const se = document.getElementById('saldo');
+  se.textContent = fmt(saldo);
+  se.parentNode.classList.toggle('rojo', saldo > 0.005);
+}
+function calcularMora(){
+  const precio = num(document.getElementById('precio_alquiler').value);
+  const mes = parseInt(document.getElementById('periodo_mes').value);
+  const anio = parseInt(document.getElementById('periodo_anio').value);
+  const fp = document.getElementById('fecha_pago').value;
+  if(!precio||!mes||!anio||!fp){ alert('Completá alquiler, mes, año y fecha de pago.'); return; }
+  const ultimo = new Date(anio, mes, 0).getDate();
+  const venc = new Date(anio, mes-1, Math.min(DIA_VENC, ultimo));
+  const pago = new Date(fp);
+  const dias = Math.floor((pago - venc)/86400000);
+  const mora = dias>0 ? Math.round(precio*(MORA_PCT/100)*dias*100)/100 : 0;
+  document.getElementById('mora').value = mora;
+  recalc();
+}
+{% for g in pago.gastos %}
+addGasto({desc:{{ g.descripcion|tojson }}, monto:{{ (g.monto|float) }}});
+{% endfor %}
+recalc();
+</script>
+{% endblock %}

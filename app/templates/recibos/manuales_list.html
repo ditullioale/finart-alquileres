@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Recibos manuales{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Recibos manuales</h1>
+    <p class="sub">Recibos de cobro por conceptos sueltos: señas, depósitos, gastos, etc.</p>
+  </div>
+  <a class="btn" href="{{ url_for('recibos.manual_nuevo') }}">+ Nuevo recibo</a>
+</div>
+
+<form class="filters" method="get">
+  <input name="q" value="{{ q }}" placeholder="🔎 Buscar por cliente, número o concepto">
+  <button class="btn sec" type="submit">Buscar</button>
+</form>
+
+{% if recibos %}
+<table class="grid">
+  <thead>
+    <tr><th>Número</th><th>Fecha</th><th>Cliente</th><th>Concepto</th>
+        <th class="r">Total</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for r in recibos %}
+    <tr>
+      <td><a href="{{ url_for('recibos.manual_ver', rid=r.id) }}"><b>{{ r.numero }}</b></a></td>
+      <td>{{ r.fecha.strftime('%d/%m/%Y') if r.fecha }}</td>
+      <td>{{ r.cliente }}</td>
+      <td>{{ r.concepto_general or '—' }}</td>
+      <td class="r">{{ r.moneda }} {{ r.total|money }}</td>
+      <td class="actions">
+        <a href="{{ url_for('recibos.manual_ver', rid=r.id) }}" target="_blank">Imprimir</a>
+        <form method="post" action="{{ url_for('recibos.manual_eliminar', rid=r.id) }}"
+              onsubmit="return confirm('¿Eliminar el recibo {{ r.numero }}?')">
+          <button class="link-danger" type="submit">Eliminar</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+  <div class="em">🧾</div>
+  <h3>No hay recibos manuales{{ ' con esa búsqueda' if q }}</h3>
+  <p>Usalos para cobros fuera del alquiler mensual: señas, depósitos, gastos varios.</p>
+  <a class="btn" href="{{ url_for('recibos.manual_nuevo') }}">+ Nuevo recibo</a>
+</div>
+{% endif %}
+{% endblock %}

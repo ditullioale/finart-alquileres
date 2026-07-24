@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Usuarios{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Usuarios</h1>
+    <p class="sub">Cada persona entra con su propio usuario y contraseña.</p>
+  </div>
+  <a class="btn" href="{{ url_for('usuarios.nuevo') }}">+ Nuevo usuario</a>
+</div>
+
+<table class="grid">
+  <thead>
+    <tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Estado</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for u in usuarios %}
+    <tr>
+      <td><a href="{{ url_for('usuarios.editar', uid=u.id) }}"><b>{{ u.username }}</b></a>
+        {% if u.id == current_user.id %}<span class="hint" style="display:inline">(vos)</span>{% endif %}</td>
+      <td>{{ u.nombre or '—' }}</td>
+      <td>{% if u.rol=='admin' %}<span class="badge alquilado">Administrador</span>{% else %}Operador{% endif %}</td>
+      <td>{% if u.activo %}<span class="badge pagado">Activo</span>{% else %}<span class="badge pendiente">Inactivo</span>{% endif %}</td>
+      <td class="actions">
+        <a href="{{ url_for('usuarios.editar', uid=u.id) }}">Editar</a>
+        {% if u.id != current_user.id %}
+        <form method="post" action="{{ url_for('usuarios.eliminar', uid=u.id) }}"
+              onsubmit="return confirm('¿Eliminar al usuario {{ u.username }}?')">
+          <button class="link-danger" type="submit">Eliminar</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p class="hint" style="margin-top:14px">El rol <b>Administrador</b> puede gestionar usuarios; el <b>Operador</b> usa el sistema pero no ve esta sección.</p>
+{% endblock %}

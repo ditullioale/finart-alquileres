@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Recibo {{ r.numero }}</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:0;background:#f0f0f0}
+  .toolbar{background:#12263f;color:#fff;padding:10px 16px;display:flex;gap:10px;align-items:center}
+  .toolbar a{color:#cfe0f5;text-decoration:none}
+  .toolbar button{background:#2f6fed;color:#fff;border:0;border-radius:7px;padding:8px 16px;font-weight:600;cursor:pointer}
+  .hoja{max-width:820px;margin:16px auto;background:#fff;padding:24px}
+  .recibo{border:1.5px solid #111;margin-bottom:10px}
+  .cab{display:grid;grid-template-columns:1fr 90px 1fr;border-bottom:1.5px solid #111}
+  .cab .emp{padding:10px 12px;text-align:center}
+  .cab .emp img{max-height:54px;max-width:220px}
+  .cab .emp .nom{font-weight:bold;font-size:15px}
+  .cab .emp .datos{font-size:11px;line-height:1.35;margin-top:4px}
+  .cab .x{border-left:1.5px solid #111;border-right:1.5px solid #111;display:flex;flex-direction:column;
+          align-items:center;justify-content:center;text-align:center;font-size:9px}
+  .cab .x .big{border:1.5px solid #111;font-size:26px;font-weight:bold;padding:0 12px;line-height:1.2}
+  .cab .doc{padding:10px 12px;text-align:right}
+  .cab .doc .tt{font-size:24px;font-weight:bold;letter-spacing:1px}
+  .cab .doc .nro{font-size:15px;font-weight:bold}
+  .cab .doc .li{font-size:11px}
+  .cli{padding:8px 12px;border-bottom:1.5px solid #111;font-size:12.5px}
+  .cuerpo{padding:8px 12px;font-size:12.5px;min-height:110px}
+  .conceptos{margin:8px 0 0 20px}
+  .conceptos .c{display:flex;justify-content:space-between;max-width:460px}
+  .tot{display:flex;justify-content:space-between;border-top:1.5px solid #111;padding:8px 12px;font-size:15px;font-weight:bold}
+  .pie{display:flex;justify-content:space-between;padding:6px 12px;font-size:11px;align-items:end}
+  .firma{border-top:1px solid #333;width:220px;text-align:center;padding-top:3px;margin-top:26px}
+  .corte{text-align:center;color:#888;font-size:11px;letter-spacing:3px;margin:6px 0}
+  @media print{ .toolbar{display:none} body{background:#fff} .hoja{margin:0;max-width:none;padding:0} }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <a href="{{ url_for('recibos.manuales') }}">← Volver</a>
+  <span style="flex:1"></span>
+  <button onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+</div>
+
+{% macro copia(rotulo) %}
+<div class="recibo">
+  <div class="cab">
+    <div class="emp">
+      {% if a.logo_url %}<img src="{{ a.logo_url }}" alt="logo"><br>{% endif %}
+      <div class="nom">{{ a.nombre }}</div>
+      <div class="datos">
+        {% if a.direccion %}{{ a.direccion }}{% endif %}{% if a.telefono %} | Tel: {{ a.telefono }}{% endif %}<br>
+        {% if a.localidad %}{{ a.localidad }}{% endif %}{% if a.horario %} | {{ a.horario }}{% endif %}<br>
+        <b>{{ a.cond_iva }}</b>
+      </div>
+    </div>
+    <div class="x"><div class="big">X</div>DOCUMENTO<br>NO VÁLIDO<br>COMO FACTURA</div>
+    <div class="doc">
+      <div class="tt">RECIBO</div>
+      <div class="nro">{{ r.numero }}</div>
+      <div class="li">{{ r.fecha.strftime('%d/%m/%Y') if r.fecha }}</div>
+      {% if a.cuit %}<div class="li">C.U.I.T: {{ a.cuit }}</div>{% endif %}
+      {% if a.ing_brutos %}<div class="li">Ing. Brutos: {{ a.ing_brutos }}</div>{% endif %}
+    </div>
+  </div>
+  <div class="cli">
+    <b>Recibimos de:</b> {{ r.cliente }}{% if r.cliente_dni %} · <b>DNI/CUIT:</b> {{ r.cliente_dni }}{% endif %}<br>
+    {% if r.cliente_domicilio %}<b>Domicilio:</b> {{ r.cliente_domicilio }}{% endif %}
+  </div>
+  <div class="cuerpo">
+    {% if r.concepto_general %}<div><b>En concepto de:</b> {{ r.concepto_general }}</div>{% endif %}
+    {% if conceptos %}
+    <div style="margin-top:6px"><b>Detalle:</b></div>
+    <div class="conceptos">
+      {% for desc, monto in conceptos %}
+      <div class="c"><span>{{ desc }}</span><span>{{ monto|money }}</span></div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if r.forma_pago %}<div style="margin-top:8px"><b>Forma de pago:</b> {{ r.forma_pago }}</div>{% endif %}
+    {% if r.observaciones %}<div style="margin-top:4px">{{ r.observaciones }}</div>{% endif %}
+  </div>
+  <div class="tot"><span>Total Recibo:</span><span>{{ r.total|money }}</span></div>
+  <div class="pie">
+    <div class="firma">Firma y aclaración</div>
+    <div style="max-width:55%"><b>** {{ rotulo }} **</b><br>Recibí(mos) la suma de: {{ total_letras }}.</div>
+  </div>
+</div>
+{% endmacro %}
+
+<div class="hoja">
+  {{ copia('ORIGINAL') }}
+  <div class="corte">- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -</div>
+  {{ copia('DUPLICADO') }}
+</div>
+</body>
+</html>
