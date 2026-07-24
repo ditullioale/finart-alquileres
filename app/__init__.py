@@ -96,6 +96,13 @@ def create_app(config_class=Config):
         resp.headers["Service-Worker-Allowed"] = "/"
         return resp
 
+    @app.route("/.well-known/assetlinks.json")
+    def assetlinks():
+        # Vincula la app Android (TWA/APK) con este sitio para pantalla completa.
+        resp = make_response(app.send_static_file("assetlinks.json"))
+        resp.headers["Content-Type"] = "application/json"
+        return resp
+
     # Crear tablas y usuario admin al arrancar (útil en el primer deploy en la nube).
     with app.app_context():
         try:
