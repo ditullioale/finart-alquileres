@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_wa.html" import wa_icon %}
 {% block title %}Cobranzas{% endblock %}
 {% macro th(label, key, cls='') %}
   {% set cur = request.args.get('sort') %}
@@ -66,10 +67,9 @@
         {% else %}
           <a class="btn ok sm" href="{{ url_for('cobros.nuevo', cid=f.c.id, mes=mes, anio=anio) }}">💵 Cobrar</a>
         {% endif %}
-        {% if f.estado!='Pagado' and f.c.inquilino and f.c.inquilino.telefono %}
+        {% if f.estado!='Pagado' and f.c.inquilino %}
           {% set msj = "Hola " ~ f.c.inquilino.nombre ~ "! Te escribo por el alquiler de " ~ f.c.inmueble.direccion ~ ". El período " ~ meses[mes] ~ " " ~ anio ~ " figura " ~ (f.estado|lower) ~ (" (falta $" ~ f.saldo|money ~ ")" if f.estado=='Parcial' else "") ~ ". ¿Podés confirmarme cuándo lo abonás? ¡Gracias!" %}
-          {% set link = wa_link(f.c.inquilino.telefono, msj) %}
-          {% if link %}<a class="btn wa sm" href="{{ link }}" target="_blank" title="Enviar recordatorio por WhatsApp">🟢 WhatsApp</a>{% endif %}
+          {{ wa_icon(f.c.inquilino.telefono, msj, "Recordatorio de pago por WhatsApp") }}
         {% endif %}
       </td>
     </tr>

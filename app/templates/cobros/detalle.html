@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_wa.html" import wa_icon %}
 {% block title %}Detalle de pagos{% endblock %}
 {% block content %}
 <div class="pagehead">
@@ -6,14 +7,13 @@
   <div class="quick">
     <a class="btn ok" href="{{ url_for('cobros.nuevo', cid=c.id) }}">💵 Registrar pago</a>
     <a class="btn sec" href="{{ url_for('contratos.ver', cid=c.id) }}">Ver contrato</a>
-    {% if c.inquilino and c.inquilino.telefono %}
+    {% if c.inquilino %}
       {% if resumen.deuda > 0 %}
         {% set msj = "Hola " ~ c.inquilino.nombre ~ "! Te escribo por el alquiler de " ~ c.inmueble.direccion ~ ". Tenés un saldo pendiente de " ~ c.moneda ~ " " ~ resumen.deuda|money ~ ". ¿Podés coordinar el pago? ¡Gracias!" %}
       {% else %}
         {% set msj = "Hola " ~ c.inquilino.nombre ~ "! Te escribo por el alquiler de " ~ c.inmueble.direccion ~ "." %}
       {% endif %}
-      {% set link = wa_link(c.inquilino.telefono, msj) %}
-      {% if link %}<a class="btn wa" href="{{ link }}" target="_blank">🟢 WhatsApp</a>{% endif %}
+      {{ wa_icon(c.inquilino.telefono, msj, "Escribir al inquilino por WhatsApp") }}
     {% endif %}
   </div>
 </div>

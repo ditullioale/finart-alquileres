@@ -57,6 +57,10 @@
             {% if c.documento_html %}
             <a href="{{ url_for('contratos.documento', cid=c.id) }}" target="_blank">📄 Ver contrato</a>
             {% endif %}
+            {% if c.inquilino %}
+              {% set wa = wa_link(c.inquilino.telefono, "Hola " ~ c.inquilino.nombre ~ "! Te escribo por el alquiler de " ~ c.inmueble.direccion ~ ".") %}
+              {% if wa %}<a href="{{ wa }}" target="_blank">🟢 Contactar por WhatsApp</a>{% endif %}
+            {% endif %}
             {% if c.estado=='Vigente' %}
             <form method="post" action="{{ url_for('contratos.rescindir', cid=c.id) }}"
                   onsubmit="return confirm('¿Rescindir el contrato de {{ c.inquilino.nombre if c.inquilino else '' }}? El inmueble queda disponible y se conserva el historial de pagos.')">

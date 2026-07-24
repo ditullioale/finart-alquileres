@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_wa.html" import wa_icon %}
 {% block title %}Aumentos{% endblock %}
 {% block content %}
 <div class="pagehead">
@@ -21,10 +22,9 @@
         <td class="r">{{ it.c.moneda }} {{ it.c.precio_actual|money }}</td>
         <td class="actions">
           <a class="btn" href="{{ url_for('aumentos.aplicar', cid=it.c.id) }}">Aplicar</a>
-          {% if it.c.inquilino and it.c.inquilino.telefono %}
+          {% if it.c.inquilino %}
             {% set msj = "Hola " ~ it.c.inquilino.nombre ~ "! Te escribo para avisarte que corresponde el ajuste del alquiler de " ~ it.c.inmueble.direccion ~ " desde el " ~ it.fecha.strftime('%d/%m/%Y') ~ ". Te paso el nuevo monto en breve. ¡Gracias!" %}
-            {% set link = wa_link(it.c.inquilino.telefono, msj) %}
-            {% if link %}<a class="btn wa sm" href="{{ link }}" target="_blank">🟢 WhatsApp</a>{% endif %}
+            {{ wa_icon(it.c.inquilino.telefono, msj, "Avisar ajuste por WhatsApp") }}
           {% endif %}
         </td>
       </tr>
@@ -48,10 +48,9 @@
         <td>{% if it.c.metodo_ajuste=='indice' %}{{ indice_nombre.get(it.c.indice_tipo, it.c.indice_tipo) }}{% else %}{{ it.c.porcentaje_ajuste }}%{% endif %}</td>
         <td class="actions">
           <a href="{{ url_for('aumentos.aplicar', cid=it.c.id) }}">Aplicar ahora</a>
-          {% if it.c.inquilino and it.c.inquilino.telefono %}
+          {% if it.c.inquilino %}
             {% set msj = "Hola " ~ it.c.inquilino.nombre ~ "! Te escribo para avisarte que próximamente corresponde el ajuste del alquiler de " ~ it.c.inmueble.direccion ~ " (vigencia " ~ it.fecha.strftime('%d/%m/%Y') ~ "). ¡Gracias!" %}
-            {% set link = wa_link(it.c.inquilino.telefono, msj) %}
-            {% if link %}<a class="btn wa sm" href="{{ link }}" target="_blank">🟢 WhatsApp</a>{% endif %}
+            {{ wa_icon(it.c.inquilino.telefono, msj, "Avisar ajuste por WhatsApp") }}
           {% endif %}
         </td>
       </tr>

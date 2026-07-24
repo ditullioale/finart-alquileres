@@ -109,6 +109,9 @@ h1{font-size:24px;margin:0;letter-spacing:-.3px} h2{font-size:16px;color:var(--b
 .btn.danger:hover{box-shadow:0 3px 10px rgba(214,54,54,.3)}
 .btn.wa{background:#25d366}
 .btn.wa:hover{box-shadow:0 3px 10px rgba(37,211,102,.35)}
+.wa-ico{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;
+  border-radius:50%;background:#25d366;color:#fff;flex-shrink:0}
+.wa-ico:hover{filter:brightness(1.05);box-shadow:0 2px 8px rgba(37,211,102,.4);text-decoration:none}
 .btn.sm{padding:6px 11px;font-size:13px}
 .acciones-contrato{display:flex;gap:10px;margin:-6px 0 16px;flex-wrap:wrap}
 .acciones-contrato form{margin:0}
