@@ -109,12 +109,16 @@ h1{font-size:24px;margin:0;letter-spacing:-.3px} h2{font-size:16px;color:var(--b
 .btn.danger:hover{box-shadow:0 3px 10px rgba(214,54,54,.3)}
 .btn.wa{background:#25d366}
 .btn.wa:hover{box-shadow:0 3px 10px rgba(37,211,102,.35)}
-.wa-ico{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;
-  border-radius:50%;background:#25d366;color:#fff;flex-shrink:0}
-.wa-ico:hover{filter:brightness(1.05);box-shadow:0 2px 8px rgba(37,211,102,.4);text-decoration:none}
+.wa-ico{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;
+  border-radius:50%;flex-shrink:0;line-height:0}
+.wa-ico:hover{box-shadow:0 2px 8px rgba(37,211,102,.45);text-decoration:none}
 /* Columna propia de WhatsApp: mantiene los botones de acción alineados. */
 .wa-col{width:44px;text-align:center;padding-left:0!important;padding-right:8px!important}
 .wa-col .wa-ico{vertical-align:middle}
+/* Cobranzas: botón principal (Cobrar/Completar/Ver) con ancho parejo y
+   alineado a la izquierda; "Recibo" queda como botón secundario prolijo. */
+.cob-actions{justify-content:flex-start;gap:8px}
+.cob-actions>.btn:first-child{min-width:112px;justify-content:center}
 .btn.sm{padding:6px 11px;font-size:13px}
 .acciones-contrato{display:flex;gap:10px;margin:-6px 0 16px;flex-wrap:wrap}
 .acciones-contrato form{margin:0}

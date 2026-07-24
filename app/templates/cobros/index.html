@@ -57,13 +57,13 @@
         {% elif f.estado=='Sin registrar' %}<span class="badge pendiente">Sin cobrar</span>
         {% else %}<span class="badge pendiente">{{ f.estado }}</span>{% endif %}
       </td>
-      <td class="actions">
+      <td class="actions cob-actions">
         {% if f.estado=='Pagado' %}
-          <a href="{{ url_for('cobros.detalle', cid=f.c.id) }}">Ver</a>
-          <a href="{{ url_for('recibos.recibo', pid=f.pago.id) }}" target="_blank">Recibo</a>
+          <a class="btn sec sm" href="{{ url_for('cobros.detalle', cid=f.c.id) }}">Ver</a>
+          <a class="btn sec sm" href="{{ url_for('recibos.recibo', pid=f.pago.id) }}" target="_blank">Recibo</a>
         {% elif f.estado=='Parcial' %}
           <a class="btn ok sm" href="{{ url_for('cobros.abonar', pid=f.pago.id) }}">Completar</a>
-          <a href="{{ url_for('recibos.recibo', pid=f.pago.id) }}" target="_blank">Recibo</a>
+          <a class="btn sec sm" href="{{ url_for('recibos.recibo', pid=f.pago.id) }}" target="_blank">Recibo</a>
         {% else %}
           <a class="btn ok sm" href="{{ url_for('cobros.nuevo', cid=f.c.id, mes=mes, anio=anio) }}">💵 Cobrar</a>
         {% endif %}
