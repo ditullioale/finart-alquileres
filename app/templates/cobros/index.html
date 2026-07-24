@@ -59,18 +59,20 @@
       </td>
       <td class="actions">
         {% if f.estado=='Pagado' %}
-          <a href="{{ url_for('recibos.recibo', pid=f.pago.id) }}" target="_blank">Recibo</a>
           <a href="{{ url_for('cobros.detalle', cid=f.c.id) }}">Ver</a>
+          <a href="{{ url_for('recibos.recibo', pid=f.pago.id) }}" target="_blank">Recibo</a>
         {% elif f.estado=='Parcial' %}
           <a class="btn ok sm" href="{{ url_for('cobros.abonar', pid=f.pago.id) }}">Completar</a>
           <a href="{{ url_for('recibos.recibo', pid=f.pago.id) }}" target="_blank">Recibo</a>
         {% else %}
           <a class="btn ok sm" href="{{ url_for('cobros.nuevo', cid=f.c.id, mes=mes, anio=anio) }}">💵 Cobrar</a>
         {% endif %}
-        {% if f.estado!='Pagado' and f.c.inquilino %}
-          {% set msj = "Hola " ~ f.c.inquilino.nombre ~ "! Te escribo por el alquiler de " ~ f.c.inmueble.direccion ~ ". El período " ~ meses[mes] ~ " " ~ anio ~ " figura " ~ (f.estado|lower) ~ (" (falta $" ~ f.saldo|money ~ ")" if f.estado=='Parcial' else "") ~ ". ¿Podés confirmarme cuándo lo abonás? ¡Gracias!" %}
-          {{ wa_icon(f.c.inquilino.telefono, msj, "Recordatorio de pago por WhatsApp") }}
-        {% endif %}
+        <span class="wa-slot">
+          {% if f.estado!='Pagado' and f.c.inquilino %}
+            {% set msj = "Hola " ~ f.c.inquilino.nombre ~ "! Te escribo por el alquiler de " ~ f.c.inmueble.direccion ~ ". El período " ~ meses[mes] ~ " " ~ anio ~ " figura " ~ (f.estado|lower) ~ (" (falta $" ~ f.saldo|money ~ ")" if f.estado=='Parcial' else "") ~ ". ¿Podés confirmarme cuándo lo abonás? ¡Gracias!" %}
+            {{ wa_icon(f.c.inquilino.telefono, msj, "Recordatorio de pago por WhatsApp") }}
+          {% endif %}
+        </span>
       </td>
     </tr>
     {% endfor %}
