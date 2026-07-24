@@ -19,7 +19,14 @@
         <td>{{ it.c.inquilino.nombre if it.c.inquilino else '—' }}</td>
         <td>{% if it.c.metodo_ajuste=='indice' %}{{ indice_nombre.get(it.c.indice_tipo, it.c.indice_tipo) }}{% else %}{{ it.c.porcentaje_ajuste }}%{% endif %}</td>
         <td class="r">{{ it.c.moneda }} {{ it.c.precio_actual|money }}</td>
-        <td class="actions"><a class="btn" href="{{ url_for('aumentos.aplicar', cid=it.c.id) }}">Aplicar</a></td>
+        <td class="actions">
+          <a class="btn" href="{{ url_for('aumentos.aplicar', cid=it.c.id) }}">Aplicar</a>
+          {% if it.c.inquilino and it.c.inquilino.telefono %}
+            {% set msj = "Hola " ~ it.c.inquilino.nombre ~ "! Te escribo para avisarte que corresponde el ajuste del alquiler de " ~ it.c.inmueble.direccion ~ " desde el " ~ it.fecha.strftime('%d/%m/%Y') ~ ". Te paso el nuevo monto en breve. ¡Gracias!" %}
+            {% set link = wa_link(it.c.inquilino.telefono, msj) %}
+            {% if link %}<a class="btn wa sm" href="{{ link }}" target="_blank">🟢 WhatsApp</a>{% endif %}
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>
@@ -39,7 +46,14 @@
         <td>{{ it.c.inmueble.direccion }}</td>
         <td>{{ it.c.inquilino.nombre if it.c.inquilino else '—' }}</td>
         <td>{% if it.c.metodo_ajuste=='indice' %}{{ indice_nombre.get(it.c.indice_tipo, it.c.indice_tipo) }}{% else %}{{ it.c.porcentaje_ajuste }}%{% endif %}</td>
-        <td class="actions"><a href="{{ url_for('aumentos.aplicar', cid=it.c.id) }}">Aplicar ahora</a></td>
+        <td class="actions">
+          <a href="{{ url_for('aumentos.aplicar', cid=it.c.id) }}">Aplicar ahora</a>
+          {% if it.c.inquilino and it.c.inquilino.telefono %}
+            {% set msj = "Hola " ~ it.c.inquilino.nombre ~ "! Te escribo para avisarte que próximamente corresponde el ajuste del alquiler de " ~ it.c.inmueble.direccion ~ " (vigencia " ~ it.fecha.strftime('%d/%m/%Y') ~ "). ¡Gracias!" %}
+            {% set link = wa_link(it.c.inquilino.telefono, msj) %}
+            {% if link %}<a class="btn wa sm" href="{{ link }}" target="_blank">🟢 WhatsApp</a>{% endif %}
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>

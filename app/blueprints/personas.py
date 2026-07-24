@@ -5,6 +5,7 @@ from flask_login import login_required
 
 from .. import db
 from ..models import Persona
+from ..utils import normalizar_whatsapp
 
 personas_bp = Blueprint("personas", __name__, url_prefix="/personas")
 
@@ -52,14 +53,24 @@ def _leer_form(persona):
     persona.observaciones = request.form.get("observaciones", "").strip()
 
 
+def _validar(persona):
+    if not persona.nombre:
+        return "El nombre es obligatorio."
+    if persona.telefono and normalizar_whatsapp(persona.telefono) is None:
+        return ("El teléfono no parece válido para WhatsApp. Cargalo con código de área, "
+                "ej: 11 2345-6789 o 0221 15-456-7890 (sin dejarlo tan corto).")
+    return None
+
+
 @personas_bp.route("/nueva", methods=["GET", "POST"])
 @login_required
 def nueva():
     if request.method == "POST":
         persona = Persona()
         _leer_form(persona)
-        if not persona.nombre:
-            flash("El nombre es obligatorio.", "error")
+        error = _validar(persona)
+        if error:
+            flash(error, "error")
             return render_template("personas/form.html", persona=persona)
         db.session.add(persona)
         db.session.commit()
@@ -74,8 +85,9 @@ def editar(pid):
     persona = db.session.get(Persona, pid) or abort(404)
     if request.method == "POST":
         _leer_form(persona)
-        if not persona.nombre:
-            flash("El nombre es obligatorio.", "error")
+        error = _validar(persona)
+        if error:
+            flash(error, "error")
             return render_template("personas/form.html", persona=persona)
         db.session.commit()
         flash("Persona actualizada.", "ok")

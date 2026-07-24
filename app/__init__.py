@@ -80,6 +80,11 @@ def create_app(config_class=Config):
             return value
         return f"{n:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
+    # Función disponible en las plantillas para armar links de WhatsApp:
+    # wa_link(telefono, mensaje) -> https://wa.me/... o None si no hay teléfono válido.
+    from .utils import link_whatsapp
+    app.jinja_env.globals["wa_link"] = link_whatsapp
+
     # PWA: manifest y service worker servidos desde la raíz (para instalar en Android).
     from flask import make_response
 

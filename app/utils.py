@@ -1,6 +1,8 @@
 """Utilidades compartidas: fechas, montos, mapeo de índices."""
 from datetime import date
 import calendar
+import re
+from urllib.parse import quote
 
 
 def add_months(d: date, meses: int) -> date:
@@ -176,3 +178,38 @@ def pesos_letras(n):
     if centavos:
         s += f' con {centavos:02d}/100'
     return s.capitalize()
+
+
+# --------------------------------------------------------------------------- #
+#  WhatsApp: armar links "wa.me" con el mensaje precargado
+# --------------------------------------------------------------------------- #
+def normalizar_whatsapp(tel):
+    """Convierte un teléfono argentino (con o sin 0/15/código de país) al
+    formato que espera wa.me: 549 + código de área + número, todo junto."""
+    if not tel:
+        return None
+    d = re.sub(r"\D", "", str(tel))
+    if not d:
+        return None
+    if d.startswith("54"):
+        d = d[2:]
+    if d.startswith("9"):
+        d = d[1:]
+    if d.startswith("0"):
+        d = d[1:]
+    # Quita el "15" que suele escribirse pegado al código de área (ej. 11 15-1234-5678)
+    m = re.match(r"^(\d{2,4})15(\d{6,8})$", d)
+    if m:
+        d = m.group(1) + m.group(2)
+    if len(d) < 8:
+        return None
+    return "549" + d
+
+
+def link_whatsapp(tel, mensaje=""):
+    """Link https://wa.me/... que abre WhatsApp con el mensaje ya escrito.
+    Devuelve None si el teléfono no es válido/usable."""
+    numero = normalizar_whatsapp(tel)
+    if not numero:
+        return None
+    return f"https://wa.me/{numero}?text={quote(mensaje)}"

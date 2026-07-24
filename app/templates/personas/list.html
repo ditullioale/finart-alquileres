@@ -37,6 +37,10 @@
       <td>{{ p.email or '—' }}</td>
       <td class="actions">
         <a href="{{ url_for('personas.editar', pid=p.id) }}">Editar</a>
+        {% if p.telefono %}
+          {% set link = wa_link(p.telefono, "Hola " ~ p.nombre ~ "!") %}
+          {% if link %}<a href="{{ link }}" target="_blank" title="Enviar WhatsApp">WhatsApp</a>{% endif %}
+        {% endif %}
         <form method="post" action="{{ url_for('personas.eliminar', pid=p.id) }}"
               onsubmit="return confirm('¿Eliminar a {{ p.nombre }}?')">
           <button class="link-danger" type="submit">Eliminar</button>

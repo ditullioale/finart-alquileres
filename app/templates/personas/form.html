@@ -14,7 +14,10 @@
     <div><label>Localidad</label><input name="localidad" value="{{ persona.localidad or '' }}"></div>
     <div><label>Condición IVA</label>
       <input name="cond_iva" value="{{ persona.cond_iva or 'Consumidor Final' }}"></div>
-    <div><label>Teléfono</label><input name="telefono" value="{{ persona.telefono or '' }}"></div>
+    <div><label>Teléfono</label>
+      <input name="telefono" id="telefono" value="{{ persona.telefono or '' }}"
+             placeholder="Ej: 11 2345-6789">
+      <span id="tel-check" class="hint"></span></div>
     <div><label>Email</label><input name="email" value="{{ persona.email or '' }}"></div>
   </div>
 
@@ -33,4 +36,38 @@
     <a class="btn sec" href="{{ url_for('personas.listar') }}">Cancelar</a>
   </div>
 </form>
+
+<script>
+// Réplica en JS de normalizar_whatsapp() (app/utils.py) para dar feedback
+// inmediato al cargar el teléfono, sin esperar a guardar.
+function normalizarWhatsapp(tel) {
+  let d = (tel || '').replace(/\D/g, '');
+  if (!d) return null;
+  if (d.startsWith('54')) d = d.slice(2);
+  if (d.startsWith('9')) d = d.slice(1);
+  if (d.startsWith('0')) d = d.slice(1);
+  const m = d.match(/^(\d{2,4})15(\d{6,8})$/);
+  if (m) d = m[1] + m[2];
+  if (d.length < 8) return null;
+  return '549' + d;
+}
+
+const telInput = document.getElementById('telefono');
+const telCheck = document.getElementById('tel-check');
+
+function actualizarCheck() {
+  const valor = telInput.value.trim();
+  if (!valor) { telCheck.textContent = ''; return; }
+  const numero = normalizarWhatsapp(valor);
+  if (numero) {
+    telCheck.textContent = '✅ Válido para WhatsApp (+' + numero + ')';
+    telCheck.style.color = 'var(--ok)';
+  } else {
+    telCheck.textContent = '⚠️ Falta el código de área o el número está incompleto';
+    telCheck.style.color = 'var(--err)';
+  }
+}
+telInput.addEventListener('input', actualizarCheck);
+actualizarCheck();
+</script>
 {% endblock %}

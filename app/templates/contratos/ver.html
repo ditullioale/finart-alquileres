@@ -30,7 +30,12 @@
     <div><span class="k">Inmueble</span><br>{{ (c.inmueble.codigo ~ ' · ' if c.inmueble.codigo else '') }}{{ c.inmueble.direccion }}</div>
     <div><span class="k">Estado</span><br><span class="badge {{ c.estado|lower }}">{{ c.estado }}</span>
          {% if c.origen=='generador' %}<span class="badge reservado">Desde generador</span>{% endif %}</div>
-    <div><span class="k">Inquilino</span><br>{{ c.inquilino.nombre if c.inquilino else '—' }}</div>
+    <div><span class="k">Inquilino</span><br>{{ c.inquilino.nombre if c.inquilino else '—' }}
+      {% if c.inquilino and c.inquilino.telefono %}
+        {% set link = wa_link(c.inquilino.telefono, "Hola " ~ c.inquilino.nombre ~ "! Te escribo por el alquiler de " ~ c.inmueble.direccion ~ ".") %}
+        {% if link %}<a href="{{ link }}" target="_blank" class="hint" style="display:inline">· WhatsApp</a>{% endif %}
+      {% endif %}
+    </div>
     <div><span class="k">Propietario</span><br>{{ c.propietario.nombre if c.propietario else '—' }}</div>
     <div><span class="k">Inicio</span><br>{{ c.fecha_inicio.strftime('%d/%m/%Y') if c.fecha_inicio }}</div>
     <div><span class="k">Fin</span><br>{{ c.fecha_fin.strftime('%d/%m/%Y') if c.fecha_fin else '—' }} ({{ c.duracion_meses or '?' }} meses)</div>
