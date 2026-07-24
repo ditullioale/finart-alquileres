@@ -179,7 +179,8 @@
       </fieldset>
 
       <fieldset>
-        <legend>Revisión con IA (opcional)</legend>
+        <legend>Revisión de redacción con IA (opcional)</legend>
+        <div class="hint" style="margin:0 0 8px">Revisa coherencia interna y redacción de los datos insertados (concordancia de género, fechas/montos que coincidan, textos sin cortar). No evalúa cuestiones legales.</div>
         <div class="row">
           <div><label>Proveedor</label>
             <select id="aiProv" onchange="ajustarModelo()">
@@ -429,10 +430,16 @@ async function revisarIA(){
   try{ if(document.getElementById('aiRecordar').checked)localStorage.setItem('ai_'+prov,key); else localStorage.removeItem('ai_'+prov);}catch(e){}
   aiRender('warn','analizando…','<div style="font-size:12.5px;margin-top:6px">Enviando el contrato al modelo, esperá unos segundos…</div>');
 
-  const prompt=`Actuás como abogado/a argentino/a especializado en locaciones. Revisá el siguiente CONTRATO DE LOCACIÓN (Rosario, Santa Fe) y sus pagarés en garantía. Detectá incongruencias, errores, datos inconsistentes, cláusulas faltantes o riesgosas, y montos/fechas dudosas. Considerá normativa argentina (CCyC y régimen vigente).
+  const prompt=`Actuás como CORRECTOR de textos en español rioplatense (Argentina). El contrato de abajo se arma insertando datos (nombres, DNI, fechas, montos, domicilios, género del locatario, cantidad de meses, etc.) dentro de un texto base. Tu tarea NO es evaluar cuestiones legales ni normativa, sino revisar la COHERENCIA INTERNA y la REDACCIÓN de esas inserciones. Revisá específicamente:
+- Concordancia de género y número donde se insertó el género (ej. "la Locataria/el Locatario", "recibió/recibió", artículos y adjetivos que acompañan).
+- Que cada inserción quede natural: sin frases cortadas, palabras pegadas, duplicadas, dobles espacios o puntuación fuera de lugar en el punto donde entra el dato.
+- Datos incompletos o con relleno sin reemplazar (guiones sueltos, "________", "[...]", "—").
+- Consistencia entre datos repetidos: que el mismo nombre, fecha o monto aparezca igual en todo el texto; que el monto en NÚMEROS coincida con el monto EN LETRAS; que las fechas sean coherentes entre sí (inicio, fin, plazo).
+- Errores de tipeo, ortografía y puntuación.
+NO comentes sobre legalidad, cláusulas faltantes, riesgos ni normativa; enfocate solo en redacción y coherencia.
 Respondé EXCLUSIVAMENTE con un JSON válido, sin texto adicional, con esta forma:
 {"resumen":"una frase","observaciones":[{"nivel":"error|advertencia|ok","detalle":"..."}]}
-Usá "error" para lo que impide firmar, "advertencia" para lo revisable, y si algo está correcto podés incluir "ok". Máximo 12 observaciones.
+Usá "error" para redacción rota o datos incoherentes, "advertencia" para mejoras de estilo, "ok" si está correcto. Máximo 12 observaciones.
 
 === CONTRATO ===
 ${contrato}`;
