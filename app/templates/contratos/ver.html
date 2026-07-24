@@ -58,11 +58,11 @@
   {% if c.fiadores %}
   <h2 style="margin-top:18px">Fiadores</h2>
   <table class="grid">
-    <thead><tr><th>Nombre</th><th>DNI</th><th>Domicilio</th><th>Teléfono</th><th>Email</th></tr></thead>
+    <thead><tr><th>Nombre</th><th>DNI</th><th>Domicilio</th><th>Teléfono</th><th>Email</th><th>Acredita solvencia con</th></tr></thead>
     <tbody>
       {% for f in c.fiadores %}
       <tr><td>{{ f.nombre }}</td><td>{{ f.dni or '—' }}</td><td>{{ f.domicilio or '—' }}</td>
-          <td>{{ f.telefono or '—' }}</td><td>{{ f.email or '—' }}</td></tr>
+          <td>{{ f.telefono or '—' }}</td><td>{{ f.email or '—' }}</td><td>{{ f.solvencia or '—' }}</td></tr>
       {% endfor %}
     </tbody>
   </table>

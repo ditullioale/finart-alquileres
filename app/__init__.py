@@ -116,5 +116,16 @@ def create_app(config_class=Config):
             Usuario.crear_admin_inicial()
         except Exception:
             pass
+        # Migraciones no destructivas: agregan columnas nuevas si faltan (autocura
+        # la base en cada deploy sin borrar datos).
+        from sqlalchemy import text
+        for _sql in [
+            "ALTER TABLE fiadores ADD COLUMN IF NOT EXISTS solvencia VARCHAR(250)",
+        ]:
+            try:
+                db.session.execute(text(_sql))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
     return app

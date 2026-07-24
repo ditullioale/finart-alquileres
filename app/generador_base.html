@@ -231,7 +231,8 @@ function addFiador(d){
     <div class="row"><div><label>D.N.I.</label><input class="f-dni" value="${d.dni||''}"></div>
     <div><label>Teléfono</label><input class="f-tel" value="${d.tel||''}"></div></div>
     <label>Domicilio</label><input class="f-dom" value="${d.dom||''}">
-    <label>Email</label><input class="f-email" value="${d.email||''}">`;
+    <label>Email</label><input class="f-email" value="${d.email||''}">
+    <label>Acredita solvencia con</label><input class="f-solvencia" value="${d.solvencia||''}" placeholder="Ej: Empleado en... / Propietario de inmueble en...">`;
   document.getElementById('fiadores').appendChild(div);
 }
 function getFiadores(){
@@ -241,6 +242,7 @@ function getFiadores(){
     dom:c.querySelector('.f-dom').value.trim(),
     email:c.querySelector('.f-email').value.trim(),
     tel:c.querySelector('.f-tel').value.trim(),
+    solvencia:c.querySelector('.f-solvencia').value.trim(),
   })).filter(f=>f.nombre);
 }
 const V=id=>{const e=document.getElementById(id);return e?e.value.trim():''};
@@ -280,7 +282,7 @@ function generar(){
     ? 'sin actualización durante la vigencia del contrato.'
     : `con un aumento acumulativo y progresivo que se aplicará cada ${numLetras(parseInt(V('ajusteMeses')))} meses y hasta finalizar el contrato. Dicho ajuste deberá ser calculado utilizando el índice ${ajIdx}${ajIdx==='I.C.L'?', conformado por partes iguales por las variaciones mensuales del índice de precios al consumidor (IPC) y la remuneración imponible promedio de los trabajadores estables (RIPTE), elaborado y publicado mensualmente por el Banco Central de la República Argentina (BCRA). En caso de que este índice dejara de publicarse se utilizará en forma subsidiaria, a elección del locador, los índices Casa Propia o I.P.C.':'.'}`;
 
-  const fiadorEnc = fiadores.map(f=>`<b>${f.nombre}</b>, D.N.I. ${f.dni||'—'}, con domicilio en ${f.dom||'—'}${f.email?`, correo electrónico ${f.email}`:''}${f.tel?`, tel ${f.tel}`:''}`).join('; ');
+  const fiadorEnc = fiadores.map(f=>`<b>${f.nombre}</b>, D.N.I. ${f.dni||'—'}, con domicilio en ${f.dom||'—'}${f.email?`, correo electrónico ${f.email}`:''}${f.tel?`, tel ${f.tel}`:''}${f.solvencia?`, que acredita solvencia con ${f.solvencia}`:''}`).join('; ');
 
   const c=`
   <h2>CONTRATO DE LOCACIÓN</h2>

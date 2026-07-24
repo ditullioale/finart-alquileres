@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 1.4cm 1.4cm; }
+  body { font-family: Helvetica, Arial, sans-serif; color: #111; font-size: 10pt; }
+  /* Marco exterior del recibo: una sola celda con borde => solo bordes exteriores. */
+  table.marco { border: 1.2pt solid #111; border-collapse: collapse; width: 100%; margin-bottom: 12pt; }
+  table.marco > tr > td { padding: 0; border: 0; }
+  /* Tablas internas sin ningún borde (solo maquetan columnas). */
+  table.in { border: 0; border-collapse: collapse; width: 100%; }
+  table.in td { border: 0; vertical-align: top; }
+  .emp { text-align: center; padding: 6pt 8pt; }
+  .emp .nom { font-weight: bold; font-size: 12pt; }
+  .emp .datos { font-size: 8pt; }
+  .xbox { width: 70pt; text-align: center; font-size: 7pt; padding: 6pt 4pt; }
+  .xbox .big { font-size: 20pt; font-weight: bold; }
+  .doc { text-align: right; width: 38%; padding: 6pt 8pt; }
+  .doc .tt { font-size: 18pt; font-weight: bold; }
+  .doc .nro { font-size: 12pt; font-weight: bold; }
+  .doc .li { font-size: 8pt; }
+  .band { padding: 4pt 8pt; font-weight: bold; font-size: 8pt; text-align: center; }
+  .cli td { padding: 2pt 8pt; font-size: 9.5pt; }
+  .cuerpo { padding: 6pt 8pt; font-size: 9.5pt; }
+  .cuerpo p { margin: 2pt 0; }
+  .cuerpo .concepto { margin-left: 20pt; }
+  .tot { padding: 8pt; font-size: 12pt; font-weight: bold; }
+  .pie td { padding: 12pt 8pt 6pt; font-size: 8pt; }
+  .firma { border-top: 0.8pt solid #333; width: 180pt; text-align: center; padding-top: 2pt; }
+  .corte { text-align: center; color: #888; font-size: 8pt; letter-spacing: 2pt; margin: 5pt 0; }
+</style>
+</head>
+<body>
+
+{% macro copia(rotulo) %}
+<table class="marco">
+  <tr><td>
+
+    <table class="in">
+      <tr>
+        <td class="emp">
+          <div class="nom">{{ a.nombre }}</div>
+          <div class="datos">
+            {% if a.direccion %}{{ a.direccion }}{% endif %}{% if a.telefono %} | Tel: {{ a.telefono }}{% endif %}<br>
+            {% if a.localidad %}{{ a.localidad }}{% endif %}{% if a.horario %} | {{ a.horario }}{% endif %}<br>
+            <b>{{ a.cond_iva }}</b>
+          </div>
+        </td>
+        <td class="xbox"><div class="big">X</div>DOCUMENTO<br>NO VÁLIDO<br>COMO FACTURA</td>
+        <td class="doc">
+          <div class="tt">RECIBO</div>
+          <div class="nro">{{ pago.recibo_numero }}</div>
+          <div class="li">{{ (pago.fecha_pago or hoy).strftime('%d/%m/%Y') }}</div>
+          {% if a.cuit %}<div class="li">C.U.I.T: {{ a.cuit }}</div>{% endif %}
+          {% if a.ing_brutos %}<div class="li">Ing. Brutos: {{ a.ing_brutos }}</div>{% endif %}
+          {% if a.inicio_actividades %}<div class="li">Inicio act.: {{ a.inicio_actividades }}</div>{% endif %}
+        </td>
+      </tr>
+    </table>
+
+    <div class="band">COBRO POR CUENTA Y ORDEN DE TERCEROS, IMPORTE PARA SER ENTREGADO AL PROPIETARIO O A QUIEN CORRESPONDA</div>
+
+    <table class="in cli">
+      <tr>
+        <td width="60%"><b>Cliente:</b> {{ c.inquilino.nombre if c.inquilino else '—' }}</td>
+        <td><b>C.U.I.T:</b> {{ c.inquilino.cuit if c.inquilino and c.inquilino.cuit else '' }}</td>
+      </tr>
+      <tr>
+        <td><b>Dirección:</b> {{ c.inquilino.domicilio if c.inquilino and c.inquilino.domicilio else '—' }}</td>
+        <td><b>Localidad:</b> {{ c.inquilino.localidad if c.inquilino else '' }}</td>
+      </tr>
+      <tr><td colspan="2"><b>I.V.A.:</b> {{ c.inquilino.cond_iva if c.inquilino else 'Consumidor Final' }}</td></tr>
+    </table>
+
+    <div class="cuerpo">
+      <p><b>Contrato inicio:</b> {{ c.fecha_inicio.strftime('%d/%m/%Y') if c.fecha_inicio }} &nbsp;&nbsp; <b>Fin:</b> {{ c.fecha_fin.strftime('%d/%m/%Y') if c.fecha_fin else '—' }}</p>
+      <p><b>En concepto de:</b> ALQUILER</p>
+      <p><b>Dirección inmueble:</b> {{ c.inmueble.direccion }}</p>
+      <p><b>Propietario:</b> {{ c.propietario.nombre if c.propietario else '—' }}</p>
+      <p><b>Correspondiente al mes de:</b> {{ meses[pago.periodo_mes] if pago.periodo_mes }} de {{ pago.periodo_anio }} &nbsp;&nbsp; <b>Alquiler:</b> {{ pago.precio_alquiler|money }}</p>
+      {% if conceptos %}
+      <p><b>Otros conceptos:</b></p>
+      {% for desc, monto in conceptos %}
+      <p class="concepto">{{ desc }} .......... {{ monto|money }}</p>
+      {% endfor %}
+      {% endif %}
+    </div>
+
+    <table class="in"><tr>
+      <td class="tot">Total Recibo:</td>
+      <td class="tot" style="text-align:right">{{ c.moneda }} {{ pago.total|money }}</td>
+    </tr></table>
+
+    <table class="in pie"><tr>
+      <td width="45%"><br><br><div class="firma">Firma y aclaración</div></td>
+      <td style="text-align:right"><b>** {{ rotulo }} **</b><br>Recibí(mos) la suma de: {{ total_letras }}.</td>
+    </tr></table>
+
+  </td></tr>
+</table>
+{% endmacro %}
+
+{{ copia('ORIGINAL') }}
+<div class="corte">- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -</div>
+{{ copia('DUPLICADO') }}
+
+</body>
+</html>

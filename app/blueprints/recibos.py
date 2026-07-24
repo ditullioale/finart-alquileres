@@ -1,7 +1,9 @@
 """Recibos, liquidaciones y pagarés listos para imprimir (HTML → PDF navegador)."""
 from datetime import date
+from io import BytesIO
 
-from flask import Blueprint, render_template, redirect, url_for, request, flash, abort
+from flask import (Blueprint, render_template, redirect, url_for, request, flash,
+                   abort, make_response)
 from flask_login import login_required
 
 from datetime import timedelta
@@ -13,26 +15,56 @@ from ..utils import pesos_letras, numero_letras, MESES_ES, parse_num, parse_fech
 recibos_bp = Blueprint("recibos", __name__, url_prefix="/recibos")
 
 
-@recibos_bp.route("/pago/<int:pid>")
-@login_required
-def recibo(pid):
-    pago = db.session.get(Pago, pid) or abort(404)
+def _datos_recibo(pago):
+    """Prepara el número de recibo y la lista de conceptos de un pago."""
     a = Ajustes.get()
-    # Asignar número de recibo si no tiene.
     if not pago.recibo_numero:
         pago.recibo_numero = a.siguiente_recibo()
         db.session.commit()
-
     conceptos = []
     if pago.mora and float(pago.mora) > 0:
         conceptos.append(("Mora", float(pago.mora)))
     for g in pago.gastos:
         conceptos.append((g.descripcion, float(g.monto)))
+    return a, conceptos
 
+
+@recibos_bp.route("/pago/<int:pid>")
+@login_required
+def recibo(pid):
+    pago = db.session.get(Pago, pid) or abort(404)
+    a, conceptos = _datos_recibo(pago)
     return render_template("recibos/recibo.html", pago=pago, c=pago.contrato, a=a,
                            conceptos=conceptos, meses=MESES_ES,
                            total_letras=pesos_letras(pago.total or 0),
                            hoy=date.today())
+
+
+@recibos_bp.route("/pago/<int:pid>/pdf")
+@login_required
+def recibo_pdf(pid):
+    """Genera el recibo en PDF (para descargar y enviar por WhatsApp/mail)."""
+    from xhtml2pdf import pisa
+
+    pago = db.session.get(Pago, pid) or abort(404)
+    a, conceptos = _datos_recibo(pago)
+    html = render_template("recibos/recibo_pdf.html", pago=pago, c=pago.contrato, a=a,
+                           conceptos=conceptos, meses=MESES_ES,
+                           total_letras=pesos_letras(pago.total or 0),
+                           hoy=date.today())
+    buf = BytesIO()
+    pisa.CreatePDF(html, dest=buf, encoding="utf-8")
+    buf.seek(0)
+
+    inq = (pago.contrato.inquilino.nombre if pago.contrato and pago.contrato.inquilino
+           else "inquilino")
+    inq = "".join(ch if ch.isalnum() else "_" for ch in inq)
+    nombre = f"Recibo_{(pago.recibo_numero or pago.id)}_{inq}.pdf".replace("__", "_")
+
+    resp = make_response(buf.read())
+    resp.headers["Content-Type"] = "application/pdf"
+    resp.headers["Content-Disposition"] = f'attachment; filename="{nombre}"'
+    return resp
 
 
 @recibos_bp.route("/liquidacion/pago/<int:pid>")

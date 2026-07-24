@@ -136,6 +136,7 @@ def _leer_fiadores(c: Contrato):
     doms = request.form.getlist("fiador_dom")
     tels = request.form.getlist("fiador_tel")
     mails = request.form.getlist("fiador_email")
+    solvs = request.form.getlist("fiador_solvencia")
     for i, nombre in enumerate(nombres):
         if nombre.strip():
             c.fiadores.append(Fiador(
@@ -144,6 +145,7 @@ def _leer_fiadores(c: Contrato):
                 domicilio=doms[i].strip() if i < len(doms) else "",
                 telefono=tels[i].strip() if i < len(tels) else "",
                 email=mails[i].strip() if i < len(mails) else "",
+                solvencia=solvs[i].strip() if i < len(solvs) else "",
             ))
 
 
@@ -519,7 +521,8 @@ def desde_generador():
         if f.get("nombre"):
             contrato.fiadores.append(Fiador(
                 nombre=f["nombre"], dni=f.get("dni", ""), domicilio=f.get("dom", ""),
-                telefono=f.get("tel", ""), email=f.get("email", "")))
+                telefono=f.get("tel", ""), email=f.get("email", ""),
+                solvencia=f.get("solvencia", "")))
 
     db.session.commit()
     return jsonify(ok=True, contrato_id=contrato.id,

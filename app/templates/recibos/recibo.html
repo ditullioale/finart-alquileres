@@ -33,15 +33,28 @@
   .pie{display:flex;justify-content:space-between;padding:6px 12px;font-size:11px;align-items:end}
   .firma{border-top:1px solid #333;width:220px;text-align:center;padding-top:3px;margin-top:26px}
   .corte{text-align:center;color:#888;font-size:11px;letter-spacing:3px;margin:6px 0}
-  @media print{ .toolbar{display:none} body{background:#fff} .hoja{margin:0;max-width:none;padding:0} }
+  .toolbar .tb-btn{background:#2f6fed;color:#fff;text-decoration:none;border-radius:7px;padding:8px 14px;font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:6px}
+  .toolbar .tb-btn.wa{background:#25d366}
+  .toolbar .tb-btn.mail{background:#d6482f}
+  .toolbar .tb-btn.grey{background:#3a5170}
+  .aviso-adj{background:#fff8e6;color:#8a5a00;font-size:12.5px;padding:8px 16px;text-align:center}
+  @media print{ .toolbar,.aviso-adj{display:none} body{background:#fff} .hoja{margin:0;max-width:none;padding:0} }
 </style>
 </head>
 <body>
+{% set periodo = (meses[pago.periodo_mes] ~ ' de ' ~ pago.periodo_anio) if pago.periodo_mes else '' %}
+{% set msj = 'Hola ' ~ (c.inquilino.nombre if c.inquilino else '') ~ '! Te enviamos tu recibo de pago del alquiler de ' ~ c.inmueble.direccion ~ (' correspondiente a ' ~ periodo if periodo else '') ~ '. ¡Muchas gracias!' %}
+{% set wa = wa_link(c.inquilino.telefono, msj) if c.inquilino else None %}
+{% set asunto = 'Recibo de pago' ~ (' - ' ~ periodo if periodo else '') %}
 <div class="toolbar">
   <a href="{{ url_for('cobros.detalle', cid=c.id) }}">← Volver</a>
   <span style="flex:1"></span>
-  <button onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+  <a class="tb-btn" href="{{ url_for('recibos.recibo_pdf', pid=pago.id) }}">📄 Descargar PDF</a>
+  {% if wa %}<a class="tb-btn wa" href="{{ wa }}" target="_blank">🟢 WhatsApp</a>{% endif %}
+  {% if c.inquilino and c.inquilino.email %}<a class="tb-btn mail" href="mailto:{{ c.inquilino.email }}?subject={{ asunto|urlencode }}&body={{ msj|urlencode }}">✉️ Email</a>{% endif %}
+  <button class="tb-btn grey" onclick="window.print()">🖨️ Imprimir</button>
 </div>
+<div class="aviso-adj">Descargá el PDF y adjuntalo al abrir WhatsApp o el correo. El botón deja el mensaje escrito; vos sumás el archivo.</div>
 
 {% macro copia(rotulo) %}
 <div class="recibo">

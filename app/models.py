@@ -175,6 +175,7 @@ class Fiador(db.Model):
     domicilio = db.Column(db.String(200))
     telefono = db.Column(db.String(60))
     email = db.Column(db.String(120))
+    solvencia = db.Column(db.String(250))   # "Acredita solvencia con..." (trabajo, inmueble, etc.)
 
     contrato = db.relationship("Contrato", back_populates="fiadores")
 

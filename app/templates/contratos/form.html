@@ -108,6 +108,7 @@ function addFiador(d){
     <div><label>Domicilio</label><input name="fiador_dom" value="${d.dom||''}"></div>
     <div><label>Teléfono</label><input name="fiador_tel" value="${d.tel||''}"></div>
     <div><label>Email</label><input name="fiador_email" value="${d.email||''}"></div>
+    <div class="full"><label>Acredita solvencia con</label><input name="fiador_solvencia" value="${d.solvencia||''}" placeholder="Ej: Empleado en... / Propietario de inmueble en..."></div>
     <div style="align-self:end"><button type="button" class="btn sec" onclick="this.closest('.card').remove()">Quitar</button></div>
   </div>`;
   document.getElementById('fiadores').appendChild(div);
@@ -120,7 +121,7 @@ document.getElementById('inmueble_id').addEventListener('change', function(){
 });
 // Fiadores existentes (al editar)
 {% for f in c.fiadores %}
-addFiador({nombre:{{ f.nombre|tojson }}, dni:{{ (f.dni or '')|tojson }}, dom:{{ (f.domicilio or '')|tojson }}, tel:{{ (f.telefono or '')|tojson }}, email:{{ (f.email or '')|tojson }}});
+addFiador({nombre:{{ f.nombre|tojson }}, dni:{{ (f.dni or '')|tojson }}, dom:{{ (f.domicilio or '')|tojson }}, tel:{{ (f.telefono or '')|tojson }}, email:{{ (f.email or '')|tojson }}, solvencia:{{ (f.solvencia or '')|tojson }}});
 {% endfor %}
 toggleAjuste();
 </script>

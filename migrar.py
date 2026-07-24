@@ -14,6 +14,7 @@ ALTERS = [
     "ALTER TABLE contratos ADD COLUMN IF NOT EXISTS documento_html TEXT",
     "ALTER TABLE contratos ADD COLUMN IF NOT EXISTS comision_pct NUMERIC(12,2)",
     "ALTER TABLE liquidaciones ADD COLUMN IF NOT EXISTS contrato_id INTEGER",
+    "ALTER TABLE fiadores ADD COLUMN IF NOT EXISTS solvencia VARCHAR(250)",
 ]
 # Nota: la tabla pagares_manuales la crea db.create_all() automáticamente.
 
