@@ -4,9 +4,13 @@
   --side:#122942;
 }
 *{box-sizing:border-box}
-body{margin:0;font-family:"Segoe UI Variable Text","Segoe UI",system-ui,Roboto,Arial,sans-serif;
+body{margin:0;font-family:"Inter","Segoe UI Variable Text","Segoe UI",system-ui,Roboto,Arial,sans-serif;
   background:var(--bg);color:var(--txt);-webkit-font-smoothing:antialiased;font-size:14.5px}
 a{color:var(--a);text-decoration:none} a:hover{text-decoration:underline}
+
+/* Íconos SVG (heredan el color del texto) */
+.ic-svg{display:inline-block;vertical-align:-.18em;flex:none}
+.btn .ic-svg{vertical-align:middle}
 
 /* Pulido general */
 .panel,.cardform,.grid,.card,.filters{box-shadow:0 1px 3px rgba(17,38,64,.05)}
@@ -28,13 +32,15 @@ h1{font-weight:800}
 .nav-sec{font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:#6f86a6;margin:18px 10px 6px}
 .nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:9px;
   color:#cdd9ea;font-size:14px;font-weight:500;margin:2px 0;text-decoration:none;transition:background .12s}
-.nav-item .i{width:20px;text-align:center;font-size:15px}
+.nav-item .i{width:20px;display:inline-flex;align-items:center;justify-content:center;color:#9fb4d1}
+.nav-item:hover .i,.nav-item.active .i{color:#fff}
 .nav-item:hover{background:rgba(255,255,255,.08);color:#fff;text-decoration:none}
 .nav-item.active{background:var(--a);color:#fff;font-weight:600;box-shadow:0 3px 10px rgba(47,111,237,.35)}
 .side-foot{padding:12px;border-top:1px solid rgba(255,255,255,.1)}
 .side-foot .who{font-size:13px;color:#cdd9ea;padding:4px 8px;display:flex;gap:8px;align-items:center}
-.side-foot .logout{display:block;margin-top:8px;text-align:center;background:rgba(255,255,255,.1);
-  color:#fff;padding:9px;border-radius:8px;font-size:13px;text-decoration:none}
+.side-foot .who .i{display:inline-flex}
+.side-foot .logout{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:8px;
+  background:rgba(255,255,255,.1);color:#fff;padding:9px;border-radius:8px;font-size:13px;text-decoration:none}
 .side-foot .logout:hover{background:rgba(255,255,255,.2);text-decoration:none}
 
 .main{flex:1;min-width:0;display:flex;flex-direction:column}
@@ -220,3 +226,33 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--a);box-s
   font-size:11px;font-weight:700;padding:1px 8px;line-height:1.6}
 
 @media(max-width:700px){.grid2{grid-template-columns:1fr}}
+
+/* ===== Tablas usables en mobile (scroll horizontal) ===== */
+.table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px}
+@media(max-width:820px){
+  .table-wrap .grid{min-width:640px}
+}
+
+/* ===== Toasts (mensajes flash flotantes) ===== */
+.toasts{position:fixed;right:18px;bottom:18px;z-index:9999;display:flex;flex-direction:column;
+  gap:10px;max-width:min(360px,calc(100vw - 36px))}
+.toast{display:flex;align-items:flex-start;gap:10px;background:#fff;border:1px solid var(--bd);
+  border-left:4px solid var(--muted);border-radius:10px;padding:12px 12px 12px 14px;
+  box-shadow:0 8px 24px rgba(17,38,64,.16);animation:toastIn .28s ease}
+.toast.ok{border-left-color:var(--ok)} .toast.ok .t-ic{color:var(--ok)}
+.toast.error{border-left-color:var(--err)} .toast.error .t-ic{color:var(--err)}
+.toast .t-ic{flex:none;display:inline-flex;margin-top:1px}
+.toast .t-msg{flex:1;font-size:13.5px;line-height:1.4;color:var(--txt)}
+.toast .t-x{flex:none;background:none;border:0;color:var(--muted);cursor:pointer;padding:0;display:inline-flex}
+.toast .t-x:hover{color:var(--txt)}
+.toast.hide{animation:toastOut .35s forwards}
+@keyframes toastIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes toastOut{to{opacity:0;transform:translateX(20px)}}
+@media(max-width:820px){.toasts{left:18px;right:18px;max-width:none}}
+
+/* ===== Spinner de botón "Guardando…" ===== */
+.btn.is-busy{opacity:.85;cursor:default}
+.spin{width:14px;height:14px;border:2px solid rgba(255,255,255,.5);border-top-color:#fff;
+  border-radius:50%;display:inline-block;animation:spin .6s linear infinite;vertical-align:-2px}
+.btn.sec .spin{border-color:rgba(31,58,95,.3);border-top-color:var(--b)}
+@keyframes spin{to{transform:rotate(360deg)}}

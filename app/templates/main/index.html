@@ -1,28 +1,29 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 {% block title %}Inicio{% endblock %}
 {% block content %}
 <h1>Panel principal</h1>
 
 <div class="cards">
   <a class="card ci" href="{{ url_for('inmuebles.listar') }}">
-    <div class="ic">🏢</div><div class="num">{{ stats.inmuebles }}</div><div class="lbl">Inmuebles</div></a>
+    <div class="ic">{{ icon('building', 24) }}</div><div class="num">{{ stats.inmuebles }}</div><div class="lbl">Inmuebles</div></a>
   <a class="card ci" href="{{ url_for('inmuebles.listar', estado='Alquilado') }}">
-    <div class="ic">🔑</div><div class="num">{{ stats.alquilados }}</div><div class="lbl">Alquilados</div></a>
+    <div class="ic">{{ icon('key', 24) }}</div><div class="num">{{ stats.alquilados }}</div><div class="lbl">Alquilados</div></a>
   <a class="card ci" href="{{ url_for('contratos.listar', estado='Vigente') }}">
-    <div class="ic">📄</div><div class="num">{{ stats.contratos_vigentes }}</div><div class="lbl">Contratos vigentes</div></a>
+    <div class="ic">{{ icon('file-text', 24) }}</div><div class="num">{{ stats.contratos_vigentes }}</div><div class="lbl">Contratos vigentes</div></a>
   <a class="card ci" href="{{ url_for('personas.listar', rol='propietario') }}">
-    <div class="ic">👤</div><div class="num">{{ stats.propietarios }}</div><div class="lbl">Propietarios</div></a>
+    <div class="ic">{{ icon('user', 24) }}</div><div class="num">{{ stats.propietarios }}</div><div class="lbl">Propietarios</div></a>
   <a class="card ci" href="{{ url_for('personas.listar', rol='inquilino') }}">
-    <div class="ic">👥</div><div class="num">{{ stats.inquilinos }}</div><div class="lbl">Inquilinos</div></a>
+    <div class="ic">{{ icon('users', 24) }}</div><div class="num">{{ stats.inquilinos }}</div><div class="lbl">Inquilinos</div></a>
 </div>
 
 <div class="home-grid">
   <div class="panel">
     <h2>Accesos rápidos</h2>
     <div class="quick">
-      <a class="btn" href="{{ url_for('contratos.nuevo') }}">+ Nuevo contrato</a>
-      <a class="btn" href="{{ url_for('contratos.generador') }}">Generar contrato</a>
-      <a class="btn sec" href="{{ url_for('inmuebles.nuevo') }}">+ Nuevo inmueble</a>
+      <a class="btn" href="{{ url_for('contratos.nuevo') }}">{{ icon('plus', 16) }} Nuevo contrato</a>
+      <a class="btn" href="{{ url_for('contratos.generador') }}">{{ icon('file-pen', 16) }} Generar contrato</a>
+      <a class="btn sec" href="{{ url_for('inmuebles.nuevo') }}">{{ icon('plus', 16) }} Nuevo inmueble</a>
     </div>
   </div>
 
@@ -47,7 +48,7 @@
 
 {% if por_vencer %}
 <div class="panel" style="margin-top:16px" id="vencen">
-  <h2>⏰ Contratos que vencen pronto</h2>
+  <h2 style="display:flex;align-items:center;gap:7px">{{ icon('clock', 18) }} Contratos que vencen pronto</h2>
   <table class="grid">
     <thead><tr><th>Vence</th><th>Inquilino</th><th>Inmueble</th><th class="r">Precio actual</th><th></th></tr></thead>
     <tbody>
