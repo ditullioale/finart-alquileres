@@ -192,7 +192,10 @@ def normalizar_whatsapp(tel):
     se genera un link roto que WhatsApp rechace)."""
     if not tel:
         return None
-    d = re.sub(r"\D", "", str(tel))
+    # Los teléfonos importados desde Excel suelen venir como decimales
+    # (ej: "3402539090.0"). Ese ".0" agregaba un cero de más: lo quitamos.
+    s = re.sub(r"\.0+$", "", str(tel).strip())
+    d = re.sub(r"\D", "", s)
     if not d:
         return None
     # Quitar prefijo de país (54) y el 9 de móvil si vienen pegados.

@@ -43,7 +43,7 @@
 
 <script>
 function normalizarWhatsapp(tel){
-  let d = (tel || '').replace(/\D/g, '');
+  let d = (tel || '').trim().replace(/\.0+$/, '').replace(/\D/g, '');
   if(!d) return null;
   if(d.startsWith('549')) d = d.slice(3);
   else if(d.startsWith('54')) d = d.slice(2);

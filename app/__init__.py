@@ -127,5 +127,20 @@ def create_app(config_class=Config):
                 db.session.commit()
             except Exception:
                 db.session.rollback()
+        # Limpieza única: teléfonos importados como decimales ("3402539090.0").
+        # Quitar el ".0" final devuelve el número correcto. Es idempotente.
+        try:
+            import re as _re
+            from .models import Persona
+            cambiados = 0
+            for _p in Persona.query.filter(Persona.telefono.like("%.0")).all():
+                nuevo = _re.sub(r"\.0+$", "", (_p.telefono or "").strip())
+                if nuevo != _p.telefono:
+                    _p.telefono = nuevo
+                    cambiados += 1
+            if cambiados:
+                db.session.commit()
+        except Exception:
+            db.session.rollback()
 
     return app

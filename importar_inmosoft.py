@@ -11,6 +11,7 @@ Si no se indica carpeta, usa ../DatosInmosoft_23Julio2026 (junto al proyecto).
 El script es re-ejecutable: no duplica contratos ya importados (usa el idAlquiler).
 """
 import sys
+import re
 from pathlib import Path
 from datetime import datetime, date
 
@@ -29,6 +30,17 @@ def txt(v):
     if v is None or (isinstance(v, float) and pd.isna(v)):
         return ""
     return str(v).strip()
+
+
+def tel(v):
+    """Teléfono desde Excel: los números vienen como decimales (3402539090.0).
+    Devuelve el entero como texto ('3402539090'), sin el '.0' que agregaba un
+    dígito de más."""
+    if v is None or (isinstance(v, float) and pd.isna(v)):
+        return ""
+    if isinstance(v, float):
+        return str(int(v))
+    return re.sub(r"\.0+$", "", str(v).strip())
 
 
 def num(v):
@@ -122,7 +134,7 @@ def importar_personas(carpeta):
             p = Persona(nombre=nombre)
             db.session.add(p)
             n += 1
-        p.telefono = txt(r.get("Telefonos")) or txt(r.get("Celular"))
+        p.telefono = tel(r.get("Telefonos")) or tel(r.get("Celular"))
         p.domicilio = txt(r.get("Direccion"))
         p.email = txt(r.get("Email"))
         p.localidad = txt(r.get("Localidad"))
@@ -303,7 +315,7 @@ def _importar_una_hoja(hoja, fin_por_id):
 
         for g in garantes:
             c.fiadores.append(Fiador(
-                nombre=txt(g[2]), telefono=txt(g[3]) or txt(g[4]),
+                nombre=txt(g[2]), telefono=tel(g[3]) or tel(g[4]),
                 domicilio=txt(g[5]), email=txt(g[6])))
 
         db.session.commit()
