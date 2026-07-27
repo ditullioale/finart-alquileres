@@ -71,9 +71,12 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
           <button type="button" class="btn ok sm js-cobrar"
             data-cid="{{ f.c.id }}"
             data-nombre="{{ f.c.inquilino.nombre if f.c.inquilino else '' }}"
-            data-inmueble="{{ f.c.inmueble.direccion }}"
+            data-inmueble="{{ ('(' ~ f.c.inmueble.codigo ~ ') ' if f.c.inmueble.codigo else '') ~ f.c.inmueble.direccion }}"
+            data-propietario="{{ f.c.propietario.nombre if f.c.propietario else '—' }}"
             data-moneda="{{ f.c.moneda }}"
             data-monto="{{ f.esperado|round(2) }}"
+            data-nro="{{ f.prox_nro }}"
+            data-periodo="{{ meses[mes] }} de {{ anio }}"
             data-detalle="{{ url_for('cobros.nuevo', cid=f.c.id, mes=mes, anio=anio) }}">Cobrar</button>
         {% endif %}
       </td>
@@ -111,27 +114,58 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
 </div>
 
 <div class="modal-ov" id="cobroModal" hidden>
-  <div class="modal">
+  <div class="modal modal-pago">
     <div class="modal-head">
-      <h3>Registrar cobro</h3>
+      <h3>Registrar pago</h3>
       <button type="button" class="modal-x" aria-label="Cerrar" onclick="cerrarCobro()">✕</button>
     </div>
-    <p class="modal-sub" id="cm-sub"></p>
+
     <form id="cm-form" data-no-busy>
       <input type="hidden" id="cm-cid">
-      <label>Monto a cobrar</label>
-      <div class="cm-money"><span id="cm-moneda">$</span>
-        <input type="number" step="0.01" id="cm-monto" required></div>
-      <label>Forma de pago</label>
-      <select id="cm-forma">
-        {% for fp in formas %}<option value="{{ fp }}">{{ fp }}</option>{% endfor %}
-      </select>
-      <label>Fecha de pago</label>
-      <input type="date" id="cm-fecha">
+
+      <div class="pago-datos">
+        <div class="pd-row"><span class="pd-k">Inmueble</span><span class="pd-v" id="cm-inmueble"></span></div>
+        <div class="pd-row"><span class="pd-k">Inquilino</span><span class="pd-v" id="cm-inq"></span></div>
+        <div class="pd-row"><span class="pd-k">Propietario</span><span class="pd-v" id="cm-prop"></span></div>
+      </div>
+
+      <div class="grid2" style="margin-top:12px">
+        <div><label>Fecha de pago</label><input type="date" id="cm-fecha"></div>
+        <div><label>Precio alquiler</label>
+          <div class="cm-money"><span id="cm-moneda">$</span>
+            <input type="number" step="0.01" id="cm-precio" required oninput="cmTotal()"></div></div>
+      </div>
+
+      <div class="pago-mes">
+        <div><label>N° de pago</label><input type="text" id="cm-nro" readonly></div>
+        <div><label>Correspondiente al mes de</label><input type="text" id="cm-periodo" readonly></div>
+      </div>
+
+      <div class="grid2">
+        <div><label>Forma de pago</label>
+          <select id="cm-forma">{% for fp in formas %}<option value="{{ fp }}">{{ fp }}</option>{% endfor %}</select></div>
+        <div><label>Mora</label>
+          <input type="number" step="0.01" id="cm-mora" value="0" oninput="cmTotal()"></div>
+      </div>
+
+      <label style="margin-top:12px">Gastos extras</label>
+      <div id="cm-gastos"></div>
+      <button type="button" class="btn sec sm" style="margin-top:6px" onclick="cmAddGasto()">+ Agregar gasto</button>
+
+      <label style="margin-top:12px">Observaciones</label>
+      <input type="text" id="cm-obs" placeholder="Referencia, nota, etc.">
+
+      <div class="pago-tot">
+        <div class="pt-row"><span>Total a pagar</span><b id="cm-total">$ 0,00</b></div>
+        <div class="pt-row"><span>Pagado</span>
+          <input type="number" step="0.01" id="cm-pagado" style="max-width:150px;text-align:right"></div>
+        <div class="pt-hint" id="cm-saldo-hint"></div>
+      </div>
+
       <div class="modal-btns">
-        <button type="submit" class="btn ok">Registrar cobro</button>
+        <button type="submit" class="btn ok">Asentar pago</button>
         <button type="button" class="btn sec" onclick="cerrarCobro()">Cancelar</button>
-        <a class="modal-link" id="cm-detalle" href="#">Cobro detallado (mora, gastos, parcial)</a>
+        <a class="modal-link" id="cm-detalle" href="#">Cobro detallado</a>
       </div>
     </form>
   </div>
@@ -146,18 +180,53 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
     return Number(n||0).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&X')
       .replace('.', ',').replace(/X/g, '.');
   }
+  var cur = '$';
+  function num(id){ return parseFloat(document.getElementById(id).value) || 0; }
+  window.cmAddGasto = function(desc, monto){
+    var wrap = document.getElementById('cm-gastos');
+    var row = document.createElement('div'); row.className = 'gasto-row';
+    row.innerHTML = '<input type="text" placeholder="Descripción" class="g-desc" style="flex:1" value="'+(desc||'')+'">'
+      + '<input type="number" step="0.01" placeholder="Monto" class="g-monto" style="width:120px" value="'+(monto||'')+'">'
+      + '<button type="button" class="btn sec sm" title="Quitar">✕</button>';
+    row.querySelector('button').addEventListener('click', function(){ row.remove(); cmTotal(); });
+    row.querySelector('.g-monto').addEventListener('input', cmTotal);
+    wrap.appendChild(row);
+  };
+  window.cmTotal = function(){
+    var total = num('cm-precio') + num('cm-mora');
+    document.querySelectorAll('#cm-gastos .g-monto').forEach(function(i){ total += parseFloat(i.value) || 0; });
+    total = Math.round(total * 100) / 100;
+    document.getElementById('cm-total').textContent = cur + ' ' + fmtMoney(total);
+    var pag = document.getElementById('cm-pagado');
+    if(pag.dataset.touched === undefined){ pag.value = total.toFixed(2); }
+    var saldo = Math.round((total - (parseFloat(pag.value)||0)) * 100) / 100;
+    var h = document.getElementById('cm-saldo-hint');
+    if(saldo > 0.005){ h.textContent = 'Queda un saldo de ' + cur + ' ' + fmtMoney(saldo) + ' (pago parcial).'; h.style.display='block'; }
+    else { h.textContent = ''; h.style.display='none'; }
+    ov._total = total;
+  };
   window.abrirCobro = function(btn){
     document.getElementById('cm-cid').value = btn.dataset.cid;
-    document.getElementById('cm-sub').textContent =
-      (btn.dataset.nombre || '—') + ' · ' + btn.dataset.inmueble;
-    document.getElementById('cm-moneda').textContent = btn.dataset.moneda === 'Dólares' ? 'US$' : '$';
-    document.getElementById('cm-monto').value = btn.dataset.monto;
+    document.getElementById('cm-inmueble').textContent = btn.dataset.inmueble;
+    document.getElementById('cm-inq').textContent = btn.dataset.nombre || '—';
+    document.getElementById('cm-prop').textContent = btn.dataset.propietario || '—';
+    cur = btn.dataset.moneda === 'Dólares' ? 'US$' : '$';
+    document.getElementById('cm-moneda').textContent = cur;
+    document.getElementById('cm-precio').value = btn.dataset.monto;
+    document.getElementById('cm-mora').value = 0;
+    document.getElementById('cm-obs').value = '';
+    document.getElementById('cm-gastos').innerHTML = '';
+    document.getElementById('cm-nro').value = btn.dataset.nro || '';
+    document.getElementById('cm-periodo').value = btn.dataset.periodo || '';
     document.getElementById('cm-fecha').value = new Date().toISOString().slice(0,10);
+    var pag = document.getElementById('cm-pagado'); delete pag.dataset.touched;
     document.getElementById('cm-detalle').href = btn.dataset.detalle;
     ov._row = btn.closest('tr');
     ov.removeAttribute('hidden');
-    setTimeout(function(){ document.getElementById('cm-monto').focus(); }, 50);
+    cmTotal();
+    setTimeout(function(){ document.getElementById('cm-precio').focus(); }, 50);
   };
+  document.getElementById('cm-pagado').addEventListener('input', function(){ this.dataset.touched = '1'; cmTotal(); });
   window.cerrarCobro = function(){ ov.setAttribute('hidden',''); };
   ov.addEventListener('click', function(e){ if(e.target === ov) cerrarCobro(); });
   document.addEventListener('keydown', function(e){ if(e.key==='Escape' && !ov.hasAttribute('hidden')) cerrarCobro(); });
@@ -170,29 +239,47 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
     b.addEventListener('click', function(){ abrirCobro(b); });
   });
 
+  function badgeParcial(saldo){ return '<span class="badge parcial">Parcial · falta ' + fmtMoney(saldo) + '</span>'; }
+
   document.getElementById('cm-form').addEventListener('submit', function(e){
     e.preventDefault();
-    var cid = document.getElementById('cm-cid').value;
-    var monto = parseFloat(document.getElementById('cm-monto').value);
-    var forma = document.getElementById('cm-forma').value;
-    var fecha = document.getElementById('cm-fecha').value;
+    var gastos = [];
+    document.querySelectorAll('#cm-gastos .gasto-row').forEach(function(r){
+      var desc = r.querySelector('.g-desc').value.trim();
+      var monto = parseFloat(r.querySelector('.g-monto').value);
+      if(desc && !isNaN(monto)) gastos.push({desc:desc, monto:monto});
+    });
+    var payload = {
+      cid: document.getElementById('cm-cid').value, mes: period.mes, anio: period.anio,
+      fecha: document.getElementById('cm-fecha').value,
+      precio: num('cm-precio'), mora: num('cm-mora'),
+      forma_pago: document.getElementById('cm-forma').value,
+      observaciones: document.getElementById('cm-obs').value.trim(),
+      gastos: gastos, pagado: num('cm-pagado')
+    };
     var btn = e.target.querySelector('button[type="submit"]');
     btn.disabled = true; btn.textContent = 'Guardando…';
     fetch('{{ url_for("cobros.rapido") }}', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({cid:cid, mes:period.mes, anio:period.anio, monto:monto, forma_pago:forma, fecha:fecha})
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
     }).then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
       .then(function(res){
-        btn.disabled = false; btn.textContent = 'Registrar cobro';
-        if(!res.ok || !res.j.ok){ (window.showToast||alert)(res.j.error || 'No se pudo registrar el cobro.', 'error'); return; }
+        btn.disabled = false; btn.textContent = 'Asentar pago';
+        if(!res.ok || !res.j.ok){ (window.showToast||alert)(res.j.error || 'No se pudo registrar el pago.', 'error'); return; }
         var row = ov._row, j = res.j;
-        row.querySelector('.js-estado').innerHTML = '<span class="badge pagado">Pagado</span>';
-        row.querySelector('.js-cobrado').textContent = fmtMoney(j.monto);
-        row.querySelector('.js-acciones').innerHTML =
-          '<a class="btn sec sm" href="'+j.detalle_url+'">Ver</a>' +
-          '<a class="btn sec sm" target="_blank" href="'+j.recibo_url+'">Recibo</a>';
-        var wa = row.querySelector('.wa-col'); if(wa) wa.innerHTML = '';
-        window.__tot.cobrado += j.monto; window.__tot.pendiente -= j.monto;
+        if(j.estado === 'Parcial'){
+          row.querySelector('.js-estado').innerHTML = badgeParcial(j.saldo);
+          row.querySelector('.js-acciones').innerHTML =
+            '<a class="btn ok sm" href="'+j.abonar_url+'">Completar</a>' +
+            '<a class="btn sec sm" target="_blank" href="'+j.recibo_url+'">Recibo</a>';
+        } else {
+          row.querySelector('.js-estado').innerHTML = '<span class="badge pagado">Pagado</span>';
+          row.querySelector('.js-acciones').innerHTML =
+            '<a class="btn sec sm" href="'+j.detalle_url+'">Ver</a>' +
+            '<a class="btn sec sm" target="_blank" href="'+j.recibo_url+'">Recibo</a>';
+          var wa = row.querySelector('.wa-col'); if(wa) wa.innerHTML = '';
+        }
+        row.querySelector('.js-cobrado').textContent = fmtMoney(j.pagado);
+        window.__tot.cobrado += j.pagado; window.__tot.pendiente -= j.pagado;
         if(window.__tot.pendiente < 0) window.__tot.pendiente = 0;
         document.getElementById('t-cobrado').textContent = '$ ' + fmtMoney(window.__tot.cobrado);
         document.getElementById('t-pendiente').textContent = '$ ' + fmtMoney(window.__tot.pendiente);
@@ -201,7 +288,7 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
         document.getElementById('ask-pdf').href = j.pdf_url;
         ask.removeAttribute('hidden');
       }).catch(function(){
-        btn.disabled = false; btn.textContent = 'Registrar cobro';
+        btn.disabled = false; btn.textContent = 'Asentar pago';
         (window.showToast||alert)('Error de conexión. Probá de nuevo.', 'error');
       });
   });

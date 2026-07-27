@@ -273,6 +273,22 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--a);box-s
 .modal .cm-money span{font-weight:700;color:var(--b)}
 .modal-btns{display:flex;align-items:center;gap:10px;margin-top:20px;flex-wrap:wrap}
 .modal-link{font-size:12.5px;color:var(--a);margin-left:auto}
+/* Panel de pago tipo formulario (réplica del sistema anterior) */
+.modal-pago{max-width:560px;max-height:88vh;overflow-y:auto}
+.modal-pago .grid2{gap:10px 14px}
+.pago-datos{background:#f5f8fc;border:1px solid var(--bd);border-radius:9px;padding:10px 12px}
+.pago-datos .pd-row{display:flex;gap:10px;padding:2px 0;font-size:13.5px}
+.pago-datos .pd-k{color:var(--muted);min-width:88px;font-weight:600}
+.pago-datos .pd-v{font-weight:600;color:var(--txt)}
+.pago-mes{display:grid;grid-template-columns:120px 1fr;gap:10px 14px;margin-top:10px;
+  background:#fbfcfe;border:1px dashed var(--bd);border-radius:9px;padding:8px 12px}
+.pago-mes input[readonly]{background:#eef2f7;color:var(--txt);font-weight:600}
+.pago-tot{margin-top:16px;border-top:1px solid var(--bd);padding-top:12px}
+.pago-tot .pt-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;font-size:14px}
+.pago-tot .pt-row b{font-size:20px;color:var(--b);font-variant-numeric:tabular-nums}
+.pago-tot .pt-hint{color:#8a5a00;font-size:12.5px;margin-top:4px;display:none}
+.modal-pago .gasto-row{display:flex;gap:8px;margin-top:8px}
+.modal-pago .gasto-row button{padding:6px 11px}
 @keyframes ovIn{from{opacity:0}to{opacity:1}}
 @keyframes modalIn{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){.modal-ov,.modal{animation:none}}

@@ -113,8 +113,9 @@ def index():
         tot_cobrado += cobrado
         if estado != "Pagado":
             tot_pendiente += saldo
+        prox_nro = (max((p.numero or 0) for p in c.pagos) + 1) if c.pagos else 1
         filas.append(dict(c=c, pago=pago, esperado=esperado, estado=estado,
-                          cobrado=cobrado, saldo=saldo))
+                          cobrado=cobrado, saldo=saldo, prox_nro=prox_nro))
 
     if filtro == "pendiente":
         filas = [f for f in filas if f["estado"] not in ("Pagado",)]
@@ -188,8 +189,9 @@ def _leer_pago(pago, contrato):
 @cobros_bp.route("/rapido", methods=["POST"])
 @login_required
 def rapido():
-    """Cobro rápido (pago total del mes) desde el panel de Cobranzas, sin recargar.
-    Recibe JSON y devuelve JSON para que la fila se actualice en el momento."""
+    """Registrar un pago desde el panel de Cobranzas, sin recargar la página.
+    Acepta precio, mora, gastos extras, observaciones, forma de pago y monto pagado
+    (permite pago parcial). Devuelve JSON para actualizar la fila al instante."""
     d = request.get_json(silent=True) or {}
     contrato = db.session.get(Contrato, parse_num(d.get("cid"), entero=True) or 0)
     if not contrato:
@@ -197,11 +199,11 @@ def rapido():
 
     mes = parse_num(d.get("mes"), entero=True)
     anio = parse_num(d.get("anio"), entero=True)
-    monto = parse_num(d.get("monto"))
+    precio = parse_num(d.get("precio")) or parse_num(d.get("monto"))
     if not mes or not anio:
         return jsonify(ok=False, error="Falta el período."), 400
-    if not monto or monto <= 0:
-        return jsonify(ok=False, error="El monto debe ser mayor a 0."), 400
+    if not precio or precio <= 0:
+        return jsonify(ok=False, error="El precio del alquiler debe ser mayor a 0."), 400
 
     # Evitar duplicar: si ya hay un pago de ese período, no crear otro.
     ya = next((p for p in contrato.pagos
@@ -209,20 +211,50 @@ def rapido():
     if ya:
         return jsonify(ok=False, error="Ya existe un pago para ese período."), 409
 
+    mora = parse_num(d.get("mora")) or 0
+    # Gastos extras: lista de {desc, monto}
+    gastos = []
+    gastos_total = 0.0
+    for g in (d.get("gastos") or []):
+        desc = (g.get("desc") or "").strip()
+        monto = parse_num(g.get("monto"))
+        if desc and monto is not None:
+            gastos.append((desc, monto))
+            gastos_total += monto
+
+    total = round(float(precio) + float(mora) + gastos_total, 2)
+    pagado = parse_num(d.get("pagado"))
+    if pagado is None:
+        pagado = total
+    pagado = round(pagado, 2)
+    saldo = round(total - pagado, 2)
+    if pagado <= 0:
+        estado = "Pendiente"
+    elif saldo > 0.005:
+        estado = "Parcial"
+    else:
+        estado = "Pagado"
+        saldo = 0
+
     fecha = parse_fecha(d.get("fecha")) or date.today()
     nro = (max((p.numero or 0) for p in contrato.pagos) + 1) if contrato.pagos else 1
     pago = Pago(
         contrato_id=contrato.id, numero=nro, periodo_mes=mes, periodo_anio=anio,
-        fecha_pago=fecha, precio_alquiler=monto, moneda=contrato.moneda or "Pesos",
-        forma_pago=(d.get("forma_pago") or "").strip(), mora=0,
-        total=round(monto, 2), pagado=round(monto, 2), saldo=0, estado="Pagado",
+        fecha_pago=fecha, precio_alquiler=precio, moneda=contrato.moneda or "Pesos",
+        forma_pago=(d.get("forma_pago") or "").strip(),
+        observaciones=(d.get("observaciones") or "").strip(),
+        mora=mora, total=total, pagado=pagado, saldo=saldo, estado=estado,
     )
+    for desc, monto in gastos:
+        pago.gastos.append(GastoExtra(descripcion=desc, monto=monto))
     db.session.add(pago)
     db.session.commit()
-    return jsonify(ok=True, pago_id=pago.id, monto=float(pago.total or 0),
+    return jsonify(ok=True, pago_id=pago.id, estado=estado,
+                   pagado=float(pagado), saldo=float(saldo), total=float(total),
                    moneda=pago.moneda,
                    recibo_url=url_for("recibos.recibo", pid=pago.id),
                    pdf_url=url_for("recibos.recibo_pdf", pid=pago.id),
+                   abonar_url=url_for("cobros.abonar", pid=pago.id),
                    detalle_url=url_for("cobros.detalle", cid=contrato.id))
 
 
