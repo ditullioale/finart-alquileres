@@ -59,22 +59,58 @@
 {% if sin_asignar %}
 <div class="panel" style="margin-top:16px">
   <h2>Cuentas sin asignar</h2>
-  <p class="hint" style="margin:0 0 10px">El robot trajo estas cuentas pero no coinciden con el N° cargado en ningún inmueble.
-  Cargá el número en la ficha del inmueble correspondiente para que aparezcan arriba.</p>
+  <p class="hint" style="margin:0 0 10px">El robot trajo estas cuentas pero no están vinculadas a ningún inmueble.
+  Como el domicilio o el titular pueden no coincidir exactamente, elegí a mano el inmueble de tu base y asignalo. El vínculo se hace por el N° de cuenta (no por dirección).</p>
   <table class="grid">
-    <thead><tr><th>Cuenta</th><th>Titular</th><th>Dirección (Litoral Gas)</th><th>Estado</th><th class="r">Deuda</th></tr></thead>
+    <thead><tr><th>Cuenta</th><th>Titular (Litoral Gas)</th><th>Dirección (Litoral Gas)</th><th>Estado</th><th>Asignar a inmueble</th></tr></thead>
     <tbody>
       {% for g in sin_asignar %}
-      <tr>
-        <td>{{ g.cuenta }}</td>
+      <tr data-cuenta="{{ g.cuenta }}">
+        <td><b>{{ g.cuenta }}</b></td>
         <td>{{ g.titular or '—' }}</td>
         <td>{{ g.direccion or '—' }}</td>
         <td>{% if g.tiene_deuda %}<span class="badge pendiente">Debe</span>{% else %}<span class="badge pagado">Al día</span>{% endif %}</td>
-        <td class="r">{{ ('$ ' ~ g.deuda_total|money) if g.tiene_deuda else '—' }}</td>
+        <td class="actions" style="justify-content:flex-start;gap:8px">
+          <select class="asig-sel" style="min-width:220px">
+            <option value="">— Elegí inmueble —</option>
+            {% for inm in disponibles %}
+            <option value="{{ inm.id }}">{{ (inm.codigo ~ ' · ' if inm.codigo else '') }}{{ inm.direccion }}</option>
+            {% endfor %}
+          </select>
+          <button type="button" class="btn ok sm asig-btn">Asignar</button>
+        </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
+
+<script>
+document.querySelectorAll('tr[data-cuenta]').forEach(function(row){
+  var btn = row.querySelector('.asig-btn');
+  if(!btn) return;
+  btn.addEventListener('click', function(){
+    var sel = row.querySelector('.asig-sel');
+    if(!sel.value){ (window.showToast||alert)('Elegí un inmueble primero.', 'error'); return; }
+    btn.disabled = true; btn.textContent = 'Asignando…';
+    fetch('{{ url_for("gas.asignar") }}', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({cuenta: row.dataset.cuenta, inmueble_id: sel.value})
+    }).then(function(r){ return r.json(); }).then(function(j){
+      if(j.ok){
+        (window.showToast||function(){})('Cuenta ' + row.dataset.cuenta + ' vinculada a ' + j.inmueble, 'ok');
+        row.style.transition='opacity .3s'; row.style.opacity='.4';
+        setTimeout(function(){ row.remove(); }, 600);
+      } else {
+        btn.disabled = false; btn.textContent = 'Asignar';
+        (window.showToast||alert)(j.error || 'No se pudo asignar.', 'error');
+      }
+    }).catch(function(){
+      btn.disabled = false; btn.textContent = 'Asignar';
+      (window.showToast||alert)('Error de conexión.', 'error');
+    });
+  });
+});
+</script>
 {% endif %}
 {% endblock %}

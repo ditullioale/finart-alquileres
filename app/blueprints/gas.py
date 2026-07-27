@@ -3,7 +3,7 @@
 Cruza el N° de cuenta de gas cargado en cada inmueble con el estado de deuda
 que el robot deja en la tabla GasEstado, y muestra un tablero con quién debe.
 """
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, request, jsonify, abort
 from flask_login import login_required
 
 from .. import db
@@ -45,7 +45,26 @@ def index():
     asignadas = {(i.cuenta_gas or "").strip() for i in inmuebles}
     sin_asignar = [g for g in estados.values() if g.cuenta not in asignadas]
 
+    # Inmuebles sin cuenta de gas, para el selector de asignación rápida.
+    disponibles = (Inmueble.query
+                   .filter(db.or_(Inmueble.cuenta_gas.is_(None), Inmueble.cuenta_gas == ""))
+                   .order_by(Inmueble.direccion).all())
+
     return render_template("gas/index.html", filas=filas, con_deuda=con_deuda,
                            deuda_total=deuda_total, total=len(inmuebles),
-                           sin_asignar=sin_asignar,
+                           sin_asignar=sin_asignar, disponibles=disponibles,
                            ultima_actualizacion=ultima_actualizacion)
+
+
+@gas_bp.route("/asignar", methods=["POST"])
+@login_required
+def asignar():
+    """Vincula una cuenta de gas a un inmueble (asignación rápida desde el panel)."""
+    d = request.get_json(silent=True) or {}
+    cuenta = (d.get("cuenta") or "").strip()
+    inm = db.session.get(Inmueble, int(d.get("inmueble_id") or 0))
+    if not cuenta or not inm:
+        return jsonify(ok=False, error="Faltan datos."), 400
+    inm.cuenta_gas = cuenta
+    db.session.commit()
+    return jsonify(ok=True, inmueble=inm.direccion)
