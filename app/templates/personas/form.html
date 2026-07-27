@@ -43,12 +43,16 @@
 function normalizarWhatsapp(tel) {
   let d = (tel || '').replace(/\D/g, '');
   if (!d) return null;
-  if (d.startsWith('54')) d = d.slice(2);
-  if (d.startsWith('9')) d = d.slice(1);
+  if (d.startsWith('549')) d = d.slice(3);
+  else if (d.startsWith('54')) d = d.slice(2);
   if (d.startsWith('0')) d = d.slice(1);
-  const m = d.match(/^(\d{2,4})15(\d{6,8})$/);
-  if (m) d = m[1] + m[2];
-  if (d.length < 8) return null;
+  if (d.length === 12) {
+    for (const i of [2, 3, 4]) {
+      if (d.slice(i, i + 2) === '15') { d = d.slice(0, i) + d.slice(i + 2); break; }
+    }
+  }
+  if (d.length === 11 && d.startsWith('9')) d = d.slice(1);
+  if (d.length !== 10) return null;
   return '549' + d;
 }
 

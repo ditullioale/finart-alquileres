@@ -184,24 +184,37 @@ def pesos_letras(n):
 #  WhatsApp: armar links "wa.me" con el mensaje precargado
 # --------------------------------------------------------------------------- #
 def normalizar_whatsapp(tel):
-    """Convierte un teléfono argentino (con o sin 0/15/código de país) al
-    formato que espera wa.me: 549 + código de área + número, todo junto."""
+    """Convierte un teléfono argentino al formato que espera wa.me:
+    549 + código de área + número (el área + número deben sumar 10 dígitos).
+
+    Tolera 0 inicial, el 15 de celular y el prefijo de país 54/549. Si el
+    número no puede normalizarse a 10 dígitos válidos, devuelve None (así no
+    se genera un link roto que WhatsApp rechace)."""
     if not tel:
         return None
     d = re.sub(r"\D", "", str(tel))
     if not d:
         return None
-    if d.startswith("54"):
+    # Quitar prefijo de país (54) y el 9 de móvil si vienen pegados.
+    if d.startswith("549"):
+        d = d[3:]
+    elif d.startswith("54"):
         d = d[2:]
-    if d.startswith("9"):
-        d = d[1:]
+    # Quitar 0 de larga distancia (ej. 0341...).
     if d.startswith("0"):
         d = d[1:]
-    # Quita el "15" que suele escribirse pegado al código de área (ej. 11 15-1234-5678)
-    m = re.match(r"^(\d{2,4})15(\d{6,8})$", d)
-    if m:
-        d = m.group(1) + m.group(2)
-    if len(d) < 8:
+    # Un número AR (código de área + abonado) tiene 10 dígitos. Si trae el
+    # "15" de celular aparece justo después del área y sobran 2 dígitos: se quita.
+    if len(d) == 12:
+        for i in (2, 3, 4):
+            if d[i:i + 2] == "15":
+                d = d[:i] + d[i + 2:]
+                break
+    # Un 9 de móvil que haya quedado suelto al principio.
+    if len(d) == 11 and d.startswith("9"):
+        d = d[1:]
+    # Validación final: deben quedar exactamente 10 dígitos.
+    if len(d) != 10:
         return None
     return "549" + d
 
