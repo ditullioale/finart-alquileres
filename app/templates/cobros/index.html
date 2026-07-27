@@ -32,10 +32,13 @@
 </form>
 
 <div class="cards" style="grid-template-columns:repeat(3,1fr)">
-  <div class="card"><div class="ic">📅</div><div class="num" style="font-size:22px">$ {{ totales.esperado|money }}</div><div class="lbl">Esperado del mes</div></div>
-  <div class="card"><div class="ic">✅</div><div class="num" style="font-size:22px;color:var(--ok)">$ {{ totales.cobrado|money }}</div><div class="lbl">Cobrado</div></div>
-  <div class="card"><div class="ic">⏳</div><div class="num" style="font-size:22px;color:var(--err)">$ {{ totales.pendiente|money }}</div><div class="lbl">Pendiente de cobro</div></div>
+  <div class="card"><div class="num" style="font-size:22px" id="t-esperado">$ {{ totales.esperado|money }}</div><div class="lbl">Esperado del mes</div></div>
+  <div class="card"><div class="num" style="font-size:22px;color:var(--ok)" id="t-cobrado">$ {{ totales.cobrado|money }}</div><div class="lbl">Cobrado</div></div>
+  <div class="card"><div class="num" style="font-size:22px;color:var(--err)" id="t-pendiente">$ {{ totales.pendiente|money }}</div><div class="lbl">Pendiente de cobro</div></div>
 </div>
+<script>
+window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.pendiente|round(2) }} };
+</script>
 
 {% if filas %}
 <table class="grid">
@@ -45,19 +48,19 @@
   </thead>
   <tbody id="cobros-body">
     {% for f in filas %}
-    <tr>
+    <tr data-cid="{{ f.c.id }}">
       <td><b>{{ f.c.inquilino.nombre if f.c.inquilino else '—' }}</b></td>
       <td>{{ f.c.inmueble.direccion }}
         {% if f.c.inmueble.localidad %}<div class="hint" style="margin:0">{{ f.c.inmueble.localidad }}</div>{% endif %}</td>
       <td class="r">{{ f.c.moneda }} {{ f.esperado|money }}</td>
-      <td class="r">{{ f.cobrado|money if f.pago else '—' }}</td>
-      <td>
+      <td class="r js-cobrado">{{ f.cobrado|money if f.pago else '—' }}</td>
+      <td class="js-estado">
         {% if f.estado=='Pagado' %}<span class="badge pagado">Pagado</span>
         {% elif f.estado=='Parcial' %}<span class="badge parcial">Parcial · falta {{ f.saldo|money }}</span>
         {% elif f.estado=='Sin registrar' %}<span class="badge pendiente">Sin cobrar</span>
         {% else %}<span class="badge pendiente">{{ f.estado }}</span>{% endif %}
       </td>
-      <td class="actions cob-actions">
+      <td class="actions cob-actions js-acciones">
         {% if f.estado=='Pagado' %}
           <a class="btn sec sm" href="{{ url_for('cobros.detalle', cid=f.c.id) }}">Ver</a>
           <a class="btn sec sm" href="{{ url_for('recibos.recibo', pid=f.pago.id) }}" target="_blank">Recibo</a>
@@ -65,7 +68,13 @@
           <a class="btn ok sm" href="{{ url_for('cobros.abonar', pid=f.pago.id) }}">Completar</a>
           <a class="btn sec sm" href="{{ url_for('recibos.recibo', pid=f.pago.id) }}" target="_blank">Recibo</a>
         {% else %}
-          <a class="btn ok sm" href="{{ url_for('cobros.nuevo', cid=f.c.id, mes=mes, anio=anio) }}">💵 Cobrar</a>
+          <button type="button" class="btn ok sm js-cobrar"
+            data-cid="{{ f.c.id }}"
+            data-nombre="{{ f.c.inquilino.nombre if f.c.inquilino else '' }}"
+            data-inmueble="{{ f.c.inmueble.direccion }}"
+            data-moneda="{{ f.c.moneda }}"
+            data-monto="{{ f.esperado|round(2) }}"
+            data-detalle="{{ url_for('cobros.nuevo', cid=f.c.id, mes=mes, anio=anio) }}">Cobrar</button>
         {% endif %}
       </td>
       <td class="wa-col">
@@ -85,4 +94,96 @@
   <p>Probá con otro mes o quitá el filtro.</p>
 </div>
 {% endif %}
+
+<div class="modal-ov" id="cobroModal" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Registrar cobro</h3>
+      <button type="button" class="modal-x" aria-label="Cerrar" onclick="cerrarCobro()">✕</button>
+    </div>
+    <p class="modal-sub" id="cm-sub"></p>
+    <form id="cm-form" data-no-busy>
+      <input type="hidden" id="cm-cid">
+      <label>Monto a cobrar</label>
+      <div class="cm-money"><span id="cm-moneda">$</span>
+        <input type="number" step="0.01" id="cm-monto" required></div>
+      <label>Forma de pago</label>
+      <select id="cm-forma">
+        {% for fp in formas %}<option value="{{ fp }}">{{ fp }}</option>{% endfor %}
+      </select>
+      <label>Fecha de pago</label>
+      <input type="date" id="cm-fecha">
+      <div class="modal-btns">
+        <button type="submit" class="btn ok">Registrar cobro</button>
+        <button type="button" class="btn sec" onclick="cerrarCobro()">Cancelar</button>
+        <a class="modal-link" id="cm-detalle" href="#">Cobro detallado (mora, gastos, parcial)</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function(){
+  var ov = document.getElementById('cobroModal');
+  if(!ov) return;
+  var period = { mes: {{ mes }}, anio: {{ anio }} };
+  function fmtMoney(n){
+    return Number(n||0).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&X')
+      .replace('.', ',').replace(/X/g, '.');
+  }
+  window.abrirCobro = function(btn){
+    document.getElementById('cm-cid').value = btn.dataset.cid;
+    document.getElementById('cm-sub').textContent =
+      (btn.dataset.nombre || '—') + ' · ' + btn.dataset.inmueble;
+    document.getElementById('cm-moneda').textContent = btn.dataset.moneda === 'Dólares' ? 'US$' : '$';
+    document.getElementById('cm-monto').value = btn.dataset.monto;
+    document.getElementById('cm-fecha').value = new Date().toISOString().slice(0,10);
+    document.getElementById('cm-detalle').href = btn.dataset.detalle;
+    ov._row = btn.closest('tr');
+    ov.removeAttribute('hidden');
+    setTimeout(function(){ document.getElementById('cm-monto').focus(); }, 50);
+  };
+  window.cerrarCobro = function(){ ov.setAttribute('hidden',''); };
+  ov.addEventListener('click', function(e){ if(e.target === ov) cerrarCobro(); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape' && !ov.hasAttribute('hidden')) cerrarCobro(); });
+
+  document.querySelectorAll('.js-cobrar').forEach(function(b){
+    b.addEventListener('click', function(){ abrirCobro(b); });
+  });
+
+  document.getElementById('cm-form').addEventListener('submit', function(e){
+    e.preventDefault();
+    var cid = document.getElementById('cm-cid').value;
+    var monto = parseFloat(document.getElementById('cm-monto').value);
+    var forma = document.getElementById('cm-forma').value;
+    var fecha = document.getElementById('cm-fecha').value;
+    var btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    fetch('{{ url_for("cobros.rapido") }}', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({cid:cid, mes:period.mes, anio:period.anio, monto:monto, forma_pago:forma, fecha:fecha})
+    }).then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+      .then(function(res){
+        btn.disabled = false; btn.textContent = 'Registrar cobro';
+        if(!res.ok || !res.j.ok){ (window.showToast||alert)(res.j.error || 'No se pudo registrar el cobro.', 'error'); return; }
+        var row = ov._row, j = res.j;
+        row.querySelector('.js-estado').innerHTML = '<span class="badge pagado">Pagado</span>';
+        row.querySelector('.js-cobrado').textContent = fmtMoney(j.monto);
+        row.querySelector('.js-acciones').innerHTML =
+          '<a class="btn sec sm" href="'+j.detalle_url+'">Ver</a>' +
+          '<a class="btn sec sm" target="_blank" href="'+j.recibo_url+'">Recibo</a>';
+        var wa = row.querySelector('.wa-col'); if(wa) wa.innerHTML = '';
+        window.__tot.cobrado += j.monto; window.__tot.pendiente -= j.monto;
+        if(window.__tot.pendiente < 0) window.__tot.pendiente = 0;
+        document.getElementById('t-cobrado').textContent = '$ ' + fmtMoney(window.__tot.cobrado);
+        document.getElementById('t-pendiente').textContent = '$ ' + fmtMoney(window.__tot.pendiente);
+        cerrarCobro();
+        (window.showToast||function(){})('Cobro registrado. Ya podés ver el recibo.', 'ok');
+      }).catch(function(){
+        btn.disabled = false; btn.textContent = 'Registrar cobro';
+        (window.showToast||alert)('Error de conexión. Probá de nuevo.', 'error');
+      });
+  });
+})();
+</script>
 {% endblock %}

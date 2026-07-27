@@ -2,7 +2,7 @@
 from datetime import date
 
 from flask import (Blueprint, render_template, redirect, url_for, request,
-                   flash, abort)
+                   flash, abort, jsonify)
 from flask_login import login_required
 
 from .. import db
@@ -137,7 +137,7 @@ def index():
                                   (f["c"].inquilino.nombre if f["c"].inquilino else "")))
 
     return render_template("cobros/index.html", filas=filas, mes=mes, anio=anio,
-                           filtro=filtro, meses=MESES_ES,
+                           filtro=filtro, meses=MESES_ES, formas=FORMAS_PAGO,
                            totales=dict(esperado=tot_esperado, cobrado=tot_cobrado,
                                         pendiente=tot_pendiente),
                            anios=list(range(hoy.year - 4, hoy.year + 2)))
@@ -183,6 +183,46 @@ def _leer_pago(pago, contrato):
         pago.pagado_al_propietario = parse_fecha(request.form.get("fecha_prop")) or date.today()
     else:
         pago.pagado_al_propietario = None
+
+
+@cobros_bp.route("/rapido", methods=["POST"])
+@login_required
+def rapido():
+    """Cobro rápido (pago total del mes) desde el panel de Cobranzas, sin recargar.
+    Recibe JSON y devuelve JSON para que la fila se actualice en el momento."""
+    d = request.get_json(silent=True) or {}
+    contrato = db.session.get(Contrato, parse_num(d.get("cid"), entero=True) or 0)
+    if not contrato:
+        return jsonify(ok=False, error="No se encontró el contrato."), 404
+
+    mes = parse_num(d.get("mes"), entero=True)
+    anio = parse_num(d.get("anio"), entero=True)
+    monto = parse_num(d.get("monto"))
+    if not mes or not anio:
+        return jsonify(ok=False, error="Falta el período."), 400
+    if not monto or monto <= 0:
+        return jsonify(ok=False, error="El monto debe ser mayor a 0."), 400
+
+    # Evitar duplicar: si ya hay un pago de ese período, no crear otro.
+    ya = next((p for p in contrato.pagos
+               if p.periodo_mes == mes and p.periodo_anio == anio), None)
+    if ya:
+        return jsonify(ok=False, error="Ya existe un pago para ese período."), 409
+
+    fecha = parse_fecha(d.get("fecha")) or date.today()
+    nro = (max((p.numero or 0) for p in contrato.pagos) + 1) if contrato.pagos else 1
+    pago = Pago(
+        contrato_id=contrato.id, numero=nro, periodo_mes=mes, periodo_anio=anio,
+        fecha_pago=fecha, precio_alquiler=monto, moneda=contrato.moneda or "Pesos",
+        forma_pago=(d.get("forma_pago") or "").strip(), mora=0,
+        total=round(monto, 2), pagado=round(monto, 2), saldo=0, estado="Pagado",
+    )
+    db.session.add(pago)
+    db.session.commit()
+    return jsonify(ok=True, pago_id=pago.id, monto=float(pago.total or 0),
+                   moneda=pago.moneda,
+                   recibo_url=url_for("recibos.recibo", pid=pago.id),
+                   detalle_url=url_for("cobros.detalle", cid=contrato.id))
 
 
 @cobros_bp.route("/contrato/<int:cid>/nuevo", methods=["GET", "POST"])
