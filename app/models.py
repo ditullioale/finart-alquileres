@@ -102,6 +102,7 @@ class Inmueble(db.Model):
     moneda = db.Column(db.String(10), default="Pesos")
     precio_referencia = db.Column(db.Numeric(14, 2))
     comision_pct = db.Column(db.Numeric(12, 2))            # % que se cobra al propietario
+    cuenta_gas = db.Column(db.String(30))                 # N° de cliente en Litoral Gas (ej. 962500/01)
     observaciones = db.Column(db.Text)
     creado = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -300,6 +301,33 @@ class Ajustes(db.Model):
         num = self.liquidacion_proximo or 1
         self.liquidacion_proximo = num + 1
         return f"{self.liquidacion_prefijo or '0001'}-{num:08d}"
+
+
+class GasEstado(db.Model):
+    """Estado de deuda de gas por cuenta de Litoral Gas (lo llena el robot)."""
+    __tablename__ = "gas_estado"
+
+    id = db.Column(db.Integer, primary_key=True)
+    cuenta = db.Column(db.String(30), unique=True, nullable=False)  # N° de cliente (962500/01)
+    titular = db.Column(db.String(160))
+    direccion = db.Column(db.String(200))
+    contrato_vigente = db.Column(db.Boolean, default=True)   # "Contrato vigente" en Litoral Gas
+    tiene_deuda = db.Column(db.Boolean, default=False)
+    deuda_total = db.Column(db.Numeric(14, 2), default=0)
+    ultimo_vencimiento = db.Column(db.Date)
+    detalle = db.Column(db.Text)               # JSON o texto con las facturas pendientes
+    actualizado = db.Column(db.DateTime, default=datetime.utcnow)
+
+    @staticmethod
+    def upsert(cuenta, **datos):
+        g = GasEstado.query.filter_by(cuenta=cuenta).first()
+        if not g:
+            g = GasEstado(cuenta=cuenta)
+            db.session.add(g)
+        for k, v in datos.items():
+            setattr(g, k, v)
+        g.actualizado = datetime.utcnow()
+        return g
 
 
 class ReciboManual(db.Model):

@@ -39,6 +39,9 @@
       <input name="precio_referencia" value="{{ inmueble.precio_referencia if inmueble.precio_referencia is not none else '' }}"></div>
     <div><label>% Comisión al propietario</label>
       <input name="comision_pct" value="{{ inmueble.comision_pct if inmueble.comision_pct is not none else '' }}"></div>
+    <div><label>N° de cuenta Litoral Gas</label>
+      <input name="cuenta_gas" value="{{ inmueble.cuenta_gas or '' }}" placeholder="Ej: 962500/01">
+      <span class="hint">El N° de cliente que figura en Litoral Gas. Sirve para el control de gas.</span></div>
   </div>
 
   <label>Descripción</label>

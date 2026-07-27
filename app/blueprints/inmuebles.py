@@ -54,6 +54,7 @@ def _leer_form(inmueble):
     inmueble.barrio = request.form.get("barrio", "").strip()
     inmueble.estado = request.form.get("estado", "Disponible")
     inmueble.moneda = request.form.get("moneda", "Pesos")
+    inmueble.cuenta_gas = request.form.get("cuenta_gas", "").strip()
     inmueble.descripcion = request.form.get("descripcion", "").strip()
     inmueble.observaciones = request.form.get("observaciones", "").strip()
 

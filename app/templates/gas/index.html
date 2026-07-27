@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Control de gas{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Control de gas</h1>
+    <p class="sub">Estado de deuda de Litoral Gas por propiedad.
+      {% if ultima_actualizacion %}Última actualización: {{ ultima_actualizacion.strftime('%d/%m/%Y %H:%M') }}.{% endif %}</p>
+  </div>
+  <a class="btn sec" href="https://www.litoralgas.com.ar/ov/" target="_blank">Abrir Litoral Gas</a>
+</div>
+
+<div class="cards" style="grid-template-columns:repeat(3,1fr)">
+  <div class="card"><div class="num" style="font-size:22px">{{ total }}</div><div class="lbl">Propiedades con cuenta</div></div>
+  <div class="card"><div class="num" style="font-size:22px;color:var(--err)">{{ con_deuda }}</div><div class="lbl">Con deuda de gas</div></div>
+  <div class="card"><div class="num" style="font-size:22px;color:var(--err)">$ {{ deuda_total|money }}</div><div class="lbl">Deuda total de gas</div></div>
+</div>
+
+{% if not ultima_actualizacion %}
+<div class="panel" style="margin-bottom:14px">
+  <p style="margin:0">Todavía no se cargaron datos de deuda. El robot de Litoral Gas es el que llena esta información;
+  hasta que lo pongamos en marcha, podés cargar el N° de cuenta de gas en cada inmueble (en su ficha) para dejar todo listo.</p>
+</div>
+{% endif %}
+
+{% if filas %}
+<table class="grid">
+  <thead>
+    <tr><th>Inmueble</th><th>Inquilino</th><th>Cuenta gas</th><th>Estado gas</th><th class="r">Deuda</th><th>Vencimiento</th></tr>
+  </thead>
+  <tbody>
+    {% for f in filas %}
+    <tr>
+      <td><a href="{{ url_for('inmuebles.editar', iid=f.inm.id) }}"><b>{{ f.inm.direccion }}</b></a>
+        {% if f.inm.codigo %}<div class="hint" style="margin:0">{{ f.inm.codigo }}</div>{% endif %}</td>
+      <td>{{ f.inquilino or '—' }}</td>
+      <td>{{ f.inm.cuenta_gas }}</td>
+      <td>
+        {% if not f.g %}<span class="badge">Sin datos</span>
+        {% elif f.g.tiene_deuda %}<span class="badge pendiente">Debe</span>
+        {% else %}<span class="badge pagado">Al día</span>{% endif %}
+      </td>
+      <td class="r {{ 'txt-danger' if f.g and f.g.tiene_deuda }}">
+        {{ ('$ ' ~ f.g.deuda_total|money) if (f.g and f.g.tiene_deuda) else '—' }}</td>
+      <td>{{ f.g.ultimo_vencimiento.strftime('%d/%m/%Y') if f.g and f.g.ultimo_vencimiento else '—' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+  <div class="em">🔥</div>
+  <h3>Todavía no hay propiedades con cuenta de gas</h3>
+  <p>Cargá el N° de cuenta de Litoral Gas en la ficha de cada inmueble para empezar a controlarlo acá.</p>
+  <a class="btn" href="{{ url_for('inmuebles.listar') }}">Ir a Inmuebles</a>
+</div>
+{% endif %}
+
+{% if sin_asignar %}
+<div class="panel" style="margin-top:16px">
+  <h2>Cuentas sin asignar</h2>
+  <p class="hint" style="margin:0 0 10px">El robot trajo estas cuentas pero no coinciden con el N° cargado en ningún inmueble.
+  Cargá el número en la ficha del inmueble correspondiente para que aparezcan arriba.</p>
+  <table class="grid">
+    <thead><tr><th>Cuenta</th><th>Titular</th><th>Dirección (Litoral Gas)</th><th>Estado</th><th class="r">Deuda</th></tr></thead>
+    <tbody>
+      {% for g in sin_asignar %}
+      <tr>
+        <td>{{ g.cuenta }}</td>
+        <td>{{ g.titular or '—' }}</td>
+        <td>{{ g.direccion or '—' }}</td>
+        <td>{% if g.tiene_deuda %}<span class="badge pendiente">Debe</span>{% else %}<span class="badge pagado">Al día</span>{% endif %}</td>
+        <td class="r">{{ ('$ ' ~ g.deuda_total|money) if g.tiene_deuda else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}
