@@ -87,13 +87,13 @@
     <div><b>I.V.A.:</b> {{ c.inquilino.cond_iva if c.inquilino else 'Consumidor Final' }}</div>
   </div>
   <div class="cuerpo">
-    <div class="l"><span><b>Contrato inicio:</b> {{ c.fecha_inicio.strftime('%d/%m/%Y') if c.fecha_inicio }}</span>
-      <span><b>Fin:</b> {{ c.fecha_fin.strftime('%d/%m/%Y') if c.fecha_fin else '—' }}</span></div>
-    <div><b>En concepto de:</b> ALQUILER</div>
-    <div><b>Dirección inmueble:</b> {{ c.inmueble.direccion }}</div>
+    <div class="l"><span><b>En concepto de:</b> ALQUILER</span>
+      <span><b>N° de pago:</b> {{ pago.numero or '—' }}</span></div>
+    <div><b>Inmueble:</b> {% if c.inmueble.codigo %}({{ c.inmueble.codigo }}) {% endif %}{{ c.inmueble.direccion }}</div>
     <div><b>Propietario:</b> {{ c.propietario.nombre if c.propietario else '—' }}</div>
+    <div><b>Contrato:</b> {{ c.fecha_inicio.strftime('%d/%m/%Y') if c.fecha_inicio }} al {{ c.fecha_fin.strftime('%d/%m/%Y') if c.fecha_fin else '—' }}</div>
     <div class="l"><span><b>Correspondiente al mes de:</b> {{ meses[pago.periodo_mes] if pago.periodo_mes }} de {{ pago.periodo_anio }}</span>
-      <span><b>Alquiler:</b> {{ pago.precio_alquiler|money }}</span></div>
+      <span><b>Alquiler:</b> {{ c.moneda }} {{ pago.precio_alquiler|money }}</span></div>
     {% if conceptos %}
     <div style="margin-top:6px"><b>Otros conceptos:</b></div>
     <div class="conceptos">
@@ -102,8 +102,14 @@
       {% endfor %}
     </div>
     {% endif %}
+    {% if pago.observaciones %}<div style="margin-top:6px"><b>Observaciones:</b> {{ pago.observaciones }}</div>{% endif %}
   </div>
-  <div class="tot"><span>Total Recibo:</span><span>{{ pago.total|money }}</span></div>
+  <div class="tot"><span><b>Forma de pago:</b> {{ pago.forma_pago or '—' }}</span><span>Total Recibo: {{ c.moneda }} {{ pago.total|money }}</span></div>
+  {% if pago.pagado is not none and (pago.saldo or 0) > 0 %}
+  <div class="l" style="padding:4px 12px;font-size:12.5px;justify-content:flex-end;gap:24px">
+    <span>Pagado: {{ pago.pagado|money }}</span><span><b>Saldo pendiente: {{ pago.saldo|money }}</b></span>
+  </div>
+  {% endif %}
   <div class="pie">
     <div class="firma">Firma y aclaración</div>
     <div style="max-width:55%"><b>** {{ rotulo }} **</b><br>Recibí(mos) la suma de: {{ total_letras }}.</div>

@@ -27,7 +27,10 @@
   .cuerpo { padding: 6pt 8pt; font-size: 9.5pt; }
   .cuerpo p { margin: 2pt 0; }
   .cuerpo .concepto { margin-left: 20pt; }
-  .tot { padding: 8pt; font-size: 12pt; font-weight: bold; }
+  .tot-box { border-top: 1.2pt solid #111; }
+  .tot-box td { padding: 4pt 8pt; font-size: 10pt; }
+  .tot-box tr:first-child td { padding-top: 7pt; }
+  .tot { font-size: 13pt; font-weight: bold; }
   .pie td { padding: 12pt 8pt 6pt; font-size: 8pt; }
   .firma { border-top: 0.8pt solid #333; width: 180pt; text-align: center; padding-top: 2pt; }
   .corte { text-align: center; color: #888; font-size: 8pt; letter-spacing: 2pt; margin: 5pt 0; }
@@ -76,23 +79,32 @@
     </table>
 
     <div class="cuerpo">
-      <p><b>Contrato inicio:</b> {{ c.fecha_inicio.strftime('%d/%m/%Y') if c.fecha_inicio }} &nbsp;&nbsp; <b>Fin:</b> {{ c.fecha_fin.strftime('%d/%m/%Y') if c.fecha_fin else '—' }}</p>
-      <p><b>En concepto de:</b> ALQUILER</p>
-      <p><b>Dirección inmueble:</b> {{ c.inmueble.direccion }}</p>
+      <p><b>En concepto de:</b> ALQUILER &nbsp;&nbsp; <b>N° de pago:</b> {{ pago.numero or '—' }}</p>
+      <p><b>Inmueble:</b> {% if c.inmueble.codigo %}({{ c.inmueble.codigo }}) {% endif %}{{ c.inmueble.direccion }}</p>
       <p><b>Propietario:</b> {{ c.propietario.nombre if c.propietario else '—' }}</p>
-      <p><b>Correspondiente al mes de:</b> {{ meses[pago.periodo_mes] if pago.periodo_mes }} de {{ pago.periodo_anio }} &nbsp;&nbsp; <b>Alquiler:</b> {{ pago.precio_alquiler|money }}</p>
+      <p><b>Contrato:</b> {{ c.fecha_inicio.strftime('%d/%m/%Y') if c.fecha_inicio }} al {{ c.fecha_fin.strftime('%d/%m/%Y') if c.fecha_fin else '—' }}</p>
+      <p><b>Correspondiente al mes de:</b> {{ meses[pago.periodo_mes] if pago.periodo_mes }} de {{ pago.periodo_anio }} &nbsp;&nbsp; <b>Alquiler:</b> {{ c.moneda }} {{ pago.precio_alquiler|money }}</p>
       {% if conceptos %}
       <p><b>Otros conceptos:</b></p>
       {% for desc, monto in conceptos %}
       <p class="concepto">{{ desc }} .......... {{ monto|money }}</p>
       {% endfor %}
       {% endif %}
+      {% if pago.observaciones %}<p style="margin-top:5pt"><b>Observaciones:</b> {{ pago.observaciones }}</p>{% endif %}
     </div>
 
-    <table class="in"><tr>
-      <td class="tot">Total Recibo:</td>
-      <td class="tot" style="text-align:right">{{ c.moneda }} {{ pago.total|money }}</td>
-    </tr></table>
+    <table class="in tot-box">
+      <tr>
+        <td style="width:42%;white-space:nowrap"><b>Forma de pago:</b> {{ pago.forma_pago or '—' }}</td>
+        <td style="text-align:right"><b>Total Recibo:</b> &nbsp;&nbsp; <span class="tot">{{ c.moneda }} {{ pago.total|money }}</span></td>
+      </tr>
+      {% if pago.pagado is not none and (pago.saldo or 0) > 0 %}
+      <tr>
+        <td></td>
+        <td style="text-align:right">Pagado: {{ c.moneda }} {{ pago.pagado|money }} &nbsp;&nbsp; <b>Saldo pendiente: {{ c.moneda }} {{ pago.saldo|money }}</b></td>
+      </tr>
+      {% endif %}
+    </table>
 
     <table class="in pie"><tr>
       <td width="45%"><br><br><div class="firma">Firma y aclaración</div></td>
