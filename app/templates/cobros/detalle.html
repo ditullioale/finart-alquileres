@@ -65,4 +65,34 @@
     {% endfor %}
   </tbody>
 </table>
+
+{% set recibo_id = request.args.get('recibo') %}
+{% if recibo_id %}
+<div class="modal-ov" id="reciboAsk">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Pago registrado ✓</h3>
+      <button type="button" class="modal-x" aria-label="Cerrar" onclick="cerrarAsk()">✕</button>
+    </div>
+    <p class="modal-sub">¿Querés imprimir o enviar el recibo de este pago?</p>
+    <div class="modal-btns">
+      <a class="btn ok" href="{{ url_for('recibos.recibo', pid=recibo_id) }}">Abrir recibo</a>
+      <a class="btn sec" href="{{ url_for('recibos.recibo_pdf', pid=recibo_id) }}">Descargar PDF</a>
+      <button type="button" class="btn sec" onclick="cerrarAsk()">Ahora no</button>
+    </div>
+  </div>
+</div>
+<script>
+  function cerrarAsk(){
+    var m = document.getElementById('reciboAsk'); if(m) m.remove();
+    if(window.history && history.replaceState){
+      history.replaceState(null, '', window.location.pathname);
+    }
+  }
+  document.getElementById('reciboAsk').addEventListener('click', function(e){
+    if(e.target === this) cerrarAsk();
+  });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape') cerrarAsk(); });
+</script>
+{% endif %}
 {% endblock %}

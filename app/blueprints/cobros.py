@@ -267,7 +267,8 @@ def nuevo(cid):
         flash(msg, "ok")
         if request.form.get("guardar_seguir"):
             return redirect(url_for("cobros.nuevo", cid=contrato.id))
-        return redirect(url_for("cobros.detalle", cid=contrato.id))
+        # Al volver al detalle, ofrecer imprimir/enviar el recibo de este pago.
+        return redirect(url_for("cobros.detalle", cid=contrato.id, recibo=pago.id))
 
     r = _resumen(contrato)
     # Permite prefijar el período desde el panel de cobranzas (?mes=&anio=).
