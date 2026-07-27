@@ -1,11 +1,11 @@
 """ABM de Personas (propietarios e inquilinos)."""
 from flask import (Blueprint, render_template, redirect, url_for, request,
-                   flash, abort)
+                   flash, abort, jsonify)
 from flask_login import login_required
 
 from .. import db
 from ..models import Persona
-from ..utils import normalizar_whatsapp
+from ..utils import normalizar_whatsapp, whatsapp_valido
 
 personas_bp = Blueprint("personas", __name__, url_prefix="/personas")
 
@@ -93,6 +93,30 @@ def editar(pid):
         flash("Persona actualizada.", "ok")
         return redirect(url_for("personas.listar"))
     return render_template("personas/form.html", persona=persona)
+
+
+@personas_bp.route("/telefonos")
+@login_required
+def telefonos():
+    """Lista los teléfonos que WhatsApp podría rechazar, para corregirlos."""
+    personas = (Persona.query
+                .filter(Persona.telefono.isnot(None), Persona.telefono != "")
+                .order_by(Persona.nombre).all())
+    revisar = [p for p in personas if not whatsapp_valido(p.telefono)]
+    return render_template("personas/telefonos.html", revisar=revisar,
+                           total_con_tel=len(personas))
+
+
+@personas_bp.route("/<int:pid>/telefono", methods=["POST"])
+@login_required
+def guardar_telefono(pid):
+    """Guarda solo el teléfono de una persona (desde la pantalla de revisión)."""
+    persona = db.session.get(Persona, pid) or abort(404)
+    d = request.get_json(silent=True) or {}
+    persona.telefono = (d.get("telefono") or "").strip()
+    db.session.commit()
+    return jsonify(ok=True, valido=whatsapp_valido(persona.telefono),
+                   telefono=persona.telefono)
 
 
 @personas_bp.route("/<int:pid>/eliminar", methods=["POST"])

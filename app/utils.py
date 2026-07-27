@@ -213,10 +213,20 @@ def normalizar_whatsapp(tel):
     # Un 9 de móvil que haya quedado suelto al principio.
     if len(d) == 11 and d.startswith("9"):
         d = d[1:]
-    # Validación final: deben quedar exactamente 10 dígitos.
-    if len(d) != 10:
+    # Números claramente incompletos (sin código de área) no sirven.
+    if len(d) < 10:
         return None
+    # Best-effort: si quedaron 10 dígitos es un número AR válido; si quedaron
+    # más, igual armamos el link (puede fallar en WhatsApp, pero mostramos el
+    # botón). Lo ideal es que el número tenga 10 dígitos (área + abonado).
     return "549" + d
+
+
+def whatsapp_valido(tel):
+    """True solo si el teléfono queda como un número argentino correcto
+    (549 + exactamente 10 dígitos). Se usa para avisar al cargar personas."""
+    num = normalizar_whatsapp(tel)
+    return bool(num) and len(num) == 13
 
 
 def link_whatsapp(tel, mensaje=""):

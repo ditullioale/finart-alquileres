@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Revisar teléfonos{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Revisar teléfonos</h1>
+    <p class="sub">Números que WhatsApp podría rechazar. Corregilos acá y guardá cada uno.</p>
+  </div>
+  <a class="btn sec" href="{{ url_for('personas.listar') }}">← Volver a Personas</a>
+</div>
+
+{% if revisar %}
+<div class="panel" style="margin-bottom:14px">
+  <p style="margin:0">Se encontraron <b>{{ revisar|length }}</b> número(s) a revisar (de {{ total_con_tel }} con teléfono cargado).
+  Un número argentino tiene <b>10 dígitos</b> (código de área + número); no lleva 0 ni 15 adelante.</p>
+</div>
+
+<table class="grid">
+  <thead>
+    <tr><th>Persona</th><th>Rol</th><th style="width:280px">Teléfono</th><th>Estado</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for p in revisar %}
+    <tr data-pid="{{ p.id }}" data-url="{{ url_for('personas.guardar_telefono', pid=p.id) }}">
+      <td><a href="{{ url_for('personas.editar', pid=p.id) }}"><b>{{ p.nombre }}</b></a></td>
+      <td>{{ p.roles_texto }}</td>
+      <td><input type="text" class="tel-input" value="{{ p.telefono }}" placeholder="Ej: 11 2345-6789" autocomplete="off"></td>
+      <td class="tel-estado"></td>
+      <td class="actions"><button type="button" class="btn ok sm tel-save">Guardar</button></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+  <div class="em">{{ icon('check-circle', 34) }}</div>
+  <h3>¡Todo en orden!</h3>
+  <p>Todos los teléfonos cargados tienen un formato válido para WhatsApp.</p>
+  <a class="btn" href="{{ url_for('personas.listar') }}">Volver a Personas</a>
+</div>
+{% endif %}
+
+<script>
+function normalizarWhatsapp(tel){
+  let d = (tel || '').replace(/\D/g, '');
+  if(!d) return null;
+  if(d.startsWith('549')) d = d.slice(3);
+  else if(d.startsWith('54')) d = d.slice(2);
+  if(d.startsWith('0')) d = d.slice(1);
+  if(d.length === 12){ for(const i of [2,3,4]){ if(d.slice(i,i+2)==='15'){ d = d.slice(0,i)+d.slice(i+2); break; } } }
+  if(d.length === 11 && d.startsWith('9')) d = d.slice(1);
+  if(d.length !== 10) return null;
+  return '549' + d;
+}
+function pintarEstado(td, val){
+  const num = normalizarWhatsapp(val);
+  if(!val.trim()){ td.textContent = 'Sin teléfono'; td.style.color = 'var(--muted)'; return false; }
+  if(num){ td.textContent = '✅ Válido (+' + num + ')'; td.style.color = 'var(--ok)'; return true; }
+  td.textContent = '⚠️ Faltan/sobran dígitos — revisá que tenga 10';
+  td.style.color = 'var(--err)'; return false;
+}
+document.querySelectorAll('tr[data-pid]').forEach(function(row){
+  const inp = row.querySelector('.tel-input');
+  const est = row.querySelector('.tel-estado');
+  const btn = row.querySelector('.tel-save');
+  pintarEstado(est, inp.value);
+  inp.addEventListener('input', function(){ pintarEstado(est, inp.value); });
+  btn.addEventListener('click', function(){
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    fetch(row.dataset.url, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({telefono: inp.value})
+    }).then(function(r){ return r.json(); }).then(function(j){
+      btn.disabled = false; btn.textContent = 'Guardar';
+      if(j.ok && j.valido){
+        (window.showToast||function(){})('Teléfono corregido ✓', 'ok');
+        row.style.transition = 'opacity .3s'; row.style.opacity = '.45';
+        est.textContent = '✅ Guardado'; est.style.color = 'var(--ok)';
+        setTimeout(function(){ row.remove(); }, 700);
+      } else {
+        (window.showToast||function(){})('Guardado, pero el número sigue sin ser válido para WhatsApp.', 'error');
+        pintarEstado(est, inp.value);
+      }
+    }).catch(function(){
+      btn.disabled = false; btn.textContent = 'Guardar';
+      (window.showToast||alert)('Error al guardar. Probá de nuevo.', 'error');
+    });
+  });
+});
+</script>
+{% endblock %}
