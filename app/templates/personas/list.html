@@ -14,7 +14,7 @@
 </div>
 
 <form class="filters" method="get">
-  <input name="q" value="{{ q }}" placeholder="Buscar por nombre, DNI o CUIT">
+  <input name="q" value="{{ q }}" placeholder="Buscar por nombre, DNI o CUIT" data-live-filter="#personas-body" autocomplete="off">
   <select name="rol">
     <option value="">Todos</option>
     <option value="propietario" {{ 'selected' if rol=='propietario' }}>Propietarios</option>
@@ -27,7 +27,7 @@
   <thead>
     <tr>{{ th('Nombre','nombre') }}{{ th('DNI','dni') }}{{ th('CUIT','cuit') }}<th>Rol</th>{{ th('Teléfono','telefono') }}{{ th('Email','email') }}<th></th></tr>
   </thead>
-  <tbody>
+  <tbody id="personas-body">
     {% for p in personas %}
     <tr>
       <td><a href="{{ url_for('personas.editar', pid=p.id) }}">{{ p.nombre }}</a></td>

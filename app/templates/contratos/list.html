@@ -19,7 +19,7 @@
 </div>
 
 <form class="filters" method="get">
-  <input name="q" value="{{ q }}" placeholder="🔎 Buscar por inquilino, propietario, inmueble o código">
+  <input name="q" value="{{ q }}" placeholder="Buscar por inquilino, propietario, inmueble o código" data-live-filter="#contratos-body" autocomplete="off">
   <select name="estado">
     <option value="">Todos los estados</option>
     {% for e in estados %}<option value="{{ e }}" {{ 'selected' if estado==e }}>{{ e }}</option>{% endfor %}
@@ -33,7 +33,7 @@
     <tr>{{ th('Inquilino','inquilino') }}{{ th('Propietario','propietario') }}{{ th('Inmueble','inmueble') }}
         {{ th('Precio actual','precio','r') }}{{ th('Ajuste','ajuste') }}{{ th('Estado','estado') }}<th></th></tr>
   </thead>
-  <tbody>
+  <tbody id="contratos-body">
     {% for c in contratos %}
     <tr>
       <td><a href="{{ url_for('contratos.ver', cid=c.id) }}"><b>{{ c.inquilino.nombre if c.inquilino else '—' }}</b></a></td>

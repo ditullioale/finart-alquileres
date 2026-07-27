@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=5">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=6">
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#12263f">
   <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
@@ -94,6 +94,37 @@ document.querySelectorAll('table.grid').forEach(function(tb){
   if (tb.parentElement && tb.parentElement.classList.contains('table-wrap')) return;
   var w = document.createElement('div'); w.className = 'table-wrap';
   tb.parentNode.insertBefore(w, tb); w.appendChild(tb);
+});
+// Filtro instantáneo de listas: escribís y se ocultan las filas que no coinciden,
+// sin recargar la página. Enter/submit sigue funcionando (búsqueda del servidor).
+document.querySelectorAll('input[data-live-filter]').forEach(function(inp){
+  var tbody = document.querySelector(inp.getAttribute('data-live-filter'));
+  if(!tbody) return;
+  function apply(){
+    var q = (inp.value || '').trim().toLowerCase();
+    var visibles = 0, total = 0;
+    tbody.querySelectorAll('tr').forEach(function(tr){
+      if(tr.dataset.noFilter !== undefined) return;
+      total++;
+      var match = tr.textContent.toLowerCase().indexOf(q) !== -1;
+      tr.style.display = match ? '' : 'none';
+      if(match) visibles++;
+    });
+    var vacio = tbody.querySelector('tr[data-live-empty]');
+    if(!vacio && total){
+      vacio = document.createElement('tr');
+      vacio.setAttribute('data-live-empty','');
+      vacio.setAttribute('data-no-filter','');
+      var td = document.createElement('td');
+      td.className = 'empty'; td.colSpan = 12;
+      td.textContent = 'Sin resultados para tu búsqueda.';
+      vacio.appendChild(td); tbody.appendChild(vacio);
+    }
+    if(vacio) vacio.style.display = (q && visibles === 0) ? '' : 'none';
+  }
+  inp.addEventListener('input', apply);
+  // Evitar recargar al apretar Enter cuando se usa el filtro en vivo.
+  inp.addEventListener('keydown', function(e){ if(e.key === 'Enter') e.preventDefault(); });
 });
 // Feedback al enviar formularios: deshabilita el botón y muestra "Guardando…".
 document.addEventListener('submit', function(e){

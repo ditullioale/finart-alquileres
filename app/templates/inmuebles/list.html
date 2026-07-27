@@ -13,7 +13,7 @@
 </div>
 
 <form class="filters" method="get">
-  <input name="q" value="{{ q }}" placeholder="Buscar por dirección o localidad">
+  <input name="q" value="{{ q }}" placeholder="Buscar por dirección o localidad" data-live-filter="#inmuebles-body" autocomplete="off">
   <select name="estado">
     <option value="">Todos los estados</option>
     {% for e in estados %}<option value="{{ e }}" {{ 'selected' if estado==e }}>{{ e }}</option>{% endfor %}
@@ -26,7 +26,7 @@
     <tr>{{ th('Dirección','direccion') }}{{ th('Tipo','tipo') }}{{ th('Localidad','localidad') }}
         {{ th('Estado','estado') }}{{ th('Propietario','propietario') }}{{ th('Precio ref.','precio','r') }}<th></th></tr>
   </thead>
-  <tbody>
+  <tbody id="inmuebles-body">
     {% for i in inmuebles %}
     <tr>
       <td><a href="{{ url_for('inmuebles.editar', iid=i.id) }}"><b>{{ i.direccion }}</b></a></td>

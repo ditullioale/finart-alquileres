@@ -44,7 +44,9 @@ h1{font-weight:800}
 .side-foot .logout:hover{background:rgba(255,255,255,.2);text-decoration:none}
 
 .main{flex:1;min-width:0;display:flex;flex-direction:column}
-.content{padding:26px 30px;max-width:1220px;width:100%}
+.content{padding:26px 30px;max-width:1220px;width:100%;animation:fadeUp .28s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.content{animation:none}}
 .app.no-auth .content{max-width:none;padding:0}
 .mobilebar{display:none}
 
@@ -140,7 +142,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--a);box-s
 .grid{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--bd);border-radius:12px;overflow:hidden}
 .grid th,.grid td{padding:11px 13px;text-align:left;border-bottom:1px solid #eef1f6;font-size:14px}
 .grid th{background:#f5f8fc;color:var(--muted);font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
-.grid tbody tr:hover{background:#f8fafd}
+.grid tbody tr{transition:background .12s}
+.grid tbody tr:hover{background:#f4f8fe}
+.filters input{transition:border-color .12s,box-shadow .12s}
+.badge{transition:filter .12s}
 .grid th a.sorth{color:var(--muted);text-decoration:none;display:inline-flex;align-items:center;cursor:pointer;
   font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
 .grid th a.sorth:hover{color:var(--a)}
