@@ -105,6 +105,24 @@ def asignar():
     return jsonify(ok=True, inmueble=inm.direccion)
 
 
+@gas_bp.route("/estado")
+@login_required
+def estado():
+    """Devuelve el estado de gas de una cuenta (para la ventanita 'Ver gas')."""
+    cuenta = (request.args.get("cuenta") or "").strip()
+    g = GasEstado.query.filter_by(cuenta=cuenta).first()
+    if not g:
+        return jsonify(ok=False, cuenta=cuenta)
+    return jsonify(ok=True, cuenta=g.cuenta, titular=g.titular,
+                   tiene_deuda=bool(g.tiene_deuda),
+                   deuda_total=float(g.deuda_total or 0),
+                   detalle=g.detalle,
+                   ultimo_vencimiento=(g.ultimo_vencimiento.isoformat()
+                                       if g.ultimo_vencimiento else None),
+                   actualizado=(g.actualizado.strftime("%d/%m/%Y %H:%M")
+                                if g.actualizado else None))
+
+
 @gas_bp.route("/<int:gid>/eliminar", methods=["POST"])
 @login_required
 def eliminar(gid):

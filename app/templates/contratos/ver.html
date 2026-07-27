@@ -9,6 +9,7 @@
     <a class="btn sec" href="{{ url_for('cobros.detalle', cid=c.id) }}">Detalle de pagos</a>
     {% if c.metodo_ajuste != 'sin_ajuste' %}<a class="btn sec" href="{{ url_for('aumentos.aplicar', cid=c.id) }}">Aplicar aumento</a>{% endif %}
     {% if c.fiadores %}<a class="btn sec" href="{{ url_for('recibos.pagares', cid=c.id) }}" target="_blank">Pagarés</a>{% endif %}
+    {% if c.inmueble.cuenta_gas %}<button type="button" class="btn sec js-vergas" data-cuenta="{{ c.inmueble.cuenta_gas }}">🔥 Ver gas</button>{% endif %}
     <a class="btn sec" href="{{ url_for('contratos.editar', cid=c.id) }}">Editar</a>
   </div>
 </div>

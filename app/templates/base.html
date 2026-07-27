@@ -85,7 +85,69 @@
   {% endwith %}
 {% endif %}
 
+{% if current_user.is_authenticated %}
+<div class="modal-ov" id="gasModal" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Estado de gas</h3>
+      <button type="button" class="modal-x" aria-label="Cerrar" onclick="document.getElementById('gasModal').setAttribute('hidden','')">✕</button>
+    </div>
+    <p class="modal-sub" id="gm-cuenta"></p>
+    <div id="gm-body" style="font-size:15px"></div>
+    <div class="modal-btns">
+      <a class="btn sec" href="{{ url_for('gas.index') }}">Ir al panel de gas</a>
+      <button type="button" class="btn sec" onclick="document.getElementById('gasModal').setAttribute('hidden','')">Cerrar</button>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <script>
+// Ventanita "Ver gas": muestra la deuda de una cuenta sin salir de la página.
+(function(){
+  var ov = document.getElementById('gasModal');
+  if(!ov) return;
+  function fmt(n){ return Number(n||0).toFixed(2).replace(/\d(?=(\d{3})+\.)/g,'$&X').replace('.',',').replace(/X/g,'.'); }
+  function fecha(iso){ if(!iso) return '—'; var p=iso.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+  window.verGas = function(cuenta){
+    document.getElementById('gm-cuenta').textContent = 'Cuenta Litoral Gas: ' + cuenta;
+    document.getElementById('gm-body').innerHTML = 'Cargando…';
+    ov.removeAttribute('hidden');
+    fetch('/gas/estado?cuenta=' + encodeURIComponent(cuenta))
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        var b = document.getElementById('gm-body');
+        if(!j.ok){
+          b.innerHTML = '<p style="color:var(--muted)">Todavía no hay datos de gas para esta cuenta. Corré el robot para actualizar.</p>';
+          return;
+        }
+        if(j.tiene_deuda){
+          b.innerHTML =
+            '<div style="background:var(--errbg);border:1px solid #f0b4b4;border-radius:10px;padding:12px 14px">' +
+            '<div style="font-size:13px;color:#9c2020;font-weight:600">DEBE</div>' +
+            '<div style="font-size:26px;font-weight:800;color:var(--err)">$ ' + fmt(j.deuda_total) + '</div>' +
+            '<div style="font-size:13px;color:var(--muted);margin-top:4px">' + (j.detalle||'') +
+            ' · Últ. vencimiento: ' + fecha(j.ultimo_vencimiento) + '</div></div>';
+        } else {
+          b.innerHTML =
+            '<div style="background:var(--okbg);border:1px solid #a9dcbb;border-radius:10px;padding:14px;text-align:center">' +
+            '<div style="font-size:20px;font-weight:700;color:#14663a">✓ Al día</div>' +
+            '<div style="font-size:13px;color:var(--muted);margin-top:2px">Sin facturas pendientes</div></div>';
+        }
+        if(j.actualizado){
+          b.innerHTML += '<div style="font-size:12px;color:var(--muted);margin-top:10px">Actualizado: ' + j.actualizado + '</div>';
+        }
+      }).catch(function(){
+        document.getElementById('gm-body').innerHTML = '<p style="color:var(--err)">No se pudo cargar el estado de gas.</p>';
+      });
+  };
+  ov.addEventListener('click', function(e){ if(e.target === ov) ov.setAttribute('hidden',''); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape' && !ov.hasAttribute('hidden')) ov.setAttribute('hidden',''); });
+  document.querySelectorAll('.js-vergas').forEach(function(btn){
+    btn.addEventListener('click', function(){ verGas(btn.dataset.cuenta); });
+  });
+})();
+
 // Toast dinámico (desde JS): showToast('mensaje', 'ok'|'error')
 window.showToast = function(msg, type){
   var cont = document.getElementById('toasts');
