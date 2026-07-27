@@ -95,6 +95,21 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
 </div>
 {% endif %}
 
+<div class="modal-ov" id="askModal" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Cobro registrado ✓</h3>
+      <button type="button" class="modal-x" aria-label="Cerrar" onclick="cerrarAsk()">✕</button>
+    </div>
+    <p class="modal-sub">¿Querés imprimir o enviar el recibo?</p>
+    <div class="modal-btns">
+      <a class="btn ok" id="ask-recibo" href="#" target="_blank">Abrir recibo</a>
+      <a class="btn sec" id="ask-pdf" href="#">Descargar PDF</a>
+      <button type="button" class="btn sec" onclick="cerrarAsk()">Ahora no</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-ov" id="cobroModal" hidden>
   <div class="modal">
     <div class="modal-head">
@@ -147,6 +162,10 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
   ov.addEventListener('click', function(e){ if(e.target === ov) cerrarCobro(); });
   document.addEventListener('keydown', function(e){ if(e.key==='Escape' && !ov.hasAttribute('hidden')) cerrarCobro(); });
 
+  var ask = document.getElementById('askModal');
+  window.cerrarAsk = function(){ ask.setAttribute('hidden',''); };
+  ask.addEventListener('click', function(e){ if(e.target === ask) cerrarAsk(); });
+
   document.querySelectorAll('.js-cobrar').forEach(function(b){
     b.addEventListener('click', function(){ abrirCobro(b); });
   });
@@ -178,7 +197,9 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
         document.getElementById('t-cobrado').textContent = '$ ' + fmtMoney(window.__tot.cobrado);
         document.getElementById('t-pendiente').textContent = '$ ' + fmtMoney(window.__tot.pendiente);
         cerrarCobro();
-        (window.showToast||function(){})('Cobro registrado. Ya podés ver el recibo.', 'ok');
+        document.getElementById('ask-recibo').href = j.recibo_url;
+        document.getElementById('ask-pdf').href = j.pdf_url;
+        ask.removeAttribute('hidden');
       }).catch(function(){
         btn.disabled = false; btn.textContent = 'Registrar cobro';
         (window.showToast||alert)('Error de conexión. Probá de nuevo.', 'error');

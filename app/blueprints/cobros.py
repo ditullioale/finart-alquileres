@@ -222,6 +222,7 @@ def rapido():
     return jsonify(ok=True, pago_id=pago.id, monto=float(pago.total or 0),
                    moneda=pago.moneda,
                    recibo_url=url_for("recibos.recibo", pid=pago.id),
+                   pdf_url=url_for("recibos.recibo_pdf", pid=pago.id),
                    detalle_url=url_for("cobros.detalle", cid=contrato.id))
 
 
