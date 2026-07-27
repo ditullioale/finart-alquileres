@@ -8,7 +8,7 @@ from flask_login import login_required
 from .. import db
 from ..models import Contrato, Pago, GastoExtra
 from ..utils import (parse_fecha, parse_num, vencimiento, calcular_mora,
-                     periodo_siguiente, MESES_ES)
+                     periodo_siguiente, MESES_ES, link_whatsapp, whatsapp_valido)
 
 cobros_bp = Blueprint("cobros", __name__, url_prefix="/cobros")
 
@@ -147,6 +147,41 @@ def index():
 # --------------------------------------------------------------------------- #
 #  Detalle de pagos por contrato
 # --------------------------------------------------------------------------- #
+@cobros_bp.route("/recordatorios")
+@login_required
+def recordatorios():
+    """Lista de inquilinos que deben el mes elegido, con recordatorio de pago
+    por WhatsApp listo para enviar de a uno."""
+    hoy = date.today()
+    mes = parse_num(request.args.get("mes"), entero=True) or hoy.month
+    anio = parse_num(request.args.get("anio"), entero=True) or hoy.year
+
+    items = []
+    for c in Contrato.query.filter_by(estado="Vigente").all():
+        if not c.inquilino:
+            continue
+        pago = next((p for p in c.pagos
+                     if p.periodo_mes == mes and p.periodo_anio == anio), None)
+        esperado = float(c.precio_actual or c.precio_inicial or 0)
+        if pago and pago.estado == "Pagado":
+            continue
+        deuda = float(pago.saldo) if pago else esperado
+        estado = pago.estado if pago else "Sin cobrar"
+        msj = (f"Hola {c.inquilino.nombre}! Te escribo por el alquiler de "
+               f"{c.inmueble.direccion}. El período {MESES_ES[mes]} {anio} figura "
+               f"{estado.lower()}" + (f" (falta ${deuda:,.2f})" if estado == "Parcial" else "") +
+               ". ¿Podés confirmarme cuándo lo abonás? ¡Gracias!")
+        wa = link_whatsapp(c.inquilino.telefono, msj)
+        items.append(dict(c=c, deuda=deuda, estado=estado, wa=wa,
+                          tel_ok=whatsapp_valido(c.inquilino.telefono),
+                          email=c.inquilino.email, msj=msj))
+    items.sort(key=lambda it: (it["c"].inquilino.nombre or "").lower())
+    con_wa = sum(1 for it in items if it["wa"])
+    return render_template("cobros/recordatorios.html", items=items, mes=mes, anio=anio,
+                           meses=MESES_ES, con_wa=con_wa,
+                           anios=list(range(hoy.year - 4, hoy.year + 2)))
+
+
 @cobros_bp.route("/contrato/<int:cid>")
 @login_required
 def detalle(cid):

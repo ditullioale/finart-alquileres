@@ -29,6 +29,14 @@
   <div class="formbtns"><button class="btn" type="submit">Guardar ajustes</button></div>
 </form>
 
+{% if current_user.rol == 'admin' %}
+<div class="cardform" style="margin-top:16px">
+  <h2>Respaldo de datos</h2>
+  <p class="hint" style="margin:0 0 12px">Descargá una copia de toda la base (personas, inmuebles, contratos, pagos, etc.) en un Excel. Guardala cada tanto por seguridad.</p>
+  <a class="btn sec" href="{{ url_for('ajustes.respaldo') }}">⬇ Descargar respaldo (Excel)</a>
+</div>
+{% endif %}
+
 <div class="cardform" style="margin-top:16px">
   <h2>Cambiar contraseña</h2>
   <form method="post" action="{{ url_for('ajustes.cambiar_clave') }}">

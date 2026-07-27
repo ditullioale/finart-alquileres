@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% from "_wa.html" import wa_icon %}
+{% block title %}Recordatorios de pago{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Recordatorios de pago</h1>
+    <p class="sub">Inquilinos que deben {{ meses[mes] }} de {{ anio }}. Enviá el recordatorio de a uno con un clic.</p>
+  </div>
+  <a class="btn sec" href="{{ url_for('cobros.index', mes=mes, anio=anio) }}">← Volver a Cobranzas</a>
+</div>
+
+<form class="filters" method="get">
+  <input name="q" placeholder="Buscar inquilino o inmueble" data-live-filter="#recor-body" autocomplete="off">
+  <select name="mes">
+    {% for m in range(1,13) %}<option value="{{ m }}" {{ 'selected' if mes==m }}>{{ meses[m] }}</option>{% endfor %}
+  </select>
+  <select name="anio">
+    {% for a in anios %}<option value="{{ a }}" {{ 'selected' if anio==a }}>{{ a }}</option>{% endfor %}
+  </select>
+  <button class="btn sec" type="submit">Ver</button>
+</form>
+
+{% if items %}
+<div class="panel" style="margin-bottom:14px">
+  <p style="margin:0">Deben <b>{{ items|length }}</b> inquilino(s). <b>{{ con_wa }}</b> tienen WhatsApp válido para enviarles el recordatorio.
+  Los que no, revisá el número en <a href="{{ url_for('personas.telefonos') }}">Revisar teléfonos</a>.</p>
+</div>
+
+<table class="grid">
+  <thead>
+    <tr><th>Inquilino</th><th>Inmueble</th><th class="r">Debe</th><th>Estado</th><th>Recordatorio</th></tr>
+  </thead>
+  <tbody id="recor-body">
+    {% for it in items %}
+    <tr>
+      <td><b>{{ it.c.inquilino.nombre }}</b></td>
+      <td>{{ it.c.inmueble.direccion }}
+        {% if it.c.inmueble.localidad %}<div class="hint" style="margin:0">{{ it.c.inmueble.localidad }}</div>{% endif %}</td>
+      <td class="r">{{ it.c.moneda }} {{ it.deuda|money }}</td>
+      <td>
+        {% if it.estado=='Parcial' %}<span class="badge parcial">Parcial</span>
+        {% else %}<span class="badge pendiente">Sin cobrar</span>{% endif %}
+      </td>
+      <td class="actions" style="justify-content:flex-start;gap:10px">
+        {% if it.wa %}
+          <a class="btn wa sm" href="{{ it.wa }}" target="_blank">WhatsApp</a>
+        {% else %}
+          <span class="hint" style="margin:0">Sin WhatsApp válido</span>
+        {% endif %}
+        {% if it.email %}
+          <a class="btn sec sm" href="mailto:{{ it.email }}?subject={{ ('Recordatorio de pago - ' ~ meses[mes] ~ ' ' ~ anio)|urlencode }}&body={{ it.msj|urlencode }}">Email</a>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+  <div class="em">✅</div>
+  <h3>Nadie debe este mes</h3>
+  <p>Todos los alquileres de {{ meses[mes] }} de {{ anio }} figuran cobrados.</p>
+  <a class="btn" href="{{ url_for('cobros.index', mes=mes, anio=anio) }}">Ver Cobranzas</a>
+</div>
+{% endif %}
+{% endblock %}

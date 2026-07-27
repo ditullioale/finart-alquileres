@@ -1,5 +1,10 @@
 """Ajustes de la inmobiliaria y cambio de contraseña."""
-from flask import Blueprint, render_template, redirect, url_for, request, flash
+from functools import wraps
+from io import BytesIO
+from datetime import date
+
+from flask import (Blueprint, render_template, redirect, url_for, request,
+                   flash, abort, make_response)
 from flask_login import login_required, current_user
 
 from .. import db
@@ -7,6 +12,15 @@ from ..models import Ajustes
 from ..utils import parse_num
 
 ajustes_bp = Blueprint("ajustes", __name__, url_prefix="/ajustes")
+
+
+def admin_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.rol != "admin":
+            abort(403)
+        return f(*args, **kwargs)
+    return wrapper
 
 
 @ajustes_bp.route("/", methods=["GET", "POST"])
@@ -51,3 +65,64 @@ def cambiar_clave():
         db.session.commit()
         flash("Contraseña actualizada.", "ok")
     return redirect(url_for("ajustes.index"))
+
+
+@ajustes_bp.route("/respaldo")
+@login_required
+@admin_required
+def respaldo():
+    """Descarga un Excel con todos los datos del sistema (respaldo)."""
+    import pandas as pd
+    from ..models import (Persona, Inmueble, Contrato, Fiador, Aumento, Pago,
+                          GastoExtra, Liquidacion, ReciboManual, PagareManual,
+                          IndiceValor, Usuario)
+
+    def filas(modelo, campos):
+        out = []
+        for o in modelo.query.all():
+            out.append({c: getattr(o, c) for c in campos})
+        return pd.DataFrame(out)
+
+    hojas = {
+        "Personas": filas(Persona, ["id", "nombre", "dni", "cuit", "domicilio",
+            "localidad", "telefono", "email", "cond_iva", "es_propietario",
+            "es_inquilino", "observaciones"]),
+        "Inmuebles": filas(Inmueble, ["id", "codigo", "tipo", "direccion", "localidad",
+            "provincia", "barrio", "estado", "moneda", "precio_referencia",
+            "comision_pct", "propietario_id", "observaciones"]),
+        "Contratos": filas(Contrato, ["id", "numero", "inmueble_id", "inquilino_id",
+            "propietario_id", "fecha_inicio", "fecha_fin", "duracion_meses",
+            "precio_inicial", "precio_actual", "moneda", "dia_vencimiento",
+            "mora_diaria_pct", "comision_pct", "metodo_ajuste", "indice_tipo",
+            "ajuste_cada_meses", "porcentaje_ajuste", "estado"]),
+        "Fiadores": filas(Fiador, ["id", "contrato_id", "nombre", "dni", "domicilio",
+            "telefono", "email", "solvencia"]),
+        "Aumentos": filas(Aumento, ["id", "contrato_id", "fecha_vigencia",
+            "precio_anterior", "precio_nuevo", "metodo", "indice_tipo", "porcentaje"]),
+        "Pagos": filas(Pago, ["id", "contrato_id", "numero", "periodo_mes",
+            "periodo_anio", "fecha_pago", "precio_alquiler", "mora", "total",
+            "pagado", "saldo", "moneda", "forma_pago", "recibo_numero", "estado",
+            "observaciones"]),
+        "GastosExtra": filas(GastoExtra, ["id", "pago_id", "descripcion", "monto"]),
+        "Liquidaciones": filas(Liquidacion, ["id", "numero", "fecha", "periodo_mes",
+            "periodo_anio", "propietario_id", "contrato_id", "total_ingresos",
+            "total_comision", "total_neto"]),
+        "RecibosManuales": filas(ReciboManual, ["id", "numero", "fecha", "cliente",
+            "concepto_general", "total", "forma_pago"]),
+        "Indices": filas(IndiceValor, ["id", "tipo", "periodo", "valor", "fuente"]),
+        "Usuarios": filas(Usuario, ["id", "username", "nombre", "rol", "activo"]),
+    }
+
+    buf = BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as xl:
+        for nombre, dfh in hojas.items():
+            if dfh.empty:
+                dfh = pd.DataFrame({"(sin datos)": []})
+            dfh.to_excel(xl, sheet_name=nombre[:31], index=False)
+    buf.seek(0)
+    nombre = f"Respaldo_alquileres_{date.today().strftime('%Y-%m-%d')}.xlsx"
+    resp = make_response(buf.read())
+    resp.headers["Content-Type"] = ("application/vnd.openxmlformats-officedocument."
+                                    "spreadsheetml.sheet")
+    resp.headers["Content-Disposition"] = f'attachment; filename="{nombre}"'
+    return resp

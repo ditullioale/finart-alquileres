@@ -13,6 +13,7 @@
     <h1>Cobranzas del mes</h1>
     <p class="sub">Elegí el mes y cobrá cada alquiler con un clic. En verde los que ya pagaron.</p>
   </div>
+  <a class="btn sec" href="{{ url_for('cobros.recordatorios', mes=mes, anio=anio) }}">Recordatorios de pago</a>
 </div>
 
 <form class="filters" method="get">
