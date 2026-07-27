@@ -7,7 +7,10 @@
     <p class="sub">Estado de deuda de Litoral Gas por propiedad.
       {% if ultima_actualizacion %}Última actualización: {{ ultima_actualizacion.strftime('%d/%m/%Y %H:%M') }}.{% endif %}</p>
   </div>
-  <a class="btn sec" href="https://www.litoralgas.com.ar/ov/" target="_blank">Abrir Litoral Gas</a>
+  <div class="quick">
+    <button type="button" class="btn" onclick="document.getElementById('actModal').removeAttribute('hidden')">⟳ Actualizar</button>
+    <a class="btn sec" href="https://www.litoralgas.com.ar/ov/" target="_blank">Abrir Litoral Gas</a>
+  </div>
 </div>
 
 <div class="cards" style="grid-template-columns:repeat(3,1fr)">
@@ -16,17 +19,10 @@
   <div class="card"><div class="num" style="font-size:22px;color:var(--err)">$ {{ deuda_total|money }}</div><div class="lbl">Deuda total de gas</div></div>
 </div>
 
-{% if not ultima_actualizacion %}
-<div class="panel" style="margin-bottom:14px">
-  <p style="margin:0">Todavía no se cargaron datos de deuda. El robot de Litoral Gas es el que llena esta información;
-  hasta que lo pongamos en marcha, podés cargar el N° de cuenta de gas en cada inmueble (en su ficha) para dejar todo listo.</p>
-</div>
-{% endif %}
-
 {% if filas %}
 <table class="grid">
   <thead>
-    <tr><th>Inmueble</th><th>Inquilino</th><th>Cuenta gas</th><th>Estado gas</th><th class="r">Deuda</th><th>Vencimiento</th></tr>
+    <tr><th>Inmueble</th><th>Inquilino</th><th>Cuenta gas</th><th>Estado gas</th><th class="r">Deuda</th><th>Vencimiento</th><th></th></tr>
   </thead>
   <tbody>
     {% for f in filas %}
@@ -43,6 +39,19 @@
       <td class="r {{ 'txt-danger' if f.g and f.g.tiene_deuda }}">
         {{ ('$ ' ~ f.g.deuda_total|money) if (f.g and f.g.tiene_deuda) else '—' }}</td>
       <td>{{ f.g.ultimo_vencimiento.strftime('%d/%m/%Y') if f.g and f.g.ultimo_vencimiento else '—' }}</td>
+      <td class="actions">
+        {% if f.g %}
+        <div class="rowmenu">
+          <button class="menu-trigger" type="button">⋯</button>
+          <div class="menu-pop">
+            <form method="post" action="{{ url_for('gas.eliminar', gid=f.g.id) }}"
+                  onsubmit="return confirm('¿Eliminar el suministro {{ f.g.cuenta }} del panel? Si sigue existiendo en Litoral Gas, volverá a aparecer en la próxima actualización.')">
+              <button class="danger" type="submit">🗑 Eliminar suministro</button>
+            </form>
+          </div>
+        </div>
+        {% endif %}
+      </td>
     </tr>
     {% endfor %}
   </tbody>
@@ -51,8 +60,7 @@
 <div class="empty-state">
   <div class="em">🔥</div>
   <h3>Todavía no hay propiedades con cuenta de gas</h3>
-  <p>Cargá el N° de cuenta de Litoral Gas en la ficha de cada inmueble para empezar a controlarlo acá.</p>
-  <a class="btn" href="{{ url_for('inmuebles.listar') }}">Ir a Inmuebles</a>
+  <p>Vinculá las cuentas de abajo con tus inmuebles, o cargá el N° de cuenta de Litoral Gas en la ficha de cada inmueble.</p>
 </div>
 {% endif %}
 
@@ -62,7 +70,7 @@
   <p class="hint" style="margin:0 0 10px">El robot trajo estas cuentas pero no están vinculadas a ningún inmueble.
   Como el domicilio o el titular pueden no coincidir exactamente, elegí a mano el inmueble de tu base y asignalo. El vínculo se hace por el N° de cuenta (no por dirección).</p>
   <table class="grid">
-    <thead><tr><th>Cuenta</th><th>Titular (Litoral Gas)</th><th>Dirección (Litoral Gas)</th><th>Estado</th><th>Asignar a inmueble</th></tr></thead>
+    <thead><tr><th>Cuenta</th><th>Titular (Litoral Gas)</th><th>Dirección (Litoral Gas)</th><th>Estado</th><th>Asignar a inmueble</th><th></th></tr></thead>
     <tbody>
       {% for g in sin_asignar %}
       <tr data-cuenta="{{ g.cuenta }}">
@@ -79,13 +87,54 @@
           </select>
           <button type="button" class="btn ok sm asig-btn">Asignar</button>
         </td>
+        <td class="actions">
+          <div class="rowmenu">
+            <button class="menu-trigger" type="button">⋯</button>
+            <div class="menu-pop">
+              <form method="post" action="{{ url_for('gas.eliminar', gid=g.id) }}"
+                    onsubmit="return confirm('¿Eliminar el suministro {{ g.cuenta }} del panel? Si sigue existiendo en Litoral Gas, volverá a aparecer en la próxima actualización.')">
+                <button class="danger" type="submit">🗑 Eliminar suministro</button>
+              </form>
+            </div>
+          </div>
+        </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
+{% endif %}
+
+<div class="modal-ov" id="actModal" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Actualizar el gas</h3>
+      <button type="button" class="modal-x" aria-label="Cerrar" onclick="document.getElementById('actModal').setAttribute('hidden','')">✕</button>
+    </div>
+    <p class="modal-sub">Los datos de gas los trae el robot desde Litoral Gas. Se actualizan solos cada 15 días, pero si querés hacerlo ahora:</p>
+    <p style="font-size:14px;margin:0 0 6px"><b>La forma fácil:</b> hacé doble clic en el ícono <b>"Actualizar Gas"</b> de tu escritorio. Tarda unos segundos y listo.</p>
+    <p style="font-size:13px;color:var(--muted);margin:0">(El robot corre en tu PC porque necesita entrar a Litoral Gas con tu usuario; por eso la actualización se dispara desde ahí y no desde este botón.)</p>
+    <div class="modal-btns">
+      <button type="button" class="btn sec" onclick="document.getElementById('actModal').setAttribute('hidden','')">Entendido</button>
+    </div>
+  </div>
+</div>
 
 <script>
+// Menú de puntos por fila (posición y abrir/cerrar).
+document.querySelectorAll('.rowmenu').forEach(function(m){
+  var t = m.querySelector('.menu-trigger'), p = m.querySelector('.menu-pop'); var hide;
+  function show(){ clearTimeout(hide); var r = t.getBoundingClientRect(); p.style.display='block';
+    var w = p.offsetWidth||190; p.style.top=(r.bottom+4)+'px'; p.style.left=Math.max(8,r.right-w)+'px'; }
+  function ocultar(){ p.style.display='none'; }
+  m.addEventListener('mouseenter', show);
+  m.addEventListener('mouseleave', function(){ hide=setTimeout(ocultar,180); });
+  t.addEventListener('click', function(e){ e.preventDefault(); p.style.display==='block'?ocultar():show(); });
+});
+document.addEventListener('scroll', function(){
+  document.querySelectorAll('.menu-pop').forEach(function(p){ p.style.display='none'; }); }, true);
+
+// Asignar cuenta a inmueble.
 document.querySelectorAll('tr[data-cuenta]').forEach(function(row){
   var btn = row.querySelector('.asig-btn');
   if(!btn) return;
@@ -112,5 +161,4 @@ document.querySelectorAll('tr[data-cuenta]').forEach(function(row){
   });
 });
 </script>
-{% endif %}
 {% endblock %}

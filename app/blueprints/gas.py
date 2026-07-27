@@ -3,7 +3,8 @@
 Cruza el N° de cuenta de gas cargado en cada inmueble con el estado de deuda
 que el robot deja en la tabla GasEstado, y muestra un tablero con quién debe.
 """
-from flask import Blueprint, render_template, request, jsonify, abort
+from flask import (Blueprint, render_template, request, jsonify, abort,
+                   redirect, url_for, flash)
 from flask_login import login_required
 
 from .. import db
@@ -102,3 +103,15 @@ def asignar():
     inm.cuenta_gas = cuenta
     db.session.commit()
     return jsonify(ok=True, inmueble=inm.direccion)
+
+
+@gas_bp.route("/<int:gid>/eliminar", methods=["POST"])
+@login_required
+def eliminar(gid):
+    """Elimina un suministro del panel de gas."""
+    g = db.session.get(GasEstado, gid) or abort(404)
+    from flask import flash, redirect
+    db.session.delete(g)
+    db.session.commit()
+    flash("Suministro eliminado del panel.", "ok")
+    return redirect(url_for("gas.index"))
