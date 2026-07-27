@@ -33,11 +33,11 @@
       <td>{{ f.inm.cuenta_gas }}</td>
       <td>
         {% if not f.g %}<span class="badge">Sin datos</span>
-        {% elif f.g.tiene_deuda %}<span class="badge pendiente">Debe</span>
+        {% elif f.g.tiene_deuda %}<span class="badge pendiente js-vergas" data-cuenta="{{ f.inm.cuenta_gas }}" style="cursor:pointer" title="Ver facturas">Debe</span>
         {% else %}<span class="badge pagado">Al día</span>{% endif %}
       </td>
       <td class="r {{ 'txt-danger' if f.g and f.g.tiene_deuda }}">
-        {{ ('$ ' ~ f.g.deuda_total|money) if (f.g and f.g.tiene_deuda) else '—' }}</td>
+        {% if f.g and f.g.tiene_deuda %}<a class="js-vergas" data-cuenta="{{ f.inm.cuenta_gas }}" style="cursor:pointer;color:var(--err);font-weight:600" title="Ver facturas">$ {{ f.g.deuda_total|money }}</a>{% else %}—{% endif %}</td>
       <td>{{ f.g.ultimo_vencimiento.strftime('%d/%m/%Y') if f.g and f.g.ultimo_vencimiento else '—' }}</td>
       <td class="actions">
         {% if f.g %}

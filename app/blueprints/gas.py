@@ -109,14 +109,22 @@ def asignar():
 @login_required
 def estado():
     """Devuelve el estado de gas de una cuenta (para la ventanita 'Ver gas')."""
+    import json
     cuenta = (request.args.get("cuenta") or "").strip()
     g = GasEstado.query.filter_by(cuenta=cuenta).first()
     if not g:
         return jsonify(ok=False, cuenta=cuenta)
+    facturas = []
+    try:
+        parsed = json.loads(g.detalle) if g.detalle else []
+        if isinstance(parsed, list):
+            facturas = parsed
+    except Exception:
+        facturas = []
     return jsonify(ok=True, cuenta=g.cuenta, titular=g.titular,
                    tiene_deuda=bool(g.tiene_deuda),
                    deuda_total=float(g.deuda_total or 0),
-                   detalle=g.detalle,
+                   facturas=facturas,
                    ultimo_vencimiento=(g.ultimo_vencimiento.isoformat()
                                        if g.ultimo_vencimiento else None),
                    actualizado=(g.actualizado.strftime("%d/%m/%Y %H:%M")

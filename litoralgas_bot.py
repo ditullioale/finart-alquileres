@@ -15,6 +15,7 @@ Uso:
 import os
 import re
 import sys
+import json
 import argparse
 from datetime import date
 
@@ -98,11 +99,18 @@ def procesar_cuenta_litoral(p, usuario, clave, headless):
 
         deuda = 0.0
         ultimo = None
+        facturas = []
         for it in items:
-            deuda += float(it.get("docamount") or 0) + float(it.get("docdueinterwtax") or 0)
+            saldo = round(float(it.get("docamount") or 0) + float(it.get("docdueinterwtax") or 0), 2)
+            deuda += saldo
             f = parse_fecha(it.get("docduedate"))
             if f and (ultimo is None or f > ultimo):
                 ultimo = f
+            facturas.append({"num": str(it.get("docnumber") or ""),
+                             "venc": f.isoformat() if f else None,
+                             "imp": saldo})
+        # ordenar facturas de la más vieja a la más nueva
+        facturas.sort(key=lambda x: x["venc"] or "")
         deuda = round(deuda, 2)
         tiene = len(items) > 0
         estado = ("DEBE $%s (%d fact.)" % (ar(deuda), len(items))) if tiene else "al día"
@@ -111,7 +119,7 @@ def procesar_cuenta_litoral(p, usuario, clave, headless):
             cuenta=cuenta, titular=c.get("prsname") or "", direccion=c.get("srvadress") or "",
             contrato_vigente=("NO VIGENTE" not in (c.get("cntstatus") or "").upper()),
             tiene_deuda=tiene, deuda_total=deuda, ultimo_vencimiento=ultimo,
-            detalle=f"{len(items)} factura(s) pendiente(s)"))
+            detalle=json.dumps(facturas, ensure_ascii=False)))
     browser.close()
     return resultados
 
