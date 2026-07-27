@@ -37,7 +37,7 @@
       <td><b>{{ it.c.inquilino.nombre }}</b></td>
       <td>{{ it.c.inmueble.direccion }}
         {% if it.c.inmueble.localidad %}<div class="hint" style="margin:0">{{ it.c.inmueble.localidad }}</div>{% endif %}</td>
-      <td class="r">{{ it.c.moneda }} {{ it.deuda|money }}</td>
+      <td class="r">{{ it.c.moneda|simbolo }} {{ it.deuda|money }}</td>
       <td>
         {% if it.estado=='Parcial' %}<span class="badge parcial">Parcial</span>
         {% else %}<span class="badge pendiente">Sin cobrar</span>{% endif %}

@@ -85,6 +85,14 @@ def create_app(config_class=Config):
     from .utils import link_whatsapp
     app.jinja_env.globals["wa_link"] = link_whatsapp
 
+    # Símbolo de moneda: "Pesos" -> "$", "Dólares"/"Dolares" -> "US$".
+    @app.template_filter("simbolo")
+    def simbolo(moneda):
+        m = (moneda or "").strip().lower()
+        if m.startswith("d"):   # Dólares / Dolares / USD
+            return "US$"
+        return "$"
+
     # PWA: manifest y service worker servidos desde la raíz (para instalar en Android).
     from flask import make_response
 

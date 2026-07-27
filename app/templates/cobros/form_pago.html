@@ -44,7 +44,7 @@
       <div class="flash" style="background:#fdf0e3;border:1px solid #e8cf8a;color:#8a5a00;margin-top:12px">
         <label class="chk" style="margin:0">
           <input type="checkbox" name="arrastrar_saldo" onchange="recalc()">
-          Arrastrar saldo pendiente de meses anteriores (<b>{{ c.moneda }} {{ deuda_previa|money }}</b>)
+          Arrastrar saldo pendiente de meses anteriores (<b>{{ c.moneda|simbolo }} {{ deuda_previa|money }}</b>)
         </label>
       </div>
       {% endif %}

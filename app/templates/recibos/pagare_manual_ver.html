@@ -26,11 +26,11 @@
 <div class="hoja">
   {% for pg in pagares %}
   <div class="pagare">
-    <div class="tt"><span>PAGARÉ {{ pg.n }}/{{ pagares|length }} — SIN PROTESTO</span><span>{{ pm.moneda }} {{ pm.monto|money }}</span></div>
+    <div class="tt"><span>PAGARÉ {{ pg.n }}/{{ pagares|length }} — SIN PROTESTO</span><span>{{ pm.moneda|simbolo }} {{ pm.monto|money }}</span></div>
     <p>{{ pm.lugar or '________' }}, {{ pm.fecha.strftime('%d/%m/%Y') if pm.fecha }}.</p>
     <p>Vencimiento: <b>{{ pg.venc }}</b>. Por igual valor recibido a mi entera satisfacción, pagaré SIN PROTESTO
        (art. 50 Dec. Ley 5965/63) a <b>{{ pm.beneficiario or '________' }}</b> o a su orden,
-       la cantidad de <b>{{ pm.moneda }} {{ pm.monto|money }}</b> ({{ monto_letras }}).</p>
+       la cantidad de <b>{{ pm.moneda|simbolo }} {{ pm.monto|money }}</b> ({{ monto_letras }}).</p>
     {% if pm.concepto %}<p>Concepto: {{ pm.concepto }}.</p>{% endif %}
     <p>Pagadero en {{ pm.lugar or '________' }}.</p>
     <div class="firma">

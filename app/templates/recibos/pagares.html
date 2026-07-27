@@ -24,7 +24,7 @@
   <button onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
 </div>
 
-<div class="aviso">Pagarés en garantía por {{ meses_pagare }} meses de alquiler ({{ c.moneda }} {{ monto|money }} c/u). Revisá los datos antes de imprimir.</div>
+<div class="aviso">Pagarés en garantía por {{ meses_pagare }} meses de alquiler ({{ c.moneda|simbolo }} {{ monto|money }} c/u). Revisá los datos antes de imprimir.</div>
 
 <div class="hoja">
   {% if not fiadores %}

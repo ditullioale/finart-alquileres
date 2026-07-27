@@ -19,7 +19,7 @@
         <td>{{ it.c.inmueble.direccion }}</td>
         <td>{{ it.c.inquilino.nombre if it.c.inquilino else '—' }}</td>
         <td>{% if it.c.metodo_ajuste=='indice' %}{{ indice_nombre.get(it.c.indice_tipo, it.c.indice_tipo) }}{% else %}{{ it.c.porcentaje_ajuste }}%{% endif %}</td>
-        <td class="r">{{ it.c.moneda }} {{ it.c.precio_actual|money }}</td>
+        <td class="r">{{ it.c.moneda|simbolo }} {{ it.c.precio_actual|money }}</td>
         <td class="actions">
           <a class="btn" href="{{ url_for('aumentos.aplicar', cid=it.c.id) }}">Aplicar</a>
           {% if it.c.inquilino %}

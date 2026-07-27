@@ -39,8 +39,8 @@
     <div><span class="k">Propietario</span><br>{{ c.propietario.nombre if c.propietario else '—' }}</div>
     <div><span class="k">Inicio</span><br>{{ c.fecha_inicio.strftime('%d/%m/%Y') if c.fecha_inicio }}</div>
     <div><span class="k">Fin</span><br>{{ c.fecha_fin.strftime('%d/%m/%Y') if c.fecha_fin else '—' }} ({{ c.duracion_meses or '?' }} meses)</div>
-    <div><span class="k">Precio inicial</span><br>{{ c.moneda }} {{ c.precio_inicial|money }}</div>
-    <div><span class="k">Precio actual</span><br><b>{{ c.moneda }} {{ c.precio_actual|money }}</b></div>
+    <div><span class="k">Precio inicial</span><br>{{ c.moneda|simbolo }} {{ c.precio_inicial|money }}</div>
+    <div><span class="k">Precio actual</span><br><b>{{ c.moneda|simbolo }} {{ c.precio_actual|money }}</b></div>
     <div><span class="k">Día de vencimiento</span><br>{{ c.dia_vencimiento or '—' }}</div>
     <div><span class="k">Mora diaria</span><br>{{ c.mora_diaria_pct }}%</div>
     <div><span class="k">Comisión de administración</span><br>

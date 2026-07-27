@@ -27,7 +27,7 @@
       <td>{{ r.fecha.strftime('%d/%m/%Y') if r.fecha }}</td>
       <td>{{ r.cliente }}</td>
       <td>{{ r.concepto_general or '—' }}</td>
-      <td class="r">{{ r.moneda }} {{ r.total|money }}</td>
+      <td class="r">{{ r.moneda|simbolo }} {{ r.total|money }}</td>
       <td class="actions">
         <a href="{{ url_for('recibos.manual_ver', rid=r.id) }}" target="_blank">Imprimir</a>
         <form method="post" action="{{ url_for('recibos.manual_eliminar', rid=r.id) }}"

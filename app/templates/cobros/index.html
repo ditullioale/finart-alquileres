@@ -53,7 +53,7 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
       <td><b>{{ f.c.inquilino.nombre if f.c.inquilino else '—' }}</b></td>
       <td>{{ f.c.inmueble.direccion }}
         {% if f.c.inmueble.localidad %}<div class="hint" style="margin:0">{{ f.c.inmueble.localidad }}</div>{% endif %}</td>
-      <td class="r">{{ f.c.moneda }} {{ f.esperado|money }}</td>
+      <td class="r">{{ f.c.moneda|simbolo }} {{ f.esperado|money }}</td>
       <td class="r js-cobrado">{{ f.cobrado|money if f.pago else '—' }}</td>
       <td class="js-estado">
         {% if f.estado=='Pagado' %}<span class="badge pagado">Pagado</span>
@@ -74,7 +74,7 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
             data-nombre="{{ f.c.inquilino.nombre if f.c.inquilino else '' }}"
             data-inmueble="{{ ('(' ~ f.c.inmueble.codigo ~ ') ' if f.c.inmueble.codigo else '') ~ f.c.inmueble.direccion }}"
             data-propietario="{{ f.c.propietario.nombre if f.c.propietario else '—' }}"
-            data-moneda="{{ f.c.moneda }}"
+            data-moneda="{{ f.c.moneda|simbolo }}"
             data-monto="{{ f.esperado|round(2) }}"
             data-nro="{{ f.prox_nro }}"
             data-periodo="{{ meses[mes] }} de {{ anio }}"

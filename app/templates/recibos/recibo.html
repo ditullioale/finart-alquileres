@@ -93,7 +93,7 @@
     <div><b>Propietario:</b> {{ c.propietario.nombre if c.propietario else '—' }}</div>
     <div><b>Contrato:</b> {{ c.fecha_inicio.strftime('%d/%m/%Y') if c.fecha_inicio }} al {{ c.fecha_fin.strftime('%d/%m/%Y') if c.fecha_fin else '—' }}</div>
     <div class="l"><span><b>Correspondiente al mes de:</b> {{ meses[pago.periodo_mes] if pago.periodo_mes }} de {{ pago.periodo_anio }}</span>
-      <span><b>Alquiler:</b> {{ c.moneda }} {{ pago.precio_alquiler|money }}</span></div>
+      <span><b>Alquiler:</b> {{ c.moneda|simbolo }} {{ pago.precio_alquiler|money }}</span></div>
     {% if conceptos %}
     <div style="margin-top:6px"><b>Otros conceptos:</b></div>
     <div class="conceptos">
@@ -104,7 +104,7 @@
     {% endif %}
     {% if pago.observaciones %}<div style="margin-top:6px"><b>Observaciones:</b> {{ pago.observaciones }}</div>{% endif %}
   </div>
-  <div class="tot"><span><b>Forma de pago:</b> {{ pago.forma_pago or '—' }}</span><span>Total Recibo: {{ c.moneda }} {{ pago.total|money }}</span></div>
+  <div class="tot"><span><b>Forma de pago:</b> {{ pago.forma_pago or '—' }}</span><span>Total Recibo: {{ c.moneda|simbolo }} {{ pago.total|money }}</span></div>
   {% if pago.pagado is not none and (pago.saldo or 0) > 0 %}
   <div class="l" style="padding:4px 12px;font-size:12.5px;justify-content:flex-end;gap:24px">
     <span>Pagado: {{ pago.pagado|money }}</span><span><b>Saldo pendiente: {{ pago.saldo|money }}</b></span>

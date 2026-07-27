@@ -23,9 +23,9 @@
     <div><span class="k">Inmueble</span><br>{{ (c.inmueble.codigo ~ ' · ' if c.inmueble.codigo else '') }}{{ c.inmueble.direccion }}</div>
     <div><span class="k">Inquilino</span><br>{{ c.inquilino.nombre if c.inquilino else '—' }}</div>
     <div><span class="k">Próximo vencimiento</span><br><b>{{ resumen.prox_vto.strftime('%d/%m/%Y') }}</b> ({{ meses[resumen.prox_mes] }} {{ resumen.prox_anio }})</div>
-    <div><span class="k">Monto próximo pago</span><br>{{ c.moneda }} {{ resumen.monto_prox|money }}</div>
+    <div><span class="k">Monto próximo pago</span><br>{{ c.moneda|simbolo }} {{ resumen.monto_prox|money }}</div>
     <div><span class="k">Deuda registrada</span><br>
-      <b class="{{ 'txt-danger' if resumen.deuda > 0 else '' }}">{{ c.moneda }} {{ resumen.deuda|money }}</b></div>
+      <b class="{{ 'txt-danger' if resumen.deuda > 0 else '' }}">{{ c.moneda|simbolo }} {{ resumen.deuda|money }}</b></div>
     <div><span class="k">Duración</span><br>{{ c.duracion_meses or '?' }} meses ({{ c.fecha_inicio.strftime('%d/%m/%Y') if c.fecha_inicio }} → {{ c.fecha_fin.strftime('%d/%m/%Y') if c.fecha_fin else '—' }})</div>
   </div>
 </div>

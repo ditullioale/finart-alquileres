@@ -6,9 +6,9 @@
 <div class="panel" style="margin-bottom:14px">
   <b>{{ (pago.contrato.inmueble.codigo ~ ' · ' if pago.contrato.inmueble.codigo else '') }}{{ pago.contrato.inmueble.direccion }}</b> ·
   Período {{ meses[pago.periodo_mes] if pago.periodo_mes }} {{ pago.periodo_anio }}<br>
-  <span class="k">Total:</span> {{ pago.moneda }} {{ pago.total|money }} ·
-  <span class="k">Ya pagado:</span> {{ pago.moneda }} {{ pago.pagado|money }} ·
-  <span class="k">Saldo pendiente:</span> <b class="txt-danger">{{ pago.moneda }} {{ saldo|money }}</b>
+  <span class="k">Total:</span> {{ pago.moneda|simbolo }} {{ pago.total|money }} ·
+  <span class="k">Ya pagado:</span> {{ pago.moneda|simbolo }} {{ pago.pagado|money }} ·
+  <span class="k">Saldo pendiente:</span> <b class="txt-danger">{{ pago.moneda|simbolo }} {{ saldo|money }}</b>
 </div>
 
 <form method="post" class="cardform">

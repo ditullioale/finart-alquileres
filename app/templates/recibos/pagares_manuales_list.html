@@ -25,7 +25,7 @@
       <td>{{ pm.fecha.strftime('%d/%m/%Y') if pm.fecha }}</td>
       <td><b>{{ pm.deudor }}</b></td>
       <td>{{ pm.beneficiario or '—' }}</td>
-      <td class="r">{{ pm.moneda }} {{ pm.monto|money }}</td>
+      <td class="r">{{ pm.moneda|simbolo }} {{ pm.monto|money }}</td>
       <td class="r">{{ pm.cantidad }}</td>
       <td class="actions">
         <a href="{{ url_for('recibos.pagare_manual_ver', pmid=pm.id) }}" target="_blank">Imprimir</a>
