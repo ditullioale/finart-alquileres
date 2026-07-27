@@ -1,0 +1,970 @@
+=== Llamadas de datos capturadas en Litoral Gas ===
+
+---- [200] https://cdn.chattigo.com/locales/es/locales.json
+{
+  "selectDate": "Selecciona una fecha",
+  "more": "mas",
+  "campaigns": "Campañas",
+  "selectAll": "Seleccionar todos",
+  "cleanSelection": "Borrar seleccion",
+  "whats": "¿Qué es esto?",
+  "visualize-reports": "Visualiza tus reportes de manera gráfica y descárgalos para mayor detalle.",
+  "whatIts": "¿Qué es el módulo de analítica?",
+  "whatItsDescriptionOne": "Aquí obtendrás, a través de gráficos, el comportamiento de los reportes generados en este módulo. Rápidamente, podrás tener la visual sobre los chats de agentes y de bot, llamadas, tiempo de las sesiones, etc., dentro de los últimos 90 días. Para más detalle e información, como lo haces habitualmente, puedes descargar el reporte completo",
+  "whatItsDescriptionTwo": "Importante",
+  "whatItsDescriptionThree": "Cada reporte arroja información y datos tantos de los chats de agentes como de bots, según corresponda.",
+  "whatItsDescriptionFor": "Para acceder a un rango mayor a los últimos 90 días o para mayor detalle, puedes descargar el reporte.",
+  "whatItsDescriptionFive": "La nueva visual muestra algunos datos unificados, en los reportes descargables encontrarás la información habitual.",
+  "whatItsDescriptionSix": "Los datos de los gráficos se actualizan diariamente.",
+  "whatItsDescriptionSeven": "Aprovecha todas las funcionalidades de Analítica y obtén reportes rápidos y completos sobre todas tus conversaciones.",
+  "whatItsDescriptionEight": "Si tienes dudas con el modulo de Analitica, comunicate con",
+  "whatItsDescriptionNine": "soporte",
+  "whatItsDescriptionTen": "Entendido",
+  "chat-internal": "CHAT INTERNO",
+  "contact-leads": {
+    "massive-upload-modal": {
+      "combine-form-fields-modal": {
+        "add-lead": {
+          "success-one": "Agregamos",
+          "success-two": "leads correctamente en la columna "
+        }
+      },
+      "error-socket-one": "Se produjo un error al cargar ",
+      "error-socket-two": "leads. Intente nuevamente",
+      "partial-success": {
+        "one": "Agregamos ",
+        "two": "leads correctamente en la columna ",
+        "three": "Encontramos ",
+        "four": "leads con errores que no pudimos agregar."
+      }
+    }
+  },
+  "summary-hsm": {
+    "title": "Módulo Resumen de envíos HSM"
+  },
+  "login": {
+    "display": "Bienvenidos",
+    "headline": "Optimiza la relación con tus clientes",
+    "subheading": "Ingresa tu usuario / contraseña y vive la experiencia Chattigo.",
+    "subheading-update-data": "Actualiza tus datos",
+    "auth": {
+      "headline": "Autenticación en dos pasos",
+      "notice": {
+        "first": "Escribe el código de seguridad que otorga tu aplicación de autenticación.",
+        "second": "El código cambia cada 30 segundos."
+      },
+      "errors": {
+        "first": "Código incorrecto, intenta nuevamente.",
+        "second": "Código incorrecto, al quinto intento incorrecto bloquearemos la cuenta.",
+        "block": "Tu cuenta ha sido bloqueada después de cinco intentos fallidos de iniciar sesión. Para desbloquearla contacta a tu administrador."
+      },
+      "verify": "Verificar",
+      "back": "Volver",
+      "continue": "Continuar"
+    },
+    "error": {
+      "user": "Usuario incorrecto.",
+      "password": "Contraseña incorrecta",
+      "password-not-match": "La contraseña no coincide, intentalo nuevamente",
+      "password-expired": "Tu contraseña expiró. Por favor actualízala",
+      "default": "Login incorrecto, intente de nuevo.",
+      "sesion": "El usuario tiene una sesión activa, consulte a su supervisor.",
+      "ip": "Su usuario no está permitido para esta red.",
+      "user-taken": "Ya existe un usuario con ese nombre",
+      "to-load-module": "Error al cargar módulo",
+      "account-deleted": "Tu cuenta fue eliminada",
+      "account-blocked": "Tu cuenta ha sido bloqueada después de varios intentos fallidos de iniciar sesión. Para desbloquearla",
+      "contact-administrator": "contacta a tu administrador.",
+      "password-is-expired": "La contraseña expiró. Por favor, actualiza e ingresa una nueva."
+    },
+    "submit-label": "Ingresar",
+    "update-label": "Actualizar contraseña",
+    "microsoft-submit-label": "Ingresar desde Microsoft",
+    "recover-link": "¿Olvidó su contraseña?",
+    "role-label": "Usar {{brand}} como",
+    "already-have-account": "¿Ya tienes cuenta?",
+    "dont-have-account": "¿No tienes una cuenta?",
+    "roles": {
+      "supervisor": {
+        "label": "Supervisor",
+        "description": "Monitorea tus campañas en tiempo real."
+      },
+      "reporteria": {
+        "label": "Reportería",
+        "description": "Consulta las estadísticas de tus chats."
+      },
+      "administrador": {
+        "label": "Administrador",
+        "description": "Realiza los cambios necesarios para tus campañas."
+      },
+      "agente": {
+        "label": "Agente",
+        "description": "Gestiona los chats de tus clientes."
+      },
+      "mantenedor": {
+        "label": "Mantenedor",
+        "description": "Configura y actualiza tus campañas."
+      }
+    },
+    "sign-up": "Regístrate",
+    "welcome-modal": {
+      "title": "¡Disfruta tu prueba gratis por 14 días!",
+      "text": "¡Estamos muy agradecidos que seas parte de nuestra comunidad!",
+      "second-text": "Recuerda que a los 14 días te haremos el cargo del plan {{plan}}. Si deseas cambiar el plan, podrás hacerlo más adelante.",
+      "button-text": "Empezar",
+      "extra-text-one": "Si tienes dudas del funcionamiento de Chattigo, haz",
+      "extra-text-link": "click aquí",
+      "extra-text-part-one": "Si tienes dudas o necesitas ayuda revisa nuestros tutoriales o descarga los manuales de",
+      "extra-text-and": "y",
+      "extra-text-agent": "agente",
+      "extra-text-supervisor": "supervisor",
+      "extra-text-setting": "configuración",
+      "title-with-plan": "Bienvenido al plan {{plan}}",
+      "subtitle-with-plan": "Se ha activado el plan {{plan}}",
+      "second-subtitle-with-plan": "¡Estamos muy agradecidos que seas parte de nuestra comunidad!"
+    },
+    "expired-modal": {
+      "title": "Tu prueba gratis ha finalizado",
+      "text": "Si quieres seguir utilizando Chattigo, debes ingresar tus datos de facturación para suscribirte a un plan de pago.",
+      "button-text": "Ingresar datos",
+      "exit-button-text": "Salir de la plataforma",
+      "extra-text-one": "Si tienes dudas ingresa a",
+      "extra-text-link": "www.chattigo.com"
+    },
+    "contact-trial-modal": {
+      "title": "Solicitud enviada",
+      "text": "En breve, un miembro de nuestro equipo se pondrá en contacto contigo para contratar tu plan Chattigo.",
+      "button-text": "ENTENDIDO"
+    },
+    "last-days-modal": {
+      "title": "La prueba gratis ya casi termina",
+      "text": "Queremos recordarte que en {{days}} días vence el periodo de prueba gratis.",
+      "text-one-day-left": "Queremos recordarte que en {{days}} día vence el periodo de prueba gratis.",
+      "button-text": "Quiero seguir usando Chattigo",
+      "extra-text-link": "Continuar prueba gratis"
+    },
+    "pay-error-modal": {
+      "title": "Actualiza tus datos para seguir usando Chattigo",
+      "text": "Tu prueba gratis ha caducado y no se ha podido procesar el pago con tu tarjeta de crédito. Actualiza tus datos de facturación para seguir usando Chattigo.",
+      "button-text": "Actualizar datos",
+      "title-with-pay": "No hemos podido procesar tu pago",
+      "subtitle-with-pay": "No se ha podido procesar el pago con tu tarjeta de crédito. Tienes {{days}} días para actualizar tus datos de facturación, ya que luego de esto no podrás utilizar la plataforma Chattigo.",
+      "subtitle-with-pay-one-day": "No se ha podido procesar el pago con tu tarjeta de crédito. Tienes 1 día para actualizar tus datos de facturación, ya que luego de esto no podrás utilizar la plataforma Chattigo.",
+      "subtitle-with-pay-last-day": "No se ha podido procesar el pago con tu tarjeta de crédito. Es tu último día para actualizar tus datos de facturación, ya que luego de esto no podrás utilizar la plataforma Chattigo.",
+      "second-subtitle-with-pay": "No se ha podido procesar el pago con tu tarjeta de crédito. Actualiza tus datos de facturación para seguir usando Chattigo."
+    },
+    "left-x-days-modal": {
+      "title": "Quedan {{day}} días de prueba gratis",
+      "title-one-day": "Queda {{day}} día de prueba gratis",
+      "text": "¡Hola! Recuerda que al terminar tu prueba gratis, se te activará automáticamente el plan {{plan}} y se realizará un cobro de {{price}}US$.",
+      "content-title": "Plan {{plan}}",
+      "button-title": "¿Quieres revisar otros planes?",
+      "button-text": "Ver planes",
+      "extra-text-link": "Cancela tu prueba gratis"
+    },
+    "cancel-subscription-modal": {
+      "title": "¿Quieres cancelar tu suscripción?",
+      "text": "Si cancelas tu suscripción a Chattigo, una vez que termine tu Plan de prueba perderás tus beneficios y se cancelará el acceso a tu plataforma.",
+      "button-text": "Cancelar suscripción",
+      "extra-text-one": "Si no estás seguro de cancelar,",
+      "extra-text-second": "que tenemos para ti",
+      "extra-text-link": "revisa los planes"
+    }
+  },
+  "inputs": {
+    "placeholder-user": "Usuario",
+    "placeholder-email-enter": "Ingresa tu email",
+    "placeholder-current-password": "Contraseña actual",
+    "placeholder-password": "Contraseña",
+    "placeholder-password-new": "Nueva Contraseña",
+    "placeholder-password-verify": "Verificar Contraseña",
+    "placeholder-chat-message": "Envía un mensaje...",
+    "placeholder-search": "Buscar",
+    "placeholder-search-by-id": "Buscar por ID chat o por ID contacto",
+    "placeholder-register-message": "Quiero saber del plan...",
+    "placeholder-reason": "Ej: Consulta contrato",
+    "placeholder-frequently-question": "Escriba acá tu pregunta...",
+    "placeholder-frequently-question-answered": "Escriba acá la respuesta a tu pregunta frecuente...",
+    "subscribe": "Suscribirme",
+    "placeholder-new-note": "Escribe tu nota aquí",
+    "placeholder-channel-name": "Escribe tu canal",
+    "placeholder-id": "Ingresa el ID",
+    "placeholder-contact-name": "Ingresa el nombre del contacto",
+    "placeholder-crm": "Ingresa el identificador a buscar",
+    "id-chat": "ID CHAT",
+    "placeholder-search-chat": "Buscar chat...",
+    "checkboxs": {
+      "select-all": "Seleccionar todos"
+    },
+    "shared-license": "Licencia compartida",
+    "hints": {
+      "enter-text-in-field": "(Ingresa el texto en el campo)"
+    },
+    "errors": {
+      "email-required": "El email es obligatorio",
+      "email-invalid": "El email no es válido",
+      "email-invalid-repeat": "Este email ya esta en uso",
+      "password-required": "La contraseña es obligatoria",
+      "password-mismatch": "Las contraseñas no coinciden",
+      "name-required": "El nombre es obligatorio",
+      "login-required": "El login es obligatorio",
+      "phone-invalid": "Número inválido, por favor intenta nuevamente.",
+      "enter-text-in-field": "Este campo es obligatorio, complétalo para continuar",
+      "country-required": "El país es obligatorio",
+      "general-required": "Este campo es obligatorio",
+      "general-invalid": "Este campo no es válido",
+      "weak-password": "La contraseña debe contener letras y números. Mínimo {{min}} y máximo {{max}} caracteres. Al menos una mayúscula y un caracter especial (¡!@#$%&¿?.,:*+_).",
+      "audio-file-size-error": "El archivo excede el tamaño máximo permitido (10 MB).",
+      "video-file-size-error": "El video excede el tamaño máximo permitido (25 MB).",
+      "email-exist": "Este email ya ha sido utilizado para ingresar a Chattigo. Por favor ingrese o pida ayuda para recuperar su contraseña.",
+      "domain-exist": "Alguien de tu empresa ya ha realizado una prueba gratis con Chattigo.",
+      "invalid-image": "Error al adjuntar el archivo, formato no permitido.",
+      "only-letters": "El campo solo puede contener letras.",
+      "invalid-account": "Falló la verificación de tu cuenta.",
+      "error-in-request": "Lo sentimos, la conexión falló. Vuelva a intentarlo.",
+      "invalid-max-length": "Este campo no puede contener más de 40 caracteres"
+    }
+  },
+  "actions": {
+    "load": "Cargar",
+    "loading": "Cargando",
+    "close-session": "Cerrar Sesión",
+    "back": "Volver",
+    "cancel": "Cancelar",
+    "cancel-Upper": "CANCELAR",
+    "transfer": "Transferir",
+    "closed": "Finalizar",
+    "terms": "Términos y condiciones",
+    "next": "Siguiente",
+    "close": "Cerrar",
+    "configure-template": "Configurar plantilla",
+    "edit": "Editar",
+    "edit-widget": "Editar widget",
+    "add-new": "agregar nuevo",
+    "accept": "Aceptar",
+    "accept-Upper": "ACEPTAR",
+    "confirm": "Confirmar",
+    "apply": "Aplicar",
+    "update": "actualizar",
+    "load-more": "cargar más",
+    "contact-executive": "contactar ejecutivo",
+    "enter-here": "Ingresa aquí",
+    "register-here": "Regístrate aquí",
+    "choose-one": "Elige uno",
+    "yes": "Sí",
+    "no": "No",
+    "save": "Guardar",
+    "download-chats": "Descargar chats",
+    "filter": "Filtrar",
+    "delete": "Eliminar",
+    "reschedule": "Reagendar",
+    "go": "Ir",
+    "undo": "Deshacer",
+    "downloads": "Descargas",
+    "available-downloads": "Descargas disponibles",
+    "select": "Seleccionar",
+    "select-a-campaign": "Selecciona una campaña",
+    "select-a-channel": "Selecciona un canal",
+    "go-to-agent": "Pase a agente",
+    "chat-closure": "Cierre de chat",
+    "origin-campaign": "Campaña origen",
+    "contact": "Contactar",
+    "new-note": "Nueva Nota",
+    "start": "Comenzar",
+    "center": "Centrar",
+    "check-errors": "Consultar errores",
+    "edit-settings": "Editar configuración",
+    "clone-settings": "Clonar proyecto",
+    "duplicate-project": "Duplicar proyecto",
+    "move-left": "Mover a la izquierda",
+    "move-right": "Mover a la derecha",
+    "preview": "Prueba tu bot",
+    "version-control": "Control de versiones",
+    "zoom-in": "Acercar vista",
+    "zoom-out": "Alejar vista",
+    "understood": "Entendido",
+    "import-project": "Importar proyecto",
+    "export-project": "Exportar proyecto",
+    "keep-editing": "Seguir editando",
+    "dont-save": "No guardar",
+    "activate": "Activar",
+    "see": "Ver",
+    "up-to-date": "Estás al día",
+    "go-out": "Salir",
+    "modify": "Modificar",
+    "send": "Enviar",
+    "continue": "Continuar",
+    "assign": "Asignar",
+    "return": "Regresar"
+  },
+  "common": {
+    "actives": "activos",
+    "all-states": "Todos los estados",
+    "mostRecent": "Más recientes",
+    "older": "Más antiguos"
+  },
+  "headers": {
+    "status": "Estado",
+    "support": "Soporte",
+    "typification": "Finalizar chat",
+    "transfer": "Transferir",
+    "register-new-client": "Registro nuevo cliente",
+    "add-faq": "Agregar Pregunta Frecuente",
+    "add-channel": "Agregar canal",
+    "edit-channel": "Editar canal",
+    "frequently-asked-question": "Respuestas frecuentes",
+    "visible-campaigns": "Campañas Visibles",
+    "attachments": "Adjunto(s)",
+    "crm": "CRM",
+    "version-control": "Control de versiones",
+    "asign-closure-tag": "Asignar etiqueta de cierre",
+    "select-closure-tag": "seleccionar etiqueta de cierre"
+  },
+  "messages": {
+    "assigned": "chat asignado por",
+    "transfer-by": "chat transferido por",
+    "transfer-to": "chat transferido a",
+    "whisper": "Susurro de",
+    "intervention": "Intervención de",
+    "visible": "visible para cliente",
+    "invisible": "no visible para cliente",
+    "not-send": "mensaje no enviado",
+    "start-date": "Inicio Chat",
+    "file-sent": "Archivo enviado",
+    "file-received": "Archivo recibido",
+    "chat-closed-by-client": "Este chat se cerró porque el cliente abandonó la conversación",
+    "pending-more-than": "Pendiente más de",
+    "chat-has-ended": "El chat ha finalizado",
+    "chat-transferred-agent": "Chat transferido a un agente",
+    "chat-leave": "El chat ha salido de la bandeja",
+    "chat-blocked": "El ultimo mensaje recibido del cliente fue hace más de 24hrs, por lo que el chat se encuentra inactivo actualmente.",
+    "chat-blocked-provider": "no permite que lo contestes directamente.",
+    "chat-blocked-whisper": "Igualmente puedes comunicarte con el agente a través del modo susurro.",
+    "text-editor-disclaimer": "Selecciona el texto para darle formato enriquecido.",
+    "chat-question-message": "ATENCIÓN: Sólo tienes un mensaje para responder este chat.",
+    "chat-response-message": "Ya has enviado el máximo de mensaje para Mercado Libre muro.",
+    "chat-response-message-twitter": "Ya has enviado el máximo de mensaje para Twitter muro.",
+    "chat-response-message-action": "Tipifica para darle cierre al chat.",
+    "chat-question-action": "Responder",
+    "chat-response-action": "Tipificar",
+    "message-deleted": "El mensaje ha sido eliminado",
+    "failed-requested": "Error al obtener el recurso.",
+    "message-unauthorized": "Este mensaje es privado",
+    "post-unauthorized": "La publicación es privada",
+    "post-deleted": "La publicación ha sido eliminada",
+    "post-send": "Publicación enviada por ",
+    "post-see": "Ver publicación",
+    "story": "Historia de {{name}}",
+    "fb-post": "Publicación de Facebook muro",
+    "ig-post": "Publicación de Instagram muro",
+    "wall": "Muro",
+    "post-removed": "La publicación de {{name}} ha sido eliminada.",
+    "story-removed": "Publicación Historia de Instagram eliminada",
+    "to-close": "Tipifica para darle cierre al chat.",
+    "close-chat": "Cerrar chat",
+    "wsp-ad": "Anuncio en {adCh} - Respuesta a {resCh}",
+    "ad": "Anuncio en {adCh}",
+    "see-ad": "Ver anuncio",
+    "chattia-suggestion": "(asistido por Chatt-IA)"
+  },
+  "app-profile": {
+    "session-duration": "Duración Sesión",
+    "chats-closed": "Chats Cerrados"
+  },
+  "app-navigation": {
+    "chats": "chats",
+    "without-checking": "sin revisar",
+    "profile": "perfil",
+    "supervisor": "supervisor",
+    "waiting-chats-details": "detalle chats en espera",
+    "agents-list": "Listado de agentes"
+  },
+  "app-support-contact": {
+    "info": "Ingresa tu usuario para conocer los supervisores asociados a tu cuenta.",
+    "submit-label": "Solicitar información",
+    "error-message": "No encontramos Supervisores asociados al usuario ingresado."
+  },
+  "app-supervisor-list": {
+    "label": "Los supervisores asociados a tu usuario son:"
+  },
+  "app-alerts": {
+    "paused": "Te encuentras en estado de pausa. Por ahora no recibirás nuevos chats.",
+    "paused-time": "min. de pausa",
+    "no-connection": "Tu dispositivo se encuentra sin conexión. Revisa tu red y vuelve a intentarlo.",
+    "trial-expire-title": "¡Contrata tu plan ahora!",
+    "trial-expire-title-contact": "¡Solicitud en revisión!",
+    "trial-expire-body": "Te quedan {{trialExpireIn}} días de prueba gratis",
+    "trial-expire-body-one-day": "Te queda {{trialExpireIn}} día de prueba gratis",
+    "trial-expire-body-last-day": "Es tu último día de prueba gratis",
+    "trial-expire-with-plan": "luego se activará tu plan {{plan}}",
+    "trial-expire-trial": "¡Suscríbete a un plan Chattigo!",
+    "customer-error-pay-link": "Por favor, actualiza tus datos",
+    "message-unsupported": "Este mensaje no puede visualizarse aquí. Para acceder, abre WhatsApp en tu dispositivo."
+  },
+  "app-messages-status": {
+    "on-exceed": "excedido",
+    "on-limit": "al limite",
+    "on-time": "a tiempo",
+    "new": "nuevo chat",
+    "business-app": "Intervención: Aplicación WhatsApp Business",
+    "on-intervention": "intervención",
+    "on-whisper": "susurro",
+    "on-transfer": "transferido",
+    "chattia-suggestion": "(asistido por Chatt-IA)",
+    "chattia-suggestion-edited": "*Editado por agente",
+    "chattia-suggestion-edited-supervisor": "*Editado por supervisor"
+  },
+  "app-inbox": {
+    "counter": "bandeja de chats",
+    "empty": "no tienes chats en este momento.",
+    "scheduled-chats": "chats agendados",
+    "paused-chats": "chats pausados"
+  },
+  "app-section-headers": {
+    "search-result": "resultado de búsqueda",
+    "agent-active": "agentes activos",
+    "campaigns-active": "campañas activas",
+    "agent-inactive": "agentes inactivos",
+    "chats-closed-today": "chats finalizados hoy"
+  },
+  "agent-status": {
+    "active": "activo",
+    "inactive": "inactivo",
+    "paused": "en pausa",
+    "assigned": "chats asignados",
+    "on-session": "online",
+    "meeting": "reunión",
+    "lunch": "almuerzo",
+    "bathroom": "baño",
+    "break": "descanso",
+    "waiting-chats": "chats en espera",
+    "disconnected": "Desconectado"
+  },
+  "app-typification": {
+    "modal-label": "Ok, vas a finalizar este chat por las siguientes razones:"
+  },
+  "app-transfer": {
+    "modal-label": "Ok, vas a transferir este chat a:"
+  },
+  "hsm": {
+    "select-label": "Selecciona el HSM que deseas enviar",
+    "preview-label": "Previsualización HSM",
+    "selected": "HSM seleccionado",
+    "search": {
+      "selected-list": "Lista seleccionada",
+      "selected-contact": "Contactos seleccionados"
+    },
+    "upload": {
+      "title": "Selecciona los destinatarios",
+      "title-link": "ó subir un archivo",
+      "description": "Envíe mensajes a múltiples contactos cargando un archivo .csv, .xlsx o .txt de hasta 15 MB con los teléfonos del contacto e información adicional para los campos dinámicos, o descarga la",
+      "custom-file": "plantilla.xlxs",
+      "description-step2": "Envíe mensajes a múltiples contactos cargando un archivo .csv, .xlsx o .txt de hasta 15 MB con los teléfonos del contacto e información adicional para los campos dinámicos.",
+      "file-upload-label": "Arrastra y suelta tú archivo",
+      "selected-file": "Archivo seleccionado"
+    },
+    "lists": {
+      "contacts-abbreviation": "cont.",
+      "save-changes-label": "¿Deseas guardar o reemplazar los contactos seleccionados en una lista?",
+      "name-label": "Nombre lista",
+      "save-list": "Guardar Lista"
+    }
+  },
+  "outbound": {
+    "assigned-agent": "Agente asignado",
+    "assign-agent": "Asignar agente",
+    "choosee-agent": "Seleccionar agente",
+    "title": "Outbound",
+    "resumen": "Resumen envío",
+    "send": "enviar outbound",
+    "country-invoice": "Selecciona país de facturación",
+    "select-country": "Selecciona tu país",
+    "invoice": "Datos de facturación",
+    "detail-value": "Valores de HSM por países",
+    "help-text": {
+      "post-paid-current-balance": "Monto que se facturará a fin de mes por la cantidad de HSM enviados.",
+      "current-balance": "Corresponde al dinero abonado para el envío de mensajes salientes.",
+      "last-month": "Corresponde al total de mensajes salientes enviados en el mes actual.",
+      "average": "Corresponde al promedio de mensajes salientes enviados durante los últimos 3 meses.",
+      "previous-month": "Corresponde al total de mensajes salientes enviados el mes anterior."
+    },
+    "config-answers": {
+      "title": "Configuración de respuestas",
+      "option-myself": "Quiero atender yo",
+      "option-myself-disclaimer": "*opción valida solo con estado ONLINE",
+      "option-platform": "Quiero que Atienda la Plataforma",
+      "option-bot": "Quiero que atienda el bot"
+    },
+    "sending-status": {
+      "label": "Estatus envío",
+      "sending-channel": "Canal de envío",
+      "finish": "¡Proceso terminado con éxito!"
+    },
+    "country": {
+      "chile": "Chile",
+      "mexico": "México",
+      "argentina": "Argentina",
+      "peru": "Perú",
+      "colombia": "Colombia",
+      "brazil": "Brasil",
+      "spain": "España",
+      "rest-of-america": "Resto de America"
+    },
+    "templates": "Plantillas",
+    "send-outbound": "Enviar Outbound"
+  },
+  "labels": {
+    "search": "Buscar",
+    "receivers": "Destinatarios",
+    "campaign": "Campaña",
+    "campaigns": "Campañas",
+    "contacts": "Contactos",
+    "description": "Descripción",
+    "dynamic-fields": "Campos dinámicos",
+    "lists": "Listas",
+    "email": "Email",
+    "name": "Nombre",
+    "phone": "Celular",
+    "email-address": "Dirección de correo electrónico",
+    "country": "País",
+    "message": "Mensaje",
+    "reason": "Motivo",
+    "question": "Pregunta",
+    "answer": "Respuesta",
+    "attachment": "Adjunto",
+    "attachment-optional": "Adjunto (opcional)",
+    "optional": "opcional",
+    "closing": "Cierre",
+    "channels": "Canales",
+    "period": "Período",
+    "start": "Inicio",
+    "end": "Fin",
+    "channels-name": "Nombre canal",
+    "campaign-associated": "Campaña asociada",
+    "id": "ID",
+    "contact-id": "ID de contacto",
+    "contact-name": "Nombre de contacto",
+    "chat-id": "ID Chat",
+    "select-id-type": "Selecciona el tipo de ID",
+    "day": "día",
+    "days": "días",
+    "channel-name": "Nombre del canal",
+    "priority": "Prioridad",
+    "assign-farewell-tag": "Asignar etiqueta de cierre",
+    "categories": "Categorias",
+    "identifier": "Identificador CRM",
+    "select-one-campaigns-or-more": "Selecciona una o varias campañas",
+    "select-one-channels-or-more": "Seleccione uno o varios canales",
+    "found": "Encontrados",
+    "select-the-filter-to-apply": "Seleccione el filtro a aplicar",
+    "closed": "Cerrada",
+    "agent": "Agente",
+    "contactID": "ID Contacto",
+    "chatID": "ID Chat",
+    "inbox": "Bandeja de entrada",
+    "clients": "Clientes",
+    "internal": "Chat interno"
+  },
+  "status": {
+    "session-expired": "Tu sesión ha caducado",
+    "in-process": "Procesando..."
+  },
+  "dashboard-header": {
+    "resume": "Supervisor",
+    "data-in-real-time": "datos en tiempo real",
+    "active-campaigns": "campañas activas",
+    "active-agents": "agentes activos",
+    "typification-of-the-day": "tipificaciones del día",
+    "chats-on-hold": "Chats en espera",
+    "channels": "Canales",
+    "agents-list": "Agentes",
+    "auto-answers": "Autorespuestas",
+    "see-all": "Ver todos"
+  },
+  "modal-about-quick-reply": {
+    "buttons": {
+      "understood": "Entendido",
+      "later": "Ver más tarde"
+    },
+    "title": "Te presentamos una nueva funcionalidad",
+    "subtitle": "¡Mensajes rápidos en el agente!",
+    "text-one": "Ahora tus agentes pueden reactivar sus chats vencidos sin tener que ir al módulo de Outbound. ",
+    "text-two": "➡️ Para que las plantillas sean visibles a los agentes, tendrás que configurarlas, poniéndote en contacto con el equipo de <a target='_blank' href='https://chattigo.atlassian.net/servicedesk/customer/portal/10/group/29/create/75'>operaciones</a> o tu partner asociado.",
+    "text-three": "⚠️ Ten en cuenta que deben ser mensajes simples, es decir, no tendrán variables ni otro tipo de contenido, solo podrán ser de texto",
+    "text-four": "Por <a target='_blank' href='https://developers.facebook.com/docs/whatsapp/pricing#policy-requirements'>políticas de Meta</a>, el chat volverá a bloquearse hasta que el cliente responda.",
+    "text-five": "¡Aprovecha esta funcionalidad para que tus agentes vuelvan a tomar contacto de forma rápida con los clientes!",
+    "text-six": "Para más información, descarga el",
+    "text-seven": "de la funcionalidad."
+  },
+  "modalNewSuper": {
+    "contentContainer": {
+      "header": {
+        "subtitle": "Tenemos algo que mostrarte",
+        "title": "Nuevo monitoreo de chats",
+        "agent-subtitle": "Tenemos algo nuevo para tu monitoreo",
+        "agent-title": "Pestaña Agentes"
+      },
+      "body": {
+        "access": "Ahora, tendrás acceso a gráficos para monitorear y conocer en tiempo real:",
+        "agent-welcomeText": "¡Seguimos sumando herramientas al nuevo supervisor!",
+        "paragraphs": {
+          "agent-paragraph1": "Te presentamos una nueva visual y más información para monitorear la gestión de tus agentes.",
+          "agent-paragraph2": "Ahora, además de conocer la cantidad de agentes activos, chats activos y finalizados tendrás un listado de todos tus agentes y podrás conocer:"
+        },
+        "list": {
+          "listItem1": "El estado de tus agentes.",
+          "listItem2": "La cantidad de chats activos y finalizados.",
+          "listItem3": "El tiempo promedio de respuesta."
+        },
+        "agent-list": {
+          "listItem1": "Tiempo que lleva en línea.",
+          "listItem2": "Cantidad de chats activos en relación al máximo que puede atender. Por ejemplo, 10/25.",
+          "listItem3": "Cantidad de chats finalizados, pausados y agendados.",
+          "listItem4": "Estado de conexión en el que se encuentra."
+        },
+        "imageAlt": "Supervisor GIF",
+        "agent-imageAlt": "Agents Table GIF",
+        "agent-use-text": "Utiliza los filtros para ordenar y encontrar a tus agentes rápidamente.",
+        "agent-see-all-text": "Haz click en Ver todos para acceder al listado completo de tus agentes",
+        "besides": "Además, conocerás cuántos chats están activos o finalizados por el bot",
+        "preparationText": "¡Prepárate para todo lo que estamos trabajando!",
+        "soonText": "Próximamente, tendrás estadísticas generales, nuevos gráficos y tablas, verás la actividad en tiempo real de tus agentes, ¡y mucha más información sin tener que salir del módulo!",
+        "moreInfoText": "Para obtener más información, descarga el",
+        "productSheetLink": "Product Sheet",
+        "contactText": "Ante cualquier consulta, contacta con nuestro",
+        "helpCenterLink": "centro de ayuda"
+      },
+      "buttonContainer": {
+        "confirmButton": "Entendido"
+      }
+    }
+  },
+  "stats-cards": {
+    "total-active-chats": "total chat activos",
+    "total-closed-chats": "total chat cerrados",
+    "active-agents": "agentes activos",
+    "by-agents": "por agentes",
+    "by-bot": "por bot",
+    "chats-on-attention": "en atención",
+    "chats-on-pause": "en pausa",
+    "on-hold": "en espera",
+    "scheduled": "agendados",
+    "chats-on-hold": "chats en espera",
+    "chats-active-tooltip": "Chats que están siendo atendidos en este momento",
+    "chats-closed-tooltip": "Chats cerrados por agentes y bots",
+    "agents-active-tooltip": "Agentes que se encuentran en línea y en pausa",
+    "chats-waiting-tooltip": "Chats que están en
+
+---- [200] https://config-global.chattigo.com/litoralgas4953-8478-webchat-wc-production.json
+{"agent_name_enabled":false,"bg_menu":"#1f1f1f","button_enabled":true,"button_login_bg":"#0032A0","button_login_color":"white","caption_subtitle_color":"#424243","caption_title":"Inicia una conversación","caption_title_color":"#424243","color":"#0042A0","default_header_photo":"https://i.imgur.com/TywZjVc.jpeg","field_font_color":"#424243","finish":{"button":{"boderColor":"#0032A0","text":"Volver Al Inicio"},"content":{"mainText":"       ","star":true,"startText":""},"header":{"colorTitle":"#ffffff","logo":"","subtitle":"Mantente en contacto a través de nuestros canales","title":"Gracias por Chatear con Nosotros"},"socialMedia":""},"geo_active":true,"header_background_color":"#0032a0","header_background_gradient":"#0032a0","header_font_color":"#ffffff","header_status":"En linea","header_text":"Litoralgas","locale":"es","login_text":"Iniciar Chat","logo":"https://i.imgur.com/TywZjVc.jpeg","message_placeholder":"Escriba un mensaje...","preserve_history":true,"send_color":"#cb1e74","subtitle_color":"#ffffff","subtitle_text":"¿En qué te ayudo?","team_enabled":true,"trigger_image":"https://i.imgur.com/bPutZFt.png","typify_on_close":false,"welcome_color":"#ffffff","welcome_text":"¡Hola! Soy tu asistente virtual de Litoralgas "}
+
+---- [200] https://www.litoralgas.com.ar/ov/assets/setting/config.json
+{
+    "apiUrl":"https://www.litoralgas.com.ar/ovapi/api",
+    "captchaKey":"6LcnpMwZAAAAAMoXXOTwKuid6iD797RA5mN27Xg0",
+	"fileMaxSize":"10485760",
+    "MODORemoteScript":"https://ecommerce-modal.modo.com.ar/bundle.js",
+    "MPRemoteScript":"https://sdk.mercadopago.com/js/v2" 
+}
+
+
+
+---- [200] https://www.litoralgas.com.ar/ov/assets/setting/strings.json
+{
+    "screens": {
+        "Login": {
+            "title": "OFICINA VIRTUAL",
+            "sub_title": "Portal de autogestión para usuarios, instaladores matriculados y excavadores",
+            "emergency1": "Ante emergencias:",
+            "emergency2": "0-800-777-5427 (LGAS)",
+            "emergency3": "LAS 24HS LOS 365 DÍAS DEL AÑO",
+            "login_title": "Acceso a la Oficina Virtual",
+            "login_button": "Ingresar",
+            "login_olvide_pass": "¿Olvidaste tu contraseña?",
+            "login_consultas": "¿Problemas para ingresar?",
+            "login_consultas_link": "https://litoral-gas.atlassian.net/servicedesk/customer/portal/4/group/4/create/2262",
+            "login_create_account": "Registrate ahora",
+            "login_create_account_button": "Crear Cuenta",
+            "PopupHTML": "<p style='color:gray;text-align:center;font-size:18px !important'><strong style='color:gray;text-align:center;font-size:18px !important'>Renovamos nuestra Oficina Virtual.</strong><br /> Sumamos más gestiones y agilizamos el acceso.</p><p><strong style='color:#034799;text-align:center;font-size:20px !important'>Si ya estás registrado, ingresá con tu correo electrónico y tu contraseña habitual.</strong></p><p style='color:gray;text-align:center !important;font-size:18px !important'>Oficina Virtual, una forma más ágil y sencilla de gestionar tu cuenta en Litoralgas.</p>",
+            "PopupActive": "0",
+            "PopupWidthPercentage": "35",
+            "login_videoText1": "Creá tu cuenta",
+            "login_videoLink1": "https://youtu.be/uFp-cVqRS5g",
+            "login_videoText2": "Pedí el cambio de titularidad",
+            "login_videoLink2": "https://youtube.com/shorts/47WY_t7-y94",
+            "login_videoText3": "Descargá y reimprimí facturas",
+            "login_videoLink3": "https://youtu.be/cXPYmwxy7ng",
+            "login_videoText4": "Hacé un plan de pago",
+            "login_videoLink4": "https://youtu.be/948o7Ml1wZU",
+            "login_videoText5": "Pagá online",
+            "login_videoLink5": "https://youtu.be/zEVBo_O6D3o",
+            "login_videoText6": "Obtené el estado de deuda",
+            "login_videoLink6": "https://youtu.be/OqJssgcVzsQ",
+            "login_error_datetime": "Imposible realizar el ingreso: Fecha / hora del equipo desactualizadas. Favor de actualizar, esperar unos segundos y volver a intentar.",
+            "title2": "FACTURA DIGITAL",
+            "sub_title2": "Adherite ingresando a la Oficina Virtual y empezá a recibirla por mail"
+        },
+        "Recovery": {
+            "title": "Utilizá el siguiente formulario para solicitar la recuperación de tu contraseña",
+            "sub_title": "Si olvidaste tu contraseña de ingreso a la Oficina Virtual, completá los campos solicitados en el siguiente formulario. La recepción del correo puede tomar algunos minutos. Recordá no divulgar tus datos de acceso a terceros, manteniéndolos confidenciales en todo momento.",
+            "recovery_title": "Recuperación de Contraseña",
+            "recovery_button": "Recuperar",
+            "recovery_link": "Si aún no tenés tu usuario y contraseña, podés gestionarlos haciendo ",
+            "recovery_link_click": "click aquí",
+            "success_title": "Tu solicitud ha sido enviada",
+            "success_subTitle": "Enviamos una notificación a tu casilla de correo electrónico"
+        },
+        "CreateAccount": {
+            "title": "Registrate en el sistema de Oficina Virtual de Litoralgas",
+            "sub_title": "A continuación, seleccioná si deseas registrarte como cliente, instalador o empresa matriculada, o excavador (para solicitud de planos).",
+            "card_residente": "Clientes o usuarios residenciales, comercios y pymes",
+            "card_matriculados": "Instaladores y empresas matriculadas",
+            "card_excavadores": "Excavadores",
+            "card_excavadores_2": "(Solicitud de planos)",
+            "comercial_title": "CONSULTAS COMERCIALES:",
+            "comercial_tel": "0-810-444-5427 (LGAS)",
+            "comercial_tel_value": "tel:+5408104445427",
+            "comercial_subtitle": "LUNES A VIERNES (HABILES) DE 8 A 20HS.",
+            "emergencia_title": "ANTE EMERGENCIAS:",
+            "emergencia_tel": "0-800-777-5427",
+            "emergencia_letras": " (LGAS)",
+            "emergencia_subtitle": "LAS 24HS LOS 365 DÍAS DEL AÑO",
+            "card_residente_success_title": "Tu cuenta fue creada con éxito.",
+            "card_residente_success": "Antes de utilizarla, debes activarla a través del enlace que enviamos a tu correo electrónico. No olvides revisar en 'Correo no deseado'.",
+            "termConAccept": "<p style='text-align:left;font-size:14px !important'><strong style='color:#4d4d4d;text-align:center;font-size:14px !important'>Acepto los</strong> <strong><a href='/ov/legales' style='color:#00adee !important;text-align:center;font-size:14px !important' target='blank'> Términos y condiciones de uso de la Oficina Virtual</a></strong><strong style='color:#4d4d4d;text-align:center;font-size:14px !important'></strong></br></p>"
+        },
+        "ActivateAccount": {
+            "title": "Tu cuenta fue activada con éxito",
+            "subTitle": "Dirigite al Login e ingresá con tus credenciales"
+        },
+        "NotAvailable": {
+            "title": "El Sistema no se encuentra disponible",
+            "subTitle": "Por favor, intentá en unos minutos."
+        },
+        "ChangePassword": {
+            "title": "Utilizá el siguiente formulario para cambiar tu contraseña",
+            "sub_title": "Ingresá tu nueva contraseña de ingreso a la Oficina Virtual, completando los campos solicitados en el siguiente formulario.",
+            "change_title": "Cambio de Contraseña",
+            "change_button": "Aceptar",
+            "success_title": "Tu contraseña se cambió con éxito.",
+            "subTitle": "Dirigite al Login e ingresá con tus credenciales"
+        },
+        "RolSelection": {
+            "title": "¿Con qué perfil querés ingresar?",
+            "subTitle": "El perfil seleccionado te permitirá acceder a las funciones del sistema.",
+            "matriculadoDisabled": "Su cuenta de matriculado aún no está habilitada. Diríjase a una oficina comercial."
+        },
+        "Home": {
+            "cardContratoTitle": "Cliente",
+            "cardContratoVigente": "Contrato Vigente",
+            "cardCategoriaTitle": "CATEGORÍA",
+            "cardCategoriaConocer": "Conocer más sobre mi categoría",
+            "cardCategoriaConocerLink": "http://www.litoralgas.com.ar/site/hogares-y-comercios/tu-factura/entende-tu-factura/",
+            "cardClienteTitle": "NÚMERO DE CLIENTE",
+            "cardConsumosTitleGrafico": "Consumos históricos",
+            "cardConsumosTitleTabla": "Consumos históricos",
+            "cardConsumosLeyenda": "Detalle solo a efectos informativos, sin validez como comprobante. Se muestran consumos facturados a la fecha.",
+            "cardUltFacutraTitle": "ÚLTIMA FACTURA",
+            "cardUltFacutraVencimiento": "VENCIMIENTO",
+            "cardSaldoDeudorTitle": "ESTADO",
+            "cardSaldoDeudorTitleLink": "Ver comprobantes impagos",
+            "ExcavadoresHTML": "<p style='font-size:35px; color:#00a6ec'>Bienvenido!</p><p>Desde este portal podés solicitar los planos de las instalaciones de gas antes de excavar en la vía pública.</p><p>Podés además, conocer las recomendaciones para iniciar trabajos de manera segura en las cercanías de las instalaciones de gas natural.</p><p>Para realizar una solicitud, utiliza la opción de menú <strong>Solicitud de Planos</strong></p><p>Para descargar documentación técnica ingresá  <a style='font-weight:bold; color:#00a6ec !important;' target=\"_blank\" href=\"http://www.litoralgas.com.ar/site/extdocs/PPD_2020_rev1.pdf\">aquí</a> </p><p>Conocé más sobre el Programa de Prevención de Fugas por Excavaciones en Vía Pública <a style='font-weight:bold; color:#00a6ec !important;' target=\"_blank\" href=\"http://www.litoralgas.com.ar/site/seguridad/prevenci%C3%B3n/programa-de-prevenci%C3%B3n-de-da%C3%B1os/\">aquí</a> </p><p>¿Tenés dudas o consultas? Llamanos al 4100416 o escribinos al 341 2107959.</p>",
+            "MatriculadosHTML": "¡Te damos la bienvenida a tu Oficina Virtual de Gasista Matriculado!",
+            "cardUltVencimientosTitle": "Próximos vencimientos",
+            "demands": "Tu contrato tiene deuda intimada habilitando así el corte del servicio. Evitá el corte, regularizá tu deuda",
+            "cardMatriculadoTitle": "Estado de la Matricula",
+            "cardMatriculadoCategoriaMatricula": "Categoría: ",
+            "cardMatriculadoEstadoMatricula": "Estado: ",
+            "cardMatriculadoVigenciaMatricula": "Vigencia: ",
+            "cardMatriculadoDatosTitle": "Datos básicos",
+            "cardMatriculadoDatosDomicilio": "Domicilio: ",
+            "cardMatriculadoDatosLocalidad": "Localidad: ",
+            "cardMatriculadoDatosTelefono": "Teléfono: ",
+            "cardMatriculadoDatosProfesion": "Título: "
+        },
+        "Reprint": {
+            "title": "Reimpresión de facturas y comprobantes",
+            "subTitle": "Aquí podés descargar e imprimir tus Facturas (LSP), notas de crédito y otros comprobantes"
+        },
+        "OverDueBills": {
+            "title": "Detalle de facturas adeudadas",
+            "subTitle": "Aquí podés generar una boleta (BER) para pagarla en una entidad recaudadora o en internet",
+            "contentLine1": "Consultá tus facturas adeudadas y emití una boleta de pago para abonarla en entidades recaudadoras o a través de internet (pago electrónico). Los comprobantes ya incluidos en un plan de pagos vigente aparecerán con una observación, sólo para consulta.",
+            "item1": "Tildá las facturas (LSP) que vas a abonar.",
+            "item2": "Pulsá el botón \"Emitir Boleta de Pago\".",
+            "item3": "Visualizarás la boleta recién generada en la sección \"Pago de Boletas\".",
+            "item4": "Una vez allí seguí los pasos indicados.",
+            "contentLine2": "En la sección \"Pago de Boletas\" también encontrarás boletas de pago vigentes emitidas con anterioridad y/o cuotas de planes de pago vigentes.",
+            "grid1Title": " Facturas adeudadas por contrato",
+            "grid1SubTitle": "Contrato:",
+            "grid2Title": "Facturas adeudadas por persona",
+            "grid2SubTitle": "Persona:",
+            "infoTitle": "Información importante:",
+            "infoLine1": "El presente detalle refleja el estado de deuda de los últimos cinco años. Los saldos de las facturas (LSP) indicadas no incluyen intereses por mora, los cuales, de corresponder y en caso de abonarse el comprobante, serán incluidos en tu próxima factura (LSP).",
+            "infoLine2": "El presente detalle incluye solamente las facturas (LSP) correspondientes al contrato seleccionado y al cliente cuyo número se indica.",
+            "infoLine3": "El presente detalle no es válido como libre deuda ni como comprobante de pago. Si necesitás un comprobante de libre deuda, dirigite a cualquier oficina comercial de Litoralgas.",
+            "infoLine4": "La no existencia de una factura (LSP) en esta página no implica en forma alguna que la misma esté cancelada. Los datos mostrados no conforman un detalle completo de la deuda del cliente, ya que no incluyen conceptos aún no liquidados como cuotas de recuperos de redes y financiaciones internas.",
+            "infoLine5": "En el detalle de deuda pueden mostrarse facturas (LSP) ya abonadas cuya cobranza aún no haya sido rendida por la entidad recaudadora correspondiente.",
+            "infoLine6": "Si desea más información acerca de un comprobante, puede descargarlo desde Facturación > Reimpresión de comprobantes.",
+            "observation": "Observaciones:",
+            "observationLine1": "[1] Comprobante ya incluido en un Plan de Pagos",
+            "observationLine2": "[2][5] Para abonar este comprobante contáctese con nuestros asesores por cualquiera de los canales habilitados",
+            "observationLine3": "[3] Comprobante de un suministro cortado o un contrato caduco.",
+            "observationLine4": "[4] Existe un pago pendiente de aplicación a este comprobante."
+        },
+        "OverDueBillsAll": {
+            "title": "Detalle de facturas vencidas y por vencer",
+            "subTitle": "Consultá y descargá en Excel o PDF la deuda consolidada de todos los contratos vigentes vinculados.    Para pagar, elegí en el menú la opción Facturas adeudadas",
+            "item1": "",
+            "item2": "",
+            "item3": "",
+            "item4": "",
+            "infoTitle": "Información importante:",
+            "infoLine1": "El presente detalle refleja el estado de deuda de los últimos cinco años. Los saldos de las facturas (LSP) indicadas no incluyen intereses por mora, los cuales, de corresponder y en caso de abonarse el comprobante, serán incluidos en tu próxima factura (LSP).",
+            "infoLine2": "El presente detalle incluye solamente las facturas (LSP) correspondientes al contrato seleccionado y al cliente cuyo número se indica.",
+            "infoLine3": "El presente detalle no es válido como libre deuda ni como comprobante de pago. Si necesitás un comprobante de libre deuda para cualquiera de tus contratos adheridos, emitilo mediante la opción \"Estado de Deuda\".",
+            "infoLine4": "La no existencia de una factura (LSP) en esta página no implica en forma alguna que la misma esté cancelada. Los datos mostrados no conforman un detalle completo de la deuda del cliente, ya que no incluyen conceptos aún no liquidados como cuotas de recuperos de redes y financiaciones internas.",
+            "infoLine5": "En el detalle de deuda pueden mostrarse facturas (LSP) ya abonadas cuya cobranza aún no haya sido rendida por la entidad recaudadora correspondiente.",
+            "infoLine6": "Si desea más información acerca de un comprobante, puede descargarlo desde Facturación > Reimpresión de comprobantes.",
+            "observation": "Observaciones:",
+            "observationLine1": "[1] Comprobante ya incluido en un Plan de Pagos",
+            "observationLine2": "[2][5] Para abonar este comprobante contáctese con nuestros asesores por cualquiera de los canales habilitados",
+            "observationLine3": "[3] Comprobante de un suministro cortado o un contrato caduco.",
+            "observationLine4": "[4] Existe un pago pendiente de aplicación a este comprobante."
+        },
+        "HistBills": {
+            "title": "Pago de Boletas",
+            "subTitle": "Aquí encontrarás tus boletas de pago (BER) y/o cuotas de planes de pago vigentes.",
+            "item1": "Si vas a abonar por internet (pago electrónico) pulsá el ícono del medio de pago elegido. Si es la primera vez que generás deuda en línea, deberás asociar el servicio \"Litoral Gas (Deuda en Linea)\" para encontrar el comprobante a pagar.",
+            "item2": "Si vas a abonar en entidades recaudadoras habilitadas o si necesitás imprimir tu boleta, pulsá el ícono de la impresora.",
+            "contentLine2": "Si querés abonar una factura (LSP) no incluida en una Boleta de Pago o en un Plan de Pago ya generados, dirigite a la sección \"Facturas adeudadas\" y seguí las instrucciones.",
+            "grid1Title": "Boletas (BER) por contrato",
+            "grid1SubTitle": "Contrato:",
+            "grid2Title": "Planes de pago por contrato",
+            "grid2SubTitle": "Contrato:",
+            "titleBanelco": "Envío a PagoMisCuentas / Banelco",
+            "subTitleBanelco": "Elegí el Banco con el cual operas y el documento del titular de la cuenta bancaria",
+            "successLink1": "Tu solicitud ha sido enviada a LinkPagos. Ingresá al portal de LinkPagos o al canal de pago que utilizás habitualmente para completar el pago.",
+            "successLink2": "Tené en cuenta que esta acción es imprescindible para finalizar el proceso de pago.",
+            "successLink3": "Si es la primera vez que generás deuda en línea, deberás asociar el servicio \"Litoral Gas (Deuda en Linea)\" para encontrar el comprobante a pagar.",
+            "successLink3Link": "Litoral Gas (Deuda en Linea)",
+            "successLink4": "Gracias por operar desde nuestra Oficina Virtual.",
+            "errorLink1": "Ha ocurrido un error en el registro de Link Pagos.",
+            "errorLink2": "Intentá nuevamente más tarde, si el problema persiste informanos a través de nuestros medios de contacto",
+            "errorLink1Link": "http://www.litoralgas.com.ar/site/contacto/canales-de-atencion/",
+            "errorLink3": "Nuestros canales",
+            "errorBanelco1": "¡Operación fallida!",
+            "successBanelco1": "Tu solicitud ha sido enviada a Banelco - PagoMisCuentas. Ingresá al portal de Banelco - PagoMisCuentas o al canal de pago que utilizás habitualmente para completar el pago.",
+            "successBanelco2": "Tené en cuenta que esta acción es imprescindible para finalizar el proceso de pago.",
+            "successBanelco3": "Si es la primera vez que generás deuda en línea, deberás asociar el servicio \"Litoral Gas (Deuda en Linea)\" para encontrar el comprobante a pagar.",
+            "successBanelco3Link": "",
+            "success4": "Gracias por operar desde nuestra Oficina Virtual."
+        },
+        "Gasworkers": {
+            "title": "NOTAS",
+            "item1Title": "Categoría de matrícula M1 habilita a la ejecución de:",
+            "item1": "Cualquier tipo de instalación domiciliaria doméstica, comercials o industrial, ya sea para gas distribuido por redes o envasado.",
+            "item2Title": "Categoría de matrícula M2 habilita a la ejecución de:",
+            "item2": "Instalaciones domiciliarias domésticas, comerciales, industriales o varias, ya sea para gas distribuido por redes o envasado, siempre que las tomas correspondan a artefactos cuyos consumos individuales no excedan a 50.000 Kcal/h y la presión interna de la instalación no supere los 2 kPa. No pueden ejecutar instalaciones domiciliarias cuando la presión de distribución supere los 2 kg/cm2 y en gas licuado cuando fueren alimentados por tanques a granel.",
+            "item3Title": "Categoría de matrícula M3 habilita a la ejecución de:",
+            "item3": "Instalaciones domiciliarias domésticas, en viviendas unifamiliares, cuyo consumo total no exceda de 5 m3/h de gas natural suministrado por redes a presión menor de 2 kg/cm2."
+        },
+        "Comms": {
+            "title": "Comunicaciones",
+            "subTitle": "Aquí podés conocer la información más relevante de tu matricula"
+        },
+        "eBilling": {
+            "title": "Factura digital",
+            "subTitle": "Formulario de adhesión",
+            "content1": "A través del siguiente formulario podés consultar el estado de adhesión, adherirte y solicitar la baja del servicio de envío de factura por correo electrónico.",
+            "content2": "Recordá que sólo podés adherir contratos que se encuentren vigentes a la fecha. Podés incluir un numero de celular de contacto.",
+            "title2": "Estado de adhesión del contrato seleccionado",
+            "contract": "Cliente",
+            "text1": "Para adherir a la Factura Digital seleccioná un contrato vigente en el selector superior.",
+            "success1": "¡Actualización exitosa!",
+            "success2": " La información fue validada con éxito y los cambios ya se encuentran registrados.",
+            "success3": " Te recordamos que podés consultar en cualquier momento el estado actual de adhesión y realizar modificaciones accediendo a",
+            "success3Link": "Trámites > Factura Digital",
+            "success4": "Muchas gracias",
+            "error1": "¡Adhesión fallida!",
+            "termCond1": "TÉRMINOS Y CONDICIONES GENERALES - FACTURA DIGITAL",
+            "termCond2": "El usuario registrado en la Oficina Virtual podrá adherirse al servicio de facturación digital, consistente en el envío de sus facturas por el suministro de gas de forma electrónica a la dirección de correo electrónico registrada en el Alta de Usuario, conforme lo previsto en el inc. a) Art. 5° del Reglamento del Servicio (aprobado por Decreto PEN N° 2255/92, T.O. por Resolución ENARGAS N° 4313/2017 (modif. por Resolución ENARGAS N° I/4325/17 y ENARGAS N° 223/2019) y/o la norma que en el futuro lo modifique y/o reemplace.",
+            "termCond3": "El servicio de recepción de facturas por correo electrónico es gratuito y sin costo adicional para el usuario.",
+            "termCond4": "Con la adhesión del usuario al servicio de \"Factura Digital\", usted solicita expresamente a LITORAL GAS S.A. no recibir en su domicilio sus facturas impresas en soporte papel a través del servicio postal. Dicha adhesión no opera cuando la vinculación de su contrato en Oficina Virtual lo realice una entidad de cobranza.",
+            "termCond5": "LITORAL GAS S.A. enviará a la dirección de correo electrónico registrada un e-mail  desde la dirección de e-mail: factura@digital.litoral-gas.com.ar en el que se informará el enlace para acceder a su factura con un mínimo de 10 días de anticipación a la fecha de vencimiento de la misma.",
+            "termCond6": "El usuario podrá también disponer, en cualquier momento y a su requerimiento, de un duplicado de su factura en las oficinas comerciales de LITORAL GAS o ingresando al Sitio Web de LITORAL GAS (www.litoralgas.com.ar) o a la Oficina Virtual (www.litoralgas.com.ar/ov).",
+            "termCond7": "La adhesión al sistema de recepción de factura por correo electrónico no tiene incidencia alguna respecto de los medios de pago seleccionados por el usuario para la cancelación de sus facturas.",
+            "termCond8": "Es responsabilidad del usuario mantener actualizados sus Datos Personales suscriptos en este Sitio Web.",
+            "termCond9": "En el supuesto de invalidez, error, o imposibilidad de registro y/o validación de la dirección de correo electrónico informada por el sistema de LITORAL GAS, o que los  e-mails que se envían sean devueltos y/o no sean recibidos, LITORAL GAS podrá dar de baja el servicio de “Factura Digital” sin previo aviso y proceder a enviar la factura al domicilio postal informado.",
+            "termCond10": "LITORAL GAS no será responsable en caso de que el usuario no pueda acceder a su Factura en formato electrónico por cualquier desperfecto técnico que la misma o los sistemas de comunicación electrónicos pudieran tener, ni por cualquier otra causa ajena a LITORAL GAS, caso fortuito y/o fuerza mayor. En estos casos, el Titular del Servicio deberá comunicarse a través de cualquiera de los canales disponibles de atención comercial para solicitar su saldo y/o Factura, o ingresando a www.litoralgas.com.ar/ov (Oficina Virtual de Litoral Gas), ya que el hecho de que el Titular del Servicio no reciba Notificaciones, Avisos Importantes y/o Liquidación de Servicio Públicos vía e-mail no constituye una excepción a la obligación de pago.",
+            "termCond11": "El usuario podrá solicitar la baja al servicio en cualquier momento a través de www.litoralgas.com.ar/ov (Oficina Virtual) o comunicándose al 0810 444 5427 o presencialmente en cualquier sucursal de LITORAL GAS. En este caso, el usuario dejará de recibir sus facturas por correo electrónico a partir del próximo ciclo de facturación siguiente a la desactivación de la opción de inscripción en la modalidad digital, o el subsiguiente según el momento en que realice la baja al sistema.",
+            "termConAccept": "<p style='text-align:left;font-size:14px !important'><strong style='color:#4d4d4d;text-align:center;font-size:14px !important'>Acepto los</strong> <strong style='color:#00adee !important;text-align:center;font-size:14px !important'> Términos y condiciones de uso de la Oficina Virtual y la Factura Digital</strong><strong style='color:#4d4d4d;text-align:center;font-size:14px !important'>, recibiendo mis facturas por correo electrónico.</strong></br><small><i>(Podés destildar esta opción desde la Oficina Virtual en cualquier momento).</i></small></p>",
+            "termCondFooter1": "Información Importante:",
+            "termCondFooter2": "Estimado cliente: copia de la información será resguardada por Litoral Gas S.A. (con domicilio en Thedy 370 Bis – 1° piso – S2013EED), permitiendo a los Clientes ejercer sus derechos de acceso, rectificación y supresión de datos*, en cumplimiento de lo previsto en el Artículo 6 de la Ley 25.326.",
+            "textDownFD": "En caso de confirmar la baja de la factura digital dejarás de recibir tus facturas por correo electrónico a partir del próximo ciclo de facturación siguiente a la desactivación de la opción de inscripción en la modalidad digital, o el subsiguiente según el momento en que realice la baja al sistema",
+            "textDownFDQuestion": "¿Confirmas la baja de tu adhesión a la Factura Digital?",
+            "textDownFDNotAssociated": "El contrato actual no se encuentra adherido a FD"
+        },
+        "autoDebit": {
+            "title": "Débito Automático",
+            "subTitle": "Formulario de adhesión",
+            "content1": "A través del siguiente formulario podés consultar el estado de adhesión, adherirte y solicitar la baja del servicio de débito automático en cuenta o en tarjeta de crédito de tu factura de gas.",
+            "content2": "Recordá que sólo podés adherir contratos que se encuentren vigentes a la fecha.",
+            "title2": "Estado de adhesión del contrato seleccionado",
+            "contract": "Cliente",
+            "text1": "Para poder adherir al Débito automático debés seleccionar un contrato vigente en el selector superior.",
+            "success1": "Actualización exitosa!",
+            "success2": " La información fue validada con éxito y los cambios ya se encuentran registrados.",
+            "success3": " Le recordamos que puede consultar en cualquier momento el estado actual de adhesión y realizar modificaciones accediendo a",
+            "success3Link": "Trámites > Débito automático",
+            "success4": "Muchas gracias",
+            "termCond1": "CONDICIONES GENERALES PARA LA ADHESION AL SISTEMA DE DEBITO AUTOMATICO",
+            "termCond2": "1) La aceptación de esta solicitud está supeditada a la aprobación del Banco o o entidad emisora de la Tarjeta de Crédito interviniente y de Litoral Gas S.A.",
+            "termCond3": "2) Los importes de las facturas (Liquidaciones de Servicios Públicos) incorporadas al sistema de pago por débito automático serán debitados de mi Cuenta Bancaria / Tarjeta de Crédito el día del primer vencimiento preimpreso en la misma.",
+            "termCond4": "3) El resumen de Cuenta Bancaria o de la Tarjeta de Crédito en el cual se incorpore el Débito Automático será considerado como comprobante válido y suficiente para acreditar el pago de las facturas.",
+            "termCond5": "4) El Cliente o Usuario toma conocimiento que cuenta con la posibilidad de ordenar la suspensión de un Débito hasta el día hábil inmediato anterior -inclusive- a la fecha de vencimiento comunicando tal hecho al Banco o entidad emisora de la Tarjeta de Crédito y con la alternativa de revertir Débitos por el total de cada operación, dentro de los 30 días corridos contados desde la fecha de Débito.",
+            "termCond6": "En los casos en que la reversión solicitada no supere los $750, la devolución será efectuada dentro de las 48 hs. hábiles siguientes a la fecha en que el Banco o Tarjeta de Crédito reciba la instrucción del cliente. En caso de superar la suma de $750, y siempre que Litoral Gas S.A. no se oponga a la reversión por haber hecho efectiva la diferencia de facturación en forma directa, la devolución en Cuenta Bancaria o Tarjeta de Crédito se cumplimentará a las 96 hs. hábiles de haber recibido la instrucción.",
+            "termCond7": "5) Esta solicitud entrará en vigencia a partir de la factura en la que se incluya la leyenda que indica que la misma se debitará en la cuenta o Tarjeta de Crédito ordenada. Hasta ese momento, el cliente o usuario abonará sus facturas con la modalidad normal en oficinas comerciales de Litoral Gas S.A. o en los Bancos y Entidades Recaudadoras habilitadas.",
+            "termCond8": "6) En caso de solicitar la baja del sistema, el cliente o usuario considerará que la misma será efectivizada a partir de la próxima factura que se genere 96 horas hábiles posteriores a formalizar la solicitud de baja del Débito Automático. La baja del servicio de Débito se puede verificar al no aplicarse más la leyenda sobre débito automático en la factura.",
+            "termCond9": "7) El Banco, la Tarjeta de Crédito y/o Litoral Gas S.A. se encuentran facultadas para dejar sin efecto el Débito Automático ante las siguientes circunstancias:",
+            "termCond91": "Falta de fondos suficientes en Cuenta o Autorización para girar en descubierto.",
+            "termCond92": "Moneda distinta de la de la cuenta de débito.",
+            "termCond93": "Sucursal no habilitada",
+            "termCond94": "Cierre de la Cuenta Bancaria o Cancelación de la Tarjeta de Crédito por cualquier motivo.",
+            "termCond95": "Por decisión del cliente mediante comunicación fehaciente al Banco, la Tarjeta de Crédito y/o Litoral Gas S.A.",
+            "termCond96": "Por voluntad del Banco, de la Tarjeta de Crédito o de Litoral Gas S.A., sin expresión de causa lo que no dará derecho a reclamo alguno.",
+            "termCond10": "8) A todos los efectos el cliente o usuario adherente al servicio de Débito Automático de las facturas (L.S.P.) de Litoral Gas, asume las responsabilidades legales que se generen como consecuencia del presente acto.",
+            "termConAccept":
+
+---- [200] https://www.litoralgas.com.ar/ovapi/api/auth/login
+{"token":{"expires_in":600000.0,"access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6Ijg4NDUiLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiZGl0dWxsaW9hbGVAZ21haWwuY29tIiwiTnVtZXJvIjoiMTA5MzQxMyIsIk5vbWJyZSI6IlJVQ0NJQSAgTUFSSUEgQU5HRUxJQ0EiLCJUaXBvRG9jIjoiRE5JIiwiRG9jIjoiNTc4OTQ4MyIsIkN1aXQiOiIiLCJPcmlnZW4iOiJTIiwiUmVsU3RhdHVzIjoiQSIsIk1vZG9Pc2N1cm8iOiIxIiwidXNySUQiOiI4ODQ1IiwiZmVjQWNlcHRhVHlDcyI6IlRSVUUiLCJyb2xlIjoiQ2xpZW50ZSIsIlBlcm1pc3Npb24iOlsiUGVybWlzc2lvbnMuQWRoZXNpb24uVmlldyIsIlBlcm1pc3Npb25zLkFkaGVzaW9uREEuVmlldyIsIlBlcm1pc3Npb25zLkJ1c3F1ZWRhR2FzaXN0YS5WaWV3IiwiUGVybWlzc2lvbnMuQ2xhdmUuVmlldyIsIlBlcm1pc3Npb25zLkNvbnN1bW9zSGlzdC5WaWV3IiwiUGVybWlzc2lvbnMuRmFjdHVyYXNEZXVkb3IuVmlldyIsIlBlcm1pc3Npb25zLkxpYnJlRGV1ZGEuVmlldyIsIlBlcm1pc3Npb25zLlBhZ29zLlZpZXciLCJQZXJtaXNzaW9ucy5QZXJmaWwuVmlldyIsIlBlcm1pc3Npb25zLlBsYW5lc1BhZ28uVmlldyIsIlBlcm1pc3Npb25zLlJlaW1wcmVzaW9uLlZpZXciLCJQZXJtaXNzaW9ucy5Tb2xJbmZvQ2xpZW50ZS5WaWV3IiwiUGVybWlzc2lvbnMuVHJhbWl0ZXNDYW1iaW9UaXR1bGFyLlZpZXciLCJQZXJtaXNzaW9ucy5UcmFtaXRlc1dlYi5WaWV3IiwiUGVybWlzc2lvbnMuVmluY3VsYXIuVmlldyJdLCJuYmYiOjE3ODUxODU5NDQsImV4cCI6MTc4NTE4NjU0NCwiaXNzIjoiTElUT1JBTF9HQVMiLCJhdWQiOiJPRklDSU5BX1ZJUlRVQUwifQ.1ZQYZekKTiRjzQI_wYOAi_ic07vwiSqS8zXzsmw1HyU","refresh_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6Ijg4NDUiLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiZGl0dWxsaW9hbGVAZ21haWwuY29tIiwiTnVtZXJvIjoiMTA5MzQxMyIsIk5vbWJyZSI6IlJVQ0NJQSAgTUFSSUEgQU5HRUxJQ0EiLCJUaXBvRG9jIjoiRE5JIiwiRG9jIjoiNTc4OTQ4MyIsIkN1aXQiOiIiLCJPcmlnZW4iOiJTIiwiUmVsU3RhdHVzIjoiQSIsIk1vZG9Pc2N1cm8iOiIxIiwidXNySUQiOiI4ODQ1IiwiZmVjQWNlcHRhVHlDcyI6IlRSVUUiLCJyb2xlIjoiQ2xpZW50ZSIsIlBlcm1pc3Npb24iOlsiUGVybWlzc2lvbnMuQWRoZXNpb24uVmlldyIsIlBlcm1pc3Npb25zLkFkaGVzaW9uREEuVmlldyIsIlBlcm1pc3Npb25zLkJ1c3F1ZWRhR2FzaXN0YS5WaWV3IiwiUGVybWlzc2lvbnMuQ2xhdmUuVmlldyIsIlBlcm1pc3Npb25zLkNvbnN1bW9zSGlzdC5WaWV3IiwiUGVybWlzc2lvbnMuRmFjdHVyYXNEZXVkb3IuVmlldyIsIlBlcm1pc3Npb25zLkxpYnJlRGV1ZGEuVmlldyIsIlBlcm1pc3Npb25zLlBhZ29zLlZpZXciLCJQZXJtaXNzaW9ucy5QZXJmaWwuVmlldyIsIlBlcm1pc3Npb25zLlBsYW5lc1BhZ28uVmlldyIsIlBlcm1pc3Npb25zLlJlaW1wcmVzaW9uLlZpZXciLCJQZXJtaXNzaW9ucy5Tb2xJbmZvQ2xpZW50ZS5WaWV3IiwiUGVybWlzc2lvbnMuVHJhbWl0ZXNDYW1iaW9UaXR1bGFyLlZpZXciLCJQZXJtaXNzaW9ucy5UcmFtaXRlc1dlYi5WaWV3IiwiUGVybWlzc2lvbnMuVmluY3VsYXIuVmlldyJdLCJuYmYiOjE3ODUxODU5NDQsImV4cCI6MTc4NTE4NzE0NCwiaXNzIjoiTElUT1JBTF9HQVMiLCJhdWQiOiJPRklDSU5BX1ZJUlRVQUwifQ.fWBi5pKvjEldtNGlCdSuS47L_pOTKyphr_XZ9xujy8g"}}
+
+---- [200] https://www.litoralgas.com.ar/ovapi/api/Clientes/Roles
+[{"id":1,"nombre":"Cliente","rolNombre":"Cliente","rolDescripcion":"Clientes o usuarios residenciales, comercios y pymes","totalRows":0}]
+
+---- [200] https://www.litoralgas.com.ar/ovapi/api/Clientes/Menu/1
+[{"claimType":"Permission","claimValue":"Permissions.Adhesion.View","totalRows":0},{"claimType":"Permission","claimValue":"Permissions.AdhesionDA.View","totalRows":0},{"claimType":"Permission","claimValue":"Permissions.BusquedaGasista.View","totalRows":0},{"claimType":"Permission","claimValue":"Permissions.Clave.View","totalRows":0},{"claimType":"Permission","claimValue":"Permissions.ConsumosHist.View","totalRows":0},{"claimType":"Permission","claimValue":"Permissions.FacturasDeudor.View","totalRows":0},{"claimType":"Permission","claimValue":"Permissions.LibreDeuda.View","totalRows":0},{"claimType":"Permission","claimValue":"Permissions.Pagos.View","totalRows":0},{"claimType":"Permission","claimValue":"Permissions.Perfil.View","totalRows":0},{"claimType":"Permission","claimValue":"Permissions.PlanesPago.View","totalRows":0},{"claimType":"Permission","claimValue":"Permissions.Reimpresion.View","totalRows":0},{"claimType":"Permission","claimValue":"Permissions.SolInfoCliente.View","totalRows":0},{"claimType":"Permission","claimValue":"Permissions.TramitesCambioTitular.View","totalRows":0},{"claimType":"Permission","claimValue":"Permissions.TramitesWeb.View","totalRows":0},{"claimType":"Permission","claimValue":"Permissions.Vincular.View","totalRows":0}]
+
+---- [200] https://www.litoralgas.com.ar/ovapi/api/Notificaciones/Notifications
+[]
+
+---- [200] https://www.litoralgas.com.ar/ovapi/api/Clientes/Info
+{"lstContratos":[{"id":1003111,"tipoVinculacion":"SRVDEL","hForm":"3YVW5Ua%2fVggbTxqNAkofva8f%2f5ZKyTtW%2fYuKM0nOUKydOaUsRE3i%2bA%3d%3d","srvcode":962500,"cntnumber":1,"prsnumber":1107244,"prsname":"ALONSO RICARDO OSVALDO","srvadress":"9 DE JULIO  260   01 - ARROYO SECO","srvpc":"(2128)","cntstatus":"NO VIGENTE","linkpagos":"24899037499990","banelco":99037499990},{"id":683401,"tipoVinculacion":"SRVDEL","hForm":"eG14hR7dv6AKlhfcbO%2bCHgjZ44Kk%2bJ%2b42wEb6yNhg5C0Zb5lJAMEpA%3d%3d","srvcode":821661,"cntnumber":1,"prsnumber":833635,"prsname":"CIRIBE ZULEMA","srvadress":"URIBURU  621    - FIGHIERA","srvpc":"(2126)","cntstatus":"NO VIGENTE","linkpagos":"24899178338990","banelco":99178338990},{"id":1330465,"tipoVinculacion":"SRVDEL","hForm":"S1jtiz4YLXrb1ChkF6YuSShE1i8%2bZcgsu%2bD4VMnlXwVilHBXMkWiDQ%3d%3d","srvcode":837492,"cntnumber":5,"prsnumber":1252918,"prsname":"DI TULIO MARIA MORENA","srvadress":"SAN JUAN  477  06 02 - ROSARIO","srvpc":"(2000)","cntstatus":"NO VIGENTE","linkpagos":"24899162507954","banelco":99162507954},{"id":1283409,"tipoVinculacion":"SRVDEL","hForm":"SVp9VPshK%2bibWR7Qxp6MQDj1s7zqP7H%2fUBTY8Nt77jRjgGTVa5SvTw%3d%3d","srvcode":354198,"cntnumber":1,"prsnumber":354198,"prsname":"GONFIANTINI ANA","srvadress":"DE LA TORRE L.  721    - ARROYO SECO","srvpc":"(2128)","cntstatus":"NO VIGENTE","linkpagos":"24899645801993","banelco":99645801993},{"id":630625,"tipoVinculacion":"SRVDEL","hForm":"e8%2fm9f8aHs%2f%2fCm7YEOP2tOpvsMVl8ly8V3chw1wEgT0EJ6n8LRbn2w%3d%3d","srvcode":353733,"cntnumber":1,"prsnumber":353733,"prsname":"MASSA ANGELA","srvadress":"GALVEZ  667    - ARROYO SECO","srvpc":"(2128)","cntstatus":"NO VIGENTE","linkpagos":"24899646266994","banelco":99646266994},{"id":998468,"tipoVinculacion":"SRVDEL","hForm":"VmzHd3eDGGufWz0g27AG%2fQCAAQmlqv1vKZtddLv1WAMX1iV1LHcsDA%3d%3d","srvcode":27396,"cntnumber":7,"prsnumber":2451975,"prsname":"PAGANO ROCIO MARIA","srvadress":"SAN MARTIN JOSE GRAL.  2941 P 2D C - ROSARIO","srvpc":"(2000)","cntstatus":"NO VIGENTE","linkpagos":"24899972603933","banelco":99972603933},{"id":52665,"tipoVinculacion":"SRVCON","hForm":"FkuGpmkmYxcdegov5MfNabOXaaPa6PJ4LVisOzreaehlFPqN7h7H%2fg%3d%3d","srvcode":358371,"cntnumber":2,"prsnumber":1093413,"prsname":"RUCCIA  MARIA ANGELICA","srvadress":"GARAGHAN MARIA  1076    - ARROYO SECO","srvpc":"(2128)","cntstatus":"NO VIGENTE","linkpagos":"24899641628987","banelco":99641628987},{"id":52664,"tipoVinculacion":"SRVCON","hForm":"Zd%2fMxxEWXkjsriegWRVsDbgsvHY22fKfJQgOFAbYIxrFyqV%2buazP5Q%3d%3d","srvcode":817390,"cntnumber":1,"prsnumber":826874,"prsname":"ANDREU CONRADO CELSO NAKTHON","srvadress":"SAN MARTIN  372  PA  - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899182609990","banelco":99182609990},{"id":1142560,"tipoVinculacion":"SRVDEL","hForm":"a1wBLB%2beYXcukQ7R4fCBgxHM6DgA2LTxMxwFlFQ7HximF%2f6FvqVl5Q%3d%3d","srvcode":364740,"cntnumber":2,"prsnumber":2244533,"prsname":"AQUINO RUBEN HECTOR","srvadress":"SALK JONAS  636    - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899635259988","banelco":99635259988},{"id":1504720,"tipoVinculacion":"SRVDEL","hForm":"8C1Psv8392Y23aXL3tzhjF6zGTWbNsVHWAF%2bQIErajaUmpAy%2ba4HLA%3d%3d","srvcode":352207,"cntnumber":4,"prsnumber":978436,"prsname":"CANULO MARIA DE LOS ANGELES","srvadress":"GALVEZ  1197    - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899647792967","banelco":99647792967},{"id":1232952,"tipoVinculacion":"SRVDEL","hForm":"qHaUBTGIPbp5tXR9SDh5GTKkdL22%2bVdW3xGo7fbtYF0eHWah7zKmRw%3d%3d","srvcode":900843,"cntnumber":1,"prsnumber":978436,"prsname":"CANULO MARIA DE LOS ANGELES","srvadress":"DE LA TORRE L.  569  01 01 - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899099156992","banelco":99099156992},{"id":1504722,"tipoVinculacion":"SRVDEL","hForm":"vQ4a5L8uZ1wBW5g8%2beBo9uTthLf81dS6ZKblEDFlpYE6xwhJscXlfg%3d%3d","srvcode":1074790,"cntnumber":1,"prsnumber":978436,"prsname":"CANULO MARIA DE LOS ANGELES","srvadress":"GALVEZ  1197  00 02 - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24898925209996","banelco":98925209996},{"id":1034089,"tipoVinculacion":"SRVDEL","hForm":"eWBea9kOEMV6AeeGUtJ2ozKgTZNwnpbtEX00Hem0weR1IKDqyIb%2bqA%3d%3d","srvcode":1250851,"cntnumber":1,"prsnumber":1368097,"prsname":"CAPORALE JUAN PABLO","srvadress":"MITRE BARTOLOME  149  02 04 - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24898749148993","banelco":98749148993},{"id":1252509,"tipoVinculacion":"SRVDEL","hForm":"L6jsnUee44wEL%2fZ7eu5NM3ERVSvybK3XKwMvwOsmi%2fH7CpPvIjOEDw%3d%3d","srvcode":357836,"cntnumber":1,"prsnumber":357836,"prsname":"CIARNIELLO JESUS","srvadress":"UNION CD.  65    - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899642163996","banelco":99642163996},{"id":1232929,"tipoVinculacion":"SRVDEL","hForm":"TKYAzrd79wL6YbFrsDwieVzEJHeH59U6W%2blutCb%2f6t4og1xSk3qtNw%3d%3d","srvcode":908335,"cntnumber":3,"prsnumber":1063313,"prsname":"COLETTA HECTOR ANTONIO","srvadress":"DE LA TORRE L.  569  00 01 - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899091664972","banelco":99091664972},{"id":268911,"tipoVinculacion":"SRVDEL","hForm":"HHHLxMBhUfmBQz6gw0rKC5Qvwh6iqZTcCGso0ChRjVkN3ggcKMsnIg%3d%3d","srvcode":357878,"cntnumber":4,"prsnumber":357878,"prsname":"CUADROS MARIA","srvadress":"SAN MARTIN  253  00 01 - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899642121967","banelco":99642121967},{"id":664250,"tipoVinculacion":"SRVDEL","hForm":"m1R%2fOL51DoawzOMM2xy1kTDrV6QYCGH7t5GglgZrMk7sR0dQLp2yiw%3d%3d","srvcode":353736,"cntnumber":1,"prsnumber":353736,"prsname":"DAMIAN MERCEDES","srvadress":"GALVEZ  678    - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899646263995","banelco":99646263995},{"id":506162,"tipoVinculacion":"SRVDEL","hForm":"tcA%2fOeAQLZuPFJeqGlfeV2XOrKEYMZPqABGCrjyA1UGuwxQEKFsvTQ%3d%3d","srvcode":363394,"cntnumber":1,"prsnumber":70230,"prsname":"DI LORENZO CLAUDIO MANUEL","srvadress":"BELGRANO MANUEL  728  00 01 - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899636605995","banelco":99636605995},{"id":490858,"tipoVinculacion":"SRVDEL","hForm":"MgMSv1jQgUS8XURTPaLndzIk9rQmqlTRo1tCBapgAiQsDLa4CIgsSQ%3d%3d","srvcode":342264,"cntnumber":3,"prsnumber":1131418,"prsname":"DI PUCCI NATALIA MARIA DE LUJAN","srvadress":"BELGRANO MANUEL  728    - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899657735970","banelco":99657735970},{"id":1316178,"tipoVinculacion":"SRVDEL","hForm":"lTkDp0t7hQAqkkJiRh4eQ%2bOaw3lMBJB2AEq%2fQrf35xiNP9SW5NPXZg%3d%3d","srvcode":917667,"cntnumber":1,"prsnumber":1252918,"prsname":"DI TULIO MARIA MORENA","srvadress":"GALVEZ(BIS)  75    - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899082332991","banelco":99082332991},{"id":255363,"tipoVinculacion":"SRVDEL","hForm":"Gn7izhGJRAkXy2MnIcHEtpjoa8dZFMhHJfb2cp6d9KZkd1K3S6VRNA%3d%3d","srvcode":943167,"cntnumber":5,"prsnumber":1252918,"prsname":"DI TULIO MARIA MORENA","srvadress":"HUMBERTO PRIMO  625  00 01 - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899056832951","banelco":99056832951},{"id":242352,"tipoVinculacion":"SRVDEL","hForm":"dpuq%2fDhBK9IBnG3bR3iB5FYPqzn1APBE645M653%2bFGt3bbyDB1XiPg%3d%3d","srvcode":354152,"cntnumber":4,"prsnumber":1045333,"prsname":"DI TULLIO ALEJANDRO RODOLFO","srvadress":"HUMBERTO PRIMO  625   D02 - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899645847969","banelco":99645847969},{"id":1070692,"tipoVinculacion":"SRVDEL","hForm":"qaU%2bS%2bFwKGmfryLdo9AQCGO%2bb%2fgDxRDdxpytMD2zQ%2faumqKTuFoHqg%3d%3d","srvcode":1047075,"cntnumber":2,"prsnumber":2317732,"prsname":"FARRUGGIA LUCIANO DAVID","srvadress":"MONTEVIDEO  1332  01 06 - ROSARIO","srvpc":"(2000)","cntstatus":"VIGENTE","linkpagos":"24898952924982","banelco":98952924982},{"id":272103,"tipoVinculacion":"SRVDEL","hForm":"ketrDercfREohdA%2fmfpSUiUXa8199WgPZ7Fzw9soJ1fPt6eraiYKLQ%3d%3d","srvcode":924361,"cntnumber":2,"prsnumber":1076791,"prsname":"GENADAY FABIAN JAVIER","srvadress":"MAIORANO MANSUETO BV.  612  01 01 - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899075638988","banelco":99075638988},{"id":52666,"tipoVinculacion":"SRVCON","hForm":"obp0AKqbwZCqoZUHs6JDXmWgwKic6Cz%2bTX9oWBjcIHX6%2bNbX%2brRY8w%3d%3d","srvcode":354153,"cntnumber":6,"prsnumber":1062260,"prsname":"GIMENEZ CLAUDIO JAVIER","srvadress":"HUMBERTO PRIMO  627    - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899645846946","banelco":99645846946},{"id":1039577,"tipoVinculacion":"SRVDEL","hForm":"dqq8R2qJBPDzAlQSH7Cz4bIzqcV3owJqfC3SXrjQWAnmstavmqyq6A%3d%3d","srvcode":356691,"cntnumber":2,"prsnumber":1256608,"prsname":"GIUSTI ANA LIA","srvadress":"PRIMERO DE MAYO  931    - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899643308980","banelco":99643308980},{"id":1269011,"tipoVinculacion":"SRVDEL","hForm":"dmuEUyQR6YVU2K%2fAkh%2bqgsw2SnuNf81X1nKlk6fBLW48fSgmx0UWlA%3d%3d","srvcode":900844,"cntnumber":3,"prsnumber":1165626,"prsname":"ISNARDI SEBASTIAN MATIAS","srvadress":"DE LA TORRE L.  569  00 03 - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899099155970","banelco":99099155970},{"id":1308696,"tipoVinculacion":"SRVDEL","hForm":"NAYiksWK55zW2M21UTSahDDfOO0wqOpbACwGhNpmsq9fI4zJ2n2EZw%3d%3d","srvcode":962503,"cntnumber":3,"prsnumber":2494948,"prsname":"JUAREZ JULIAN","srvadress":"9 DE JULIO  260   03 - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899037496975","banelco":99037496975},{"id":1418630,"tipoVinculacion":"SRVDEL","hForm":"nIygz%2foxiHqV1q3mcbCWKk8qwa94CDDHimjlcXCG9uVPds7H%2bC7ksg%3d%3d","srvcode":962501,"cntnumber":1,"prsnumber":1072207,"prsname":"JUAREZ MIRTHA VANESA","srvadress":"9 DE JULIO  260   02 - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899037498994","banelco":99037498994},{"id":1522007,"tipoVinculacion":"SRVDEL","hForm":"4PP6ZUdkTbtPyMkCFOUivxkgb3krS69xfW%2bsz8%2f4pz3aYKq1MpLqxA%3d%3d","srvcode":27396,"cntnumber":8,"prsnumber":1321152,"prsname":"LEIVA SANTIAGO MARTIN","srvadress":"SAN MARTIN JOSE GRAL.  2941 P 2D C - ROSARIO","srvpc":"(2000)","cntstatus":"VIGENTE","linkpagos":"24899972603925","banelco":99972603925},{"id":731482,"tipoVinculacion":"SRVDEL","hForm":"N9%2f37rGtd9Pa%2bOfm6iZ%2fWXuhK%2bHwnRbi3mqyD4K%2fcaYHNnyi3UhqzA%3d%3d","srvcode":352110,"cntnumber":1,"prsnumber":352110,"prsname":"LIVEROTTI TERESA","srvadress":"CONSTANTINI JOSE INT.(BIS)  308    - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899647889995","banelco":99647889995},{"id":831279,"tipoVinculacion":"SRVDEL","hForm":"gxNp1RgXKLEbSlDUqb9aOd6iIgzolqWpLGGY8u2wMrmlDTfvuJmM4w%3d%3d","srvcode":1290883,"cntnumber":1,"prsnumber":2060350,"prsname":"LOPEZ MARTIN JAVIER","srvadress":"MENDOZA  1851 T2 09 08 - ROSARIO","srvpc":"(2000)","cntstatus":"VIGENTE","linkpagos":"24898709116991","banelco":98709116991},{"id":1293330,"tipoVinculacion":"SRVDEL","hForm":"LHnuhv2AN9mtfl3ZfAzxtQkhG21HWOH0ty%2blJyGUz8EcG2T%2f5bjSew%3d%3d","srvcode":354198,"cntnumber":2,"prsnumber":3253879,"prsname":"MARIA LUISA DOMINGA MATASSA","srvadress":"DE LA TORRE L.  721    - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899645801985","banelco":99645801985},{"id":842381,"tipoVinculacion":"SRVDEL","hForm":"sas0e1t6S9LHGgH4n03tjCXVFbOEuDINKqYKei4h%2fScO85S71QUI1w%3d%3d","srvcode":352105,"cntnumber":4,"prsnumber":352105,"prsname":"MARINELLI RAUL CLEMENTE","srvadress":"MEDICINA A. CD.(BIS)  90    - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899647894964","banelco":99647894964},{"id":1519316,"tipoVinculacion":"SRVDEL","hForm":"9vq9q0RIAx9sXFR%2fdK8VK%2bj1ptTP%2frnydzu3vZ3uA4YxgcA1nwVoeg%3d%3d","srvcode":1186516,"cntnumber":1,"prsnumber":353964,"prsname":"MONTI ANTONIO BARTOLO","srvadress":"LUCENTE C.  1355    - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24898813483998","banelco":98813483998},{"id":1032429,"tipoVinculacion":"SRVDEL","hForm":"%2fYDkEhYdT46379VS6lCc9W%2bAsZ8OCThFlFO%2f0hwECM0A6yYxKxlQQw%3d%3d","srvcode":1271453,"cntnumber":1,"prsnumber":353964,"prsname":"MONTI ANTONIO BARTOLO","srvadress":"GALVEZ  1065    - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24898728546999","banelco":98728546999},{"id":1456959,"tipoVinculacion":"SRVDEL","hForm":"oj9Vi%2bjx0coVG9rEj%2beySGXlAT7FdZHANa7o4%2fPZLntQPPndL%2bvQJQ%3d%3d","srvcode":358052,"cntnumber":7,"prsnumber":1342184,"prsname":"MONTI SILVIA GABRIELA","srvadress":"COLON C.  306    - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899641947934","banelco":99641947934},{"id":700960,"tipoVinculacion":"SRVDEL","hForm":"q6Rw1BWhi8bIcJ%2f0NNlCuW11BiR2t7Yaw81hutYGwc9XWqcNfsWhOQ%3d%3d","srvcode":351839,"cntnumber":1,"prsnumber":351839,"prsname":"MORA RAMON ROBERTO","srvadress":"DE LA TORRE L.  878    - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899648160999","banelco":99648160999},{"id":1525107,"tipoVinculacion":"SRVDEL","hForm":"83ZRGzAEN0Zo7eRJuEm7YRddhmyq%2fKcIx7nV%2bzdWh85tcogm198rOw%3d%3d","srvcode":1002507,"cntnumber":2,"prsnumber":3077560,"prsname":"PALMA ROSA","srvadress":"HUMBERTO PRIMO  162  00 02 - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24898997492986","banelco":98997492986},{"id":429043,"tipoVinculacion":"SRVDEL","hForm":"69TQ5zDDf8r04ltQozi2enGd4vpzTOV9HE7K9OYEIgR%2bvciyigRNHQ%3d%3d","srvcode":351828,"cntnumber":1,"prsnumber":351828,"prsname":"REBOLI DIONISIO","srvadress":"DE LA TORRE L.  813    - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899648171990","banelco":99648171990},{"id":1122303,"tipoVinculacion":"SRVDEL","hForm":"DkdJN5Xk%2fTS2Aqbh91SG%2foDvsuURigD02CHI%2bz2oY7pmtlqne8zGCw%3d%3d","srvcode":353599,"cntnumber":1,"prsnumber":353599,"prsname":"RICCI IRIS ADRIANA","srvadress":"MAIORANO MANSUETO BV.  932    - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899646400992","banelco":99646400992},{"id":420435,"tipoVinculacion":"SRVDEL","hForm":"KnDbHXy5ZkFdvwFsbTd5xzZ6F8xtBRTH%2fFPqaqvurWCKRe%2fZ89fyng%3d%3d","srvcode":801302,"cntnumber":5,"prsnumber":806448,"prsname":"ROGGI OSVALDO FRANCISCO","srvadress":"INDEPENDENCIA  114    - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899198697954","banelco":99198697954},{"id":508734,"tipoVinculacion":"SRVDEL","hForm":"xWLjeP8fz6%2b8LE79lFihkO0tsnyoHumxnA18QcIaB4uvKisjNK8TeQ%3d%3d","srvcode":351900,"cntnumber":1,"prsnumber":351900,"prsname":"ROMANGNOLI ALBERTO","srvadress":"GARIBALDI  482    - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899648099998","banelco":99648099998},{"id":340894,"tipoVinculacion":"SRVDEL","hForm":"MAkS1dVqmbix03OoNUc6jCgLf8gonKcNmbKqlNJp8I1fiL96TRvtvA%3d%3d","srvcode":351882,"cntnumber":1,"prsnumber":351882,"prsname":"SALAS GREGORIO","srvadress":"9 DE JULIO  955    - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899648117996","banelco":99648117996},{"id":343219,"tipoVinculacion":"SRVDEL","hForm":"letEhki28OzmVyk8jczCk4qxFmoPjZbmJb0e3fb8%2bw1wKFxVzdDLHQ%3d%3d","srvcode":356280,"cntnumber":1,"prsnumber":356280,"prsname":"SAN PASCUAL ELENA","srvadress":"CARDOZO  19    - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899643719998","banelco":99643719998},{"id":783244,"tipoVinculacion":"SRVDEL","hForm":"a16XW%2bgcOJlO%2b14ZbqOFgYCWQxe7Z5NdxfRbFqujCKOycfrtfQTpaQ%3d%3d","srvcode":118647,"cntnumber":1,"prsnumber":86238,"prsname":"SCHWARZ NORMA","srvadress":"MONTEVIDEO  669 P 05 D01 - ROSARIO","srvpc":"(2000)","cntstatus":"VIGENTE","linkpagos":"24899881352997","banelco":99881352997},{"id":1232967,"tipoVinculacion":"SRVDEL","hForm":"Iqx0cWhEC%2bt7AkQmvSuz5z3MW7EljRUluDoZ6Mfg4CiUkiIAqYAiNA%3d%3d","srvcode":1248058,"cntnumber":1,"prsnumber":2095175,"prsname":"SIROLESI LUIS","srvadress":"CARDOZO  679    - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24898751941994","banelco":98751941994},{"id":914081,"tipoVinculacion":"SRVDEL","hForm":"MhcQXGvuGVO6PyGnOdL8LhtoqJUOGZZAnkbefNAY7Fk%2bCjhaimfqrA%3d%3d","srvcode":911193,"cntnumber":6,"prsnumber":1200298,"prsname":"SIROLESI NORMA BEATRIZ","srvadress":"JUAREZ CELMAN  214    - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899088806944","banelco":99088806944},{"id":1491298,"tipoVinculacion":"SRVDEL","hForm":"gp5xI%2f0%2bLPDbsexyMoatrNJWfWMP1vcil6KldmeKgmHEUJ24m2Ywqg%3d%3d","srvcode":1107607,"cntnumber":1,"prsnumber":1200298,"prsname":"SIROLESI NORMA BEATRIZ","srvadress":"CARDOZO  653  01 01 - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24898892392994","banelco":98892392994},{"id":580978,"tipoVinculacion":"SRVDEL","hForm":"ZIjDUzluAXxD91eJvFHqcAjdHHRxmDrnxdMQHUD9m5zLINu25a4UTA%3d%3d","srvcode":1101353,"cntnumber":1,"prsnumber":353806,"prsname":"SLEIMAN NOE","srvadress":"IRIGOYEN HIPOLITO  649  00 02 - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24898898646998","banelco":98898646998},{"id":1197282,"tipoVinculacion":"SRVDEL","hForm":"HTIjfG2vh6iCuwN260Thivjrge3CjZtWr3wwWESEqxDN4yV3W9DFag%3d%3d","srvcode":963444,"cntnumber":1,"prsnumber":1073848,"prsname":"SPADONI GERMAN DARIO","srvadress":"GALVEZ  69    - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899036555994","banelco":99036555994},{"id":347706,"tipoVinculacion":"SRVDEL","hForm":"UkDdGZrBI8fF%2fs%2bF1ZMStMTOFIOPc%2b3%2ftC57c6Lcwa9AgvFBEsuGyQ%3d%3d","srvcode":1152286,"cntnumber":1,"prsnumber":342283,"prsname":"STORTI OSCAR ALBERTO","srvadress":"MORENO  608  05 04 - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24898847713992","banelco":98847713992},{"id":1353830,"tipoVinculacion":"SRVDEL","hForm":"dxDhwAUCcVpVvx9QtzkpxwVh2CEoIuSaU3LLa96gFUG%2bw2RRrQYV8Q%3d%3d","srvcode":936724,"cntnumber":2,"prsnumber":1227189,"prsname":"TATANGELO NESTOR F.","srvadress":"ALVARADO  168    - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24899063275987","banelco":99063275987},{"id":1525375,"tipoVinculacion":"SRVDEL","hForm":"3Pw4lwS368euRp0If%2fa4PGCjxreIuyl7MsAd7C3%2fC%2bZ14UYCcTDgbA%3d%3d","srvcode":1055943,"cntnumber":3,"prsnumber":2490404,"prsname":"VEGA LUCAS SEBASTIAN","srvadress":"FILIBERTI DOMINGO  566    - ARROYO SECO","srvpc":"(2128)","cntstatus":"VIGENTE","linkpagos":"24898944056971","banelco":98944056971}],"lstMatriculados":[],"lstExcavadores":[],"isDeudaContratoVisible":true,"totalRows":0}
+
+---- [200] https://www.litoralgas.com.ar/ovapi/api/Contratos/LastBill?srvcode=962500&cntnumber=1&hForm=3YVW5Ua%252fVggbTxqNAkofva8f%252f5ZKyTtW%252fYuKM0nOUKydOaUsRE3i%252bA%253d%253d
+[{"srvcode":962500,"cntnumber":1,"docnumber":8145772473,"duedate":"2024-12-10T03:00:00+00:00","amount":22766.07}]
+
+---- [200] https://www.litoralgas.com.ar/ovapi/api/Contratos/DebtSummary?srvcode=962500&cntnumber=1&hForm=3YVW5Ua%252fVggbTxqNAkofva8f%252f5ZKyTtW%252fYuKM0nOUKydOaUsRE3i%252bA%253d%253d
+[{"srvcode":962500,"cntnumber":1,"billcount":3,"debtamount":933.98}]
+
+---- [200] https://www.litoralgas.com.ar/ovapi/api/Clientes/HistoricalConsumption?srvcode=962500&cntnumber=1&hForm=3YVW5Ua%252fVggbTxqNAkofva8f%252f5ZKyTtW%252fYuKM0nOUKydOaUsRE3i%252bA%253d%253d&iYears=2
+{"items":[{"srvcode":962500,"cntnumber":1,"histyear":2024,"histperiod":12,"frequency":12,"origin":"R","condays":23,"consumption":16.87},{"srvcode":962500,"cntnumber":1,"histyear":2024,"histperiod":11,"frequency":12,"origin":"R","condays":29,"consumption":27.48},{"srvcode":962500,"cntnumber":1,"histyear":2024,"histperiod":10,"frequency":12,"origin":"R","condays":32,"consumption":63.11},{"srvcode":962500,"cntnumber":1,"histyear":2024,"histperiod":9,"frequency":12,"origin":"R","condays":28,"consumption":56.51},{"srvcode":962500,"cntnumber":1,"histyear":2024,"histperiod":8,"frequency":12,"origin":"R","condays":30,"consumption":57.73},{"srvcode":962500,"cntnumber":1,"histyear":2024,"histperiod":7,"frequency":12,"origin":"R","condays":29,"consumption":35.7},{"srvcode":962500,"cntnumber":1,"histyear":2024,"histperiod":6,"frequency":12,"origin":"R","condays":32,"consumption":30.57},{"srvcode":962500,"cntnumber":1,"histyear":2024,"histperiod":5,"frequency":12,"origin":"R","condays":30,"consumption":20.03},{"srvcode":962500,"cntnumber":1,"histyear":2024,"histperiod":4,"frequency":12,"origin":"R","condays":32,"consumption":19.04},{"srvcode":962500,"cntnumber":1,"histyear":2024,"histperiod":3,"frequency":12,"origin":"R","condays":28,"consumption":16.15},{"srvcode":962500,"cntnumber":1,"histyear":2024,"histperiod":2,"frequency":12,"origin":"R","condays":30,"consumption":12.87},{"srvcode":962500,"cntnumber":1,"histyear":2024,"histperiod":1,"frequency":12,"origin":"R","condays":30,"consumption":12.61},{"srvcode":962500,"cntnumber":1,"histyear":2023,"histperiod":12,"frequency":12,"origin":"R","condays":32,"consumption":13.69},{"srvcode":962500,"cntnumber":1,"histyear":2023,"histperiod":11,"frequency":12,"origin":"R","condays":28,"consumption":23.1},{"srvcode":962500,"cntnumber":1,"histyear":2023,"histperiod":10,"frequency":12,"origin":"R","condays":30,"consumption":65.14},{"srvcode":962500,"cntnumber":1,"histyear":2023,"histperiod":9,"frequency":12,"origin":"R","condays":32,"consumption":91.15},{"srvcode":962500,"cntnumber":1,"histyear":2023,"histperiod":8,"frequency":12,"origin":"R","condays":30,"consumption":80.14},{"srvcode":962500,"cntnumber":1,"histyear":2023,"histperiod":7,"frequency":12,"origin":"R","condays":28,"consumption":34.71},{"srvcode":962500,"cntnumber":1,"histyear":2023,"histperiod":6,"frequency":12,"origin":"R","condays":29,"consumption":31.4},{"srvcode":962500,"cntnumber":1,"histyear":2023,"histperiod":5,"frequency":12,"origin":"R","condays":32,"consumption":13.6},{"srvcode":962500,"cntnumber":1,"histyear":2023,"histperiod":4,"frequency":12,"origin":"R","condays":30,"consumption":12.45},{"srvcode":962500,"cntnumber":1,"histyear":2023,"histperiod":3,"frequency":12,"origin":"R","condays":29,"consumption":11.39},{"srvcode":962500,"cntnumber":1,"histyear":2023,"histperiod":2,"frequency":12,"origin":"R","condays":32,"consumption":13.4},{"srvcode":962500,"cntnumber":1,"histyear":2023,"histperiod":1,"frequency":12,"origin":"R","condays":30,"consumption":12.31},{"srvcode":962500,"cntnumber":1,"histyear":2022,"histperiod":12,"frequency":12,"origin":"R","condays":29,"consumption":14.49}],"hasMore":true,"limit":25,"offset":0,"count":25}
+
+---- [200] https://www.litoralgas.com.ar/ovapi/api/Contratos/ProximosVencimientos?srvcode=962500&cntnumber=1&hForm=3YVW5Ua%252fVggbTxqNAkofva8f%252f5ZKyTtW%252fYuKM0nOUKydOaUsRE3i%252bA%253d%253d
+[]
+
+---- [200] https://www.litoralgas.com.ar/ovapi/api/Contratos/Demans?srvcode=962500&cntnumber=1&hForm=3YVW5Ua%252fVggbTxqNAkofva8f%252f5ZKyTtW%252fYuKM0nOUKydOaUsRE3i%252bA%253d%253d
+[]
+
+---- [200] https://www.litoralgas.com.ar/ovapi/api/Contratos/OverDueBillsUni?srvcode=962500&cntnumber=1&includepaid=0&hForm=3YVW5Ua%252fVggbTxqNAkofva8f%252f5ZKyTtW%252fYuKM0nOUKydOaUsRE3i%252bA%253d%253d&offset=0
+{"items":[{"srvcode":962500,"cntnumber":1,"doctype":"D","docnumber":8152625695,"docdate":"2025-09-01T03:00:00+00:00","docduedate":"2025-09-01T03:00:00+00:00","docdueinter":176.25,"docoriginalamount":327.2,"docdueinterwtax":254.06,"docamount":327.2,"docsitdesc":"Normal","docstatus":"Pendiente","docname":"FACTURA (LSP)","cntcad":0,"docsituation":"[3]","tcpnumber":"43","docformtype":"CW","hFormValidDocument":"il%2bp4dTA5aadmZR9VK25eiZOeTeNdmoOprNEcR6P1YlKW7hj2P%2fzAw%3d%3d","hForm":"alw4qIXK%2beTnaWXueAQnw33qxNRQjRvFzp8%2bmZZAU8sUb%2bO8EzTV3A%3d%3d","hFormPlusPagos":"LDc%2bMLP9RcJArmAVkyAW48J%2fakgpSjm8en6UnHo8r5qroZkyshyIHw%3d%3d"},{"srvcode":962500,"cntnumber":1,"doctype":"D","docnumber":7100292711,"docdate":"2025-06-02T03:00:00+00:00","docduedate":"2025-06-02T03:00:00+00:00","docdueinter":122.86,"docoriginalamount":179.05,"docdueinterwtax":177.09,"docamount":179.05,"docsitdesc":"Normal","docstatus":"Pendiente","docname":"FACTURA (LSP)","cntcad":0,"docsituation":"[3]","tcpnumber":"43","docformtype":"CW","hFormValidDocument":"Q7GMDhiInqfMU4ITgQCIVL%2fnvLZjr3XpCX0MKXaet%2fhOlXIwUvDkOg%3d%3d","hForm":"o3XKGNPhrzw9zYQr1%2bS%2fIiqi%2fFEKjkZT6cJ3o%2bIYvtN944TQOFTsqQ%3d%3d","hFormPlusPagos":"aiAn%2bMaFz2se%2bWr7y2UgdK0vkhFBSnMz6lG24HX3vfrgXHA3s303Rw%3d%3d"},{"srvcode":962500,"cntnumber":1,"doctype":"D","docnumber":20300226506,"docdate":"2025-03-08T03:00:00+00:00","docduedate":"2025-03-08T03:00:00+00:00","docdueinter":289.87,"docoriginalamount":427.73,"docdueinterwtax":417.83,"docamount":427.73,"docsitdesc":"Normal","docstatus":"Pendiente","docname":"FACTURA (LSP)","cntcad":0,"docsituation":"[3]","tcpnumber":"43","docformtype":"CW","hFormValidDocument":"JLvxXL6%2fWkGNsMPC4XHxCS3vNdqngMfX8K%2bqPwLu8avVyrpnm7Lyag%3d%3d","hForm":"run9R0xKXcUERSaTGtWQ71UWmO%2bMUWfQUwEfI%2flKB7Qirn3eulAmvQ%3d%3d","hFormPlusPagos":"Ltef8KuuZ6E1nf5M2MS9TOKLs%2bnURWH%2fuV26U4ZbBrC8sO8iXPl2rA%3d%3d"}],"hasMore":false,"limit":25,"offset":0,"count":3}

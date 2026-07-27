@@ -56,6 +56,40 @@ def index():
                            ultima_actualizacion=ultima_actualizacion)
 
 
+@gas_bp.route("/importar", methods=["POST"])
+def importar():
+    """Buzón para el robot de Litoral Gas: recibe el estado de deuda de las
+    cuentas y lo guarda. Protegido por un token secreto (no usa login)."""
+    import os
+    from datetime import date
+    esperado = os.environ.get("GAS_IMPORT_TOKEN")
+    recibido = request.headers.get("X-Gas-Token") or request.args.get("token")
+    if not esperado or recibido != esperado:
+        return jsonify(ok=False, error="Token inválido o no configurado."), 403
+
+    datos = request.get_json(silent=True) or {}
+    guardadas = 0
+    for c in datos.get("cuentas", []):
+        cuenta = (c.get("cuenta") or "").strip()
+        if not cuenta:
+            continue
+        venc = None
+        if c.get("ultimo_vencimiento"):
+            try:
+                y, m, d = str(c["ultimo_vencimiento"]).split("-")
+                venc = date(int(y), int(m), int(d))
+            except Exception:
+                venc = None
+        GasEstado.upsert(cuenta, titular=c.get("titular"), direccion=c.get("direccion"),
+                         contrato_vigente=bool(c.get("contrato_vigente", True)),
+                         tiene_deuda=bool(c.get("tiene_deuda", False)),
+                         deuda_total=c.get("deuda_total") or 0,
+                         ultimo_vencimiento=venc, detalle=c.get("detalle"))
+        guardadas += 1
+    db.session.commit()
+    return jsonify(ok=True, guardadas=guardadas)
+
+
 @gas_bp.route("/asignar", methods=["POST"])
 @login_required
 def asignar():
