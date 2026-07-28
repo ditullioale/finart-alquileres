@@ -8,7 +8,7 @@ from flask_login import login_required
 from .. import db
 from ..models import Contrato, Pago, GastoExtra
 from ..utils import (parse_fecha, parse_num, vencimiento, calcular_mora,
-                     periodo_siguiente, MESES_ES, link_whatsapp, whatsapp_valido)
+                     periodo_siguiente, MESES_ES, link_whatsapp, whatsapp_valido, q2)
 
 cobros_bp = Blueprint("cobros", __name__, url_prefix="/cobros")
 
@@ -47,22 +47,20 @@ def _leer_gastos(pago):
 
 
 def _estado_saldo(pago):
-    """Recalcula saldo y estado a partir del total y lo pagado."""
-    total = float(pago.total or 0)
-    pagado = float(pago.pagado or 0)
-    pago.saldo = round(total - pagado, 2)
+    """Recalcula saldo y estado a partir del total y lo pagado (decimal exacto)."""
+    total = q2(pago.total)
+    pagado = q2(pago.pagado)
+    pago.saldo = total - pagado
     if pagado <= 0:
         pago.estado = "Pendiente"
-    elif pago.saldo > 0.005:
+    elif pago.saldo > 0:
         pago.estado = "Parcial"
     else:
         pago.estado = "Pagado"
 
 
 def _recalcular(pago, gastos_total):
-    precio = float(pago.precio_alquiler or 0)
-    mora = float(pago.mora or 0)
-    pago.total = round(precio + mora + gastos_total, 2)
+    pago.total = q2(pago.precio_alquiler) + q2(pago.mora) + q2(gastos_total)
     _estado_saldo(pago)
 
 
@@ -304,29 +302,29 @@ def rapido():
         return jsonify(ok=False, error="Ya existe un pago para ese período."), 409
 
     mora = parse_num(d.get("mora")) or 0
-    # Gastos extras: lista de {desc, monto}
+    # Gastos extras: lista de {desc, monto} (suma con decimales exactos)
     gastos = []
-    gastos_total = 0.0
+    gastos_total = q2(0)
     for g in (d.get("gastos") or []):
         desc = (g.get("desc") or "").strip()
         monto = parse_num(g.get("monto"))
         if desc and monto is not None:
             gastos.append((desc, monto))
-            gastos_total += monto
+            gastos_total += q2(monto)
 
-    total = round(float(precio) + float(mora) + gastos_total, 2)
+    total = q2(precio) + q2(mora) + gastos_total
     pagado = parse_num(d.get("pagado"))
     if pagado is None:
         pagado = total
-    pagado = round(pagado, 2)
-    saldo = round(total - pagado, 2)
+    pagado = q2(pagado)
+    saldo = total - pagado
     if pagado <= 0:
         estado = "Pendiente"
-    elif saldo > 0.005:
+    elif saldo > 0:
         estado = "Parcial"
     else:
         estado = "Pagado"
-        saldo = 0
+        saldo = q2(0)
 
     fecha = parse_fecha(d.get("fecha")) or date.today()
     nro = (max((p.numero or 0) for p in contrato.pagos) + 1) if contrato.pagos else 1
@@ -453,7 +451,7 @@ def abonar(pid):
             flash("Ingresá un monto mayor a 0.", "error")
             return render_template("cobros/abonar.html", pago=pago, saldo=saldo,
                                    formas=FORMAS_PAGO, meses=MESES_ES)
-        pago.pagado = round(float(pago.pagado or 0) + monto, 2)
+        pago.pagado = q2(pago.pagado) + q2(monto)
         if request.form.get("fecha_pago"):
             pago.fecha_pago = parse_fecha(request.form.get("fecha_pago")) or pago.fecha_pago
         if request.form.get("forma_pago"):

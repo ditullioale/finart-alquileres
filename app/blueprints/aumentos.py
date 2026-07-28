@@ -1,5 +1,6 @@
 """Aumentos: aplicación por porcentaje o índice, historial y gestión de índices."""
 from datetime import date
+from decimal import Decimal
 
 from flask import (Blueprint, render_template, redirect, url_for, request,
                    flash, abort, jsonify)
@@ -8,7 +9,7 @@ from flask_login import login_required
 from .. import db
 from ..models import Contrato, Aumento, IndiceValor
 from ..utils import (parse_num, parse_fecha, parse_periodo, periodo_date,
-                     proximo_ajuste, add_months, INDICE_NOMBRE, MESES_ES)
+                     proximo_ajuste, add_months, INDICE_NOMBRE, MESES_ES, q2)
 from ..indices_oficiales import traer_icl_bcra
 
 aumentos_bp = Blueprint("aumentos", __name__, url_prefix="/aumentos")
@@ -86,7 +87,7 @@ def aplicar(cid):
             if not pct:
                 flash("Indicá el porcentaje del aumento.", "error")
                 return redirect(url_for("aumentos.aplicar", cid=c.id))
-            nuevo = round(precio_actual * (1 + pct / 100.0), 2)
+            nuevo = float(q2(q2(precio_actual) * (Decimal(1) + q2(pct) / Decimal(100))))
             aum.porcentaje = pct
         else:  # indice
             tipo = request.form.get("indice_tipo") or c.indice_tipo
@@ -98,7 +99,7 @@ def aplicar(cid):
                 flash("Faltan valores del índice para esos meses. Cargalos en “Índices”.", "error")
                 return redirect(url_for("aumentos.aplicar", cid=c.id))
             factor = v_dest / v_base
-            nuevo = round(precio_actual * factor, 2)
+            nuevo = float(q2(precio_actual * factor))
             aum.indice_tipo = tipo
             aum.indice_inicio = v_base
             aum.indice_fin = v_dest

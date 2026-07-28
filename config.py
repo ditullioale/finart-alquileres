@@ -64,6 +64,21 @@ class Config:
     SQLALCHEMY_DATABASE_URI = _database_uri()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    # --- Endurecimiento de la sesión (cookies) ---
+    # La cookie de sesión no es accesible por JavaScript (mitiga robo por XSS).
+    SESSION_COOKIE_HTTPONLY = True
+    # Solo se envía en navegaciones del mismo sitio (mitiga CSRF).
+    SESSION_COOKIE_SAMESITE = "Lax"
+    # Solo viaja por HTTPS. Activada por defecto (Railway usa HTTPS). Para probar
+    # localmente por HTTP sin quedar afuera, definí COOKIE_SECURE=0 en el entorno.
+    SESSION_COOKIE_SECURE = (os.environ.get("COOKIE_SECURE", "1") == "1"
+                             and not os.environ.get("TESTING"))
+    REMEMBER_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_SECURE = SESSION_COOKIE_SECURE
+    # La sesión dura hasta 12 horas de inactividad.
+    from datetime import timedelta as _td
+    PERMANENT_SESSION_LIFETIME = _td(hours=12)
+
     APP_VERSION = "1.0.0"
 
     # Datos de la inmobiliaria (se usan en recibos y liquidaciones).

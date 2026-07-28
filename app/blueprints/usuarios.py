@@ -38,6 +38,36 @@ def listar():
     return render_template("usuarios/list.html", usuarios=usuarios)
 
 
+@usuarios_bp.route("/cambiar-clave", methods=["GET", "POST"])
+@login_required
+def cambiar_clave():
+    """Cada usuario cambia su propia contraseña. También se usa para forzar el
+    cambio de la clave por defecto en el primer ingreso."""
+    forzado = bool(getattr(current_user, "must_change_password", False))
+    if request.method == "POST":
+        actual = request.form.get("actual", "")
+        nueva = request.form.get("nueva", "")
+        repetir = request.form.get("repetir", "")
+        error = None
+        if not current_user.check_password(actual):
+            error = "La contraseña actual no es correcta."
+        elif len(nueva) < 6:
+            error = "La nueva contraseña debe tener al menos 6 caracteres."
+        elif nueva != repetir:
+            error = "Las contraseñas nuevas no coinciden."
+        elif nueva == actual:
+            error = "La nueva contraseña debe ser distinta de la actual."
+        if error:
+            flash(error, "error")
+            return render_template("usuarios/cambiar_clave.html", forzado=forzado)
+        current_user.set_password(nueva)
+        current_user.must_change_password = False
+        db.session.commit()
+        flash("Contraseña actualizada correctamente.", "ok")
+        return redirect(url_for("main.index"))
+    return render_template("usuarios/cambiar_clave.html", forzado=forzado)
+
+
 @usuarios_bp.route("/nuevo", methods=["GET", "POST"])
 @login_required
 @admin_required

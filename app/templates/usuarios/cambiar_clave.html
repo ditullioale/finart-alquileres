@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Cambiar contraseña{% endblock %}
+{% block content %}
+<div class="pagehead"><h1>Cambiar contraseña</h1></div>
+
+{% if forzado %}
+<div class="flash error" style="margin-bottom:14px">
+  Estás usando la contraseña por defecto. Por seguridad, elegí una contraseña nueva
+  antes de seguir usando el sistema.
+</div>
+{% endif %}
+
+<form method="post" class="cardform" style="max-width:460px">
+  <label>Contraseña actual</label>
+  <input type="password" name="actual" required autofocus autocomplete="current-password">
+  <label>Nueva contraseña</label>
+  <input type="password" name="nueva" required autocomplete="new-password"
+         placeholder="Al menos 6 caracteres">
+  <label>Repetir nueva contraseña</label>
+  <input type="password" name="repetir" required autocomplete="new-password">
+  <div class="formbtns">
+    <button class="btn" type="submit">Guardar contraseña</button>
+    {% if not forzado %}<a class="btn sec" href="{{ url_for('main.index') }}">Cancelar</a>{% endif %}
+  </div>
+</form>
+{% endblock %}

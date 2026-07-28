@@ -46,6 +46,9 @@ def seccion(t):
 def sembrar():
     """Crea datos base y devuelve ids útiles."""
     Usuario.crear_admin_inicial()
+    # En las pruebas el admin ya tiene su contraseña definida (no forzamos el
+    # cambio, para no interferir con el resto de los casos que usan el cliente).
+    Usuario.query.filter_by(username="admin").update({"must_change_password": False})
     op = Usuario(username="oper", nombre="Operador", rol="operador", activo=True)
     op.set_password("clave123")
     db.session.add(op)
@@ -223,6 +226,47 @@ def run():
         seccion("Liquidaciones / recibos de pago")
         liq = cl.get(f"/recibos/liquidacion/pago/{pago_id}")
         check("liquidacion de un pago = 200", liq.status_code == 200)
+
+        seccion("Confiabilidad - montos en decimales exactos")
+        from app.utils import q2 as _q2, calcular_mora as _mora
+        check("q2 suma exacta (0.1+0.2=0.30)", str(_q2(0.1) + _q2(0.2)) == "0.30")
+        check("q2 redondea a 2 decimales (2.005->2.01)", str(_q2(2.005)) == "2.01")
+        check("mora exacta 3 dias 0.4% s/100000 = 1200.00",
+              float(_mora(100000, 0.4, date(2025, 1, 10), date(2025, 1, 13))) == 1200.00)
+        parc2 = cl.post("/cobros/rapido", json={
+            "cid": ids["c2"], "mes": 9, "anio": 2026, "precio": "100000.005",
+            "pagado": "50000.01"}).get_json()
+        check("cobro con centavos: total redondea a 100000.01",
+              parc2 and parc2["total"] == 100000.01)
+        check("cobro con centavos: saldo exacto 50000.00",
+              parc2 and parc2["saldo"] == 50000.00)
+
+        seccion("Seguridad - cambio de clave forzado y login")
+        # Usuario nuevo obligado a cambiar la clave.
+        def _mk_forzado():
+            u = Usuario(username="forzado", nombre="Forz", rol="operador",
+                        activo=True, must_change_password=True)
+            u.set_password("temporal1")
+            db.session.add(u); db.session.commit()
+        q(_mk_forzado)
+        cf = app.test_client()
+        cf.post("/login", data={"username": "forzado", "password": "temporal1"})
+        red = cf.get("/inmuebles/", follow_redirects=False)
+        check("clave forzada redirige a cambiar-clave",
+              red.status_code == 302 and "cambiar-clave" in (red.headers.get("Location") or ""))
+        cf.post("/usuarios/cambiar-clave", data={
+            "actual": "temporal1", "nueva": "definitiva9", "repetir": "definitiva9"})
+        check("tras cambiar, entra normal", cf.get("/inmuebles/").status_code == 200)
+        check("no cambia si la actual es incorrecta",
+              cf.post("/usuarios/cambiar-clave", data={"actual": "mala",
+                      "nueva": "otra12345", "repetir": "otra12345"}).status_code == 200)
+        # Bloqueo tras varios intentos fallidos.
+        cb = app.test_client()
+        for _ in range(5):
+            cb.post("/login", data={"username": "oper", "password": "malaXX"})
+        blo = cb.post("/login", data={"username": "oper", "password": "clave123"},
+                      follow_redirects=True).data.decode("utf-8", "ignore")
+        check("bloquea login tras 5 intentos fallidos", "Demasiados intentos" in blo)
 
     print("\n" + "=" * 44)
     print(f"RESULTADO QA:  {_pasa} PASA  /  {_falla} FALLA")

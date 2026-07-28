@@ -1,8 +1,23 @@
 """Utilidades compartidas: fechas, montos, mapeo de índices."""
 from datetime import date
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 import calendar
 import re
 from urllib.parse import quote
+
+
+def q2(x):
+    """Devuelve x como Decimal redondeado a 2 decimales (centavos exactos).
+
+    Se usa para toda la aritmética de dinero, evitando los errores de redondeo
+    de la coma flotante (float). Convierte vía str() para no arrastrar el ruido
+    binario de los float (p. ej. 0.1 + 0.2)."""
+    if x is None or x == "":
+        return Decimal("0.00")
+    try:
+        return Decimal(str(x)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    except (InvalidOperation, ValueError, TypeError):
+        return Decimal("0.00")
 
 
 def add_months(d: date, meses: int) -> date:
@@ -79,7 +94,8 @@ def calcular_mora(precio, mora_diaria_pct, venc, fecha_pago):
     dias = (fecha_pago - venc).days
     if dias <= 0:
         return 0.0
-    return round(float(precio) * (float(mora_diaria_pct) / 100.0) * dias, 2)
+    # Mora con aritmética decimal exacta.
+    return q2(q2(precio) * (q2(mora_diaria_pct) / Decimal(100)) * dias)
 
 
 def periodo_siguiente(mes, anio):

@@ -78,6 +78,7 @@
     </nav>
     <div class="side-foot">
       <div class="who"><span class="i">{{ icon('user', 16) }}</span> {{ current_user.nombre or current_user.username }}</div>
+      <a class="logout" href="{{ url_for('usuarios.cambiar_clave') }}" style="margin-bottom:6px"><span class="i">{{ icon('settings', 15) }}</span> Cambiar contraseña</a>
       <a class="logout" href="{{ url_for('auth.logout') }}"><span class="i">{{ icon('log-out', 15) }}</span> Cerrar sesión</a>
       <a href="{{ url_for('main.acerca') }}" style="display:block;text-align:center;color:#6f86a6;font-size:11px;margin-top:8px;text-decoration:none">v{{ app_version }} · Acerca de</a>
     </div>

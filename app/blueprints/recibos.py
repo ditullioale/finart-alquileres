@@ -72,14 +72,17 @@ def recibo_pdf(pid):
 def liquidacion(pid):
     pago = db.session.get(Pago, pid) or abort(404)
     a = Ajustes.get()
+    from ..utils import q2
+    from decimal import Decimal
     inm = pago.contrato.inmueble
-    alquiler = float(pago.precio_alquiler or 0)
+    alquiler = q2(pago.precio_alquiler)
     if pago.contrato.comision_pct is not None:
         pct = float(pago.contrato.comision_pct)
     else:
         pct = float(inm.comision_pct or 0) if inm else 0
-    comision = round(alquiler * pct / 100.0, 2)
-    neto = round(alquiler - comision, 2)
+    comision = q2(alquiler * q2(pct) / Decimal(100))
+    neto = alquiler - comision
+    alquiler = float(alquiler); comision = float(comision); neto = float(neto)
     return render_template("recibos/liquidacion.html", pago=pago, c=pago.contrato, a=a,
                            alquiler=alquiler, pct=pct, comision=comision, neto=neto,
                            neto_letras=pesos_letras(neto), meses=MESES_ES, hoy=date.today())

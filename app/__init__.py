@@ -1,7 +1,7 @@
 """Application factory del sistema de gestión de alquileres."""
 import os
 
-from flask import Flask
+from flask import Flask, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_wtf import CSRFProtect
@@ -65,6 +65,22 @@ def create_app(config_class=Config):
 
     # El buzón del robot de gas usa su propio token (X-Gas-Token), no CSRF.
     csrf.exempt(app.view_functions["gas.importar"])
+
+    # Si el usuario debe cambiar su contraseña (p.ej. admin por defecto), se lo
+    # obliga a hacerlo antes de usar el resto del sistema.
+    @app.before_request
+    def _forzar_cambio_clave():
+        from flask_login import current_user
+        if not getattr(current_user, "is_authenticated", False):
+            return
+        if not getattr(current_user, "must_change_password", False):
+            return
+        permitidos = {"usuarios.cambiar_clave", "auth.logout", "static",
+                      "manifest", "service_worker", "assetlinks"}
+        if request.endpoint in permitidos:
+            return
+        flash("Por seguridad, cambiá la contraseña por defecto antes de continuar.", "error")
+        return redirect(url_for("usuarios.cambiar_clave"))
 
     # Aviso global: cantidad de aumentos vencidos (badge en el menú).
     @app.context_processor
@@ -155,6 +171,7 @@ def create_app(config_class=Config):
             "ALTER TABLE fiadores ADD COLUMN IF NOT EXISTS solvencia VARCHAR(250)",
             "ALTER TABLE inmuebles ADD COLUMN IF NOT EXISTS cuenta_gas VARCHAR(30)",
             "ALTER TABLE contratos ADD COLUMN IF NOT EXISTS aumento_pospuesto DATE",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT FALSE",
         ]:
             try:
                 db.session.execute(text(_sql))

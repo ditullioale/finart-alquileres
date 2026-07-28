@@ -24,6 +24,8 @@ class Usuario(UserMixin, db.Model):
     nombre = db.Column(db.String(120))
     rol = db.Column(db.String(20), default="operador")  # admin / operador
     activo = db.Column(db.Boolean, default=True)
+    # Obliga a cambiar la contraseña en el próximo ingreso (p.ej. admin inicial).
+    must_change_password = db.Column(db.Boolean, default=False)
     creado = db.Column(db.DateTime, default=datetime.utcnow)
 
     def set_password(self, password):
@@ -34,9 +36,11 @@ class Usuario(UserMixin, db.Model):
 
     @staticmethod
     def crear_admin_inicial():
-        """Crea un usuario admin/admin123 si no existe ningún usuario."""
+        """Crea un usuario admin/admin123 si no existe ningún usuario.
+        Queda obligado a cambiar la contraseña en el primer ingreso."""
         if Usuario.query.first() is None:
-            admin = Usuario(username="admin", nombre="Administrador", rol="admin")
+            admin = Usuario(username="admin", nombre="Administrador", rol="admin",
+                            must_change_password=True)
             admin.set_password("admin123")
             db.session.add(admin)
             db.session.commit()
