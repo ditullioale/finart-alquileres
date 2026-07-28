@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Cobranzas (nueva){% endblock %}
+{% block content %}
+
+<div id="react-cobranzas" data-mes="{{ mes }}" data-anio="{{ anio }}">
+  <p class="hint">Cargando cobranzas…</p>
+</div>
+
+<script type="module" src="{{ url_for('static', filename='js/react/bundle.js') }}"></script>
+{% endblock %}

@@ -52,3 +52,10 @@ def index():
 @login_required
 def acerca():
     return render_template("main/acerca.html")
+
+
+@main_bp.route("/react-test")
+@login_required
+def react_test():
+    """Página de prueba del pipeline React (Sprint 0)."""
+    return render_template("main/react_test.html")

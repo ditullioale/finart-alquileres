@@ -144,6 +144,17 @@ def index():
                            anios=list(range(hoy.year - 4, hoy.year + 2)))
 
 
+@cobros_bp.route("/react")
+@login_required
+def react():
+    """Versión nueva del panel de cobranzas, renderizada con React (Sprint 1).
+    Convive con la versión clásica en '/' para poder validarla sin riesgo."""
+    hoy = date.today()
+    mes = parse_num(request.args.get("mes"), entero=True) or hoy.month
+    anio = parse_num(request.args.get("anio"), entero=True) or hoy.year
+    return render_template("cobros/react.html", mes=mes, anio=anio)
+
+
 # --------------------------------------------------------------------------- #
 #  Detalle de pagos por contrato
 # --------------------------------------------------------------------------- #
