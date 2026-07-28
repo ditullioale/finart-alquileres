@@ -202,6 +202,13 @@
       </fieldset>
 
       <fieldset>
+        <legend>Documentación (opcional)</legend>
+        <div class="hint" style="margin:0 0 8px">Adjuntá DNI y recibos de sueldo del inquilino y los fiadores. Se guardan junto al contrato al presionar <b>"Guardar contrato en el sistema"</b> (PDF o imagen, hasta 8 MB).</div>
+        <div id="docsGen"></div>
+        <button class="btn sec mini" onclick="addDocGen()">+ Agregar documento</button>
+      </fieldset>
+
+      <fieldset>
         <legend>Pagarés</legend>
         <div class="row">
           <div><label>Meses de alquiler por pagaré</label><input id="pagMeses" type="number" min="1" value="10"></div>
@@ -654,6 +661,26 @@ async function verBcra(who){
       +'<ul>'+rows+'</ul>'
       +'<div class="hint" style="margin-top:6px">Fuente: Central de Deudores del BCRA (últimos 24 meses). La situación 1 es "al día"; de 3 en adelante indica problemas.</div>';
   }catch(e){ panel.className='valPanel err'; panel.innerHTML='<div class="head"><span class="dot"></span> BCRA</div><p style="margin:8px 0 0">Error de conexión.</p>'; }
+}
+
+// ===== Documentación adjunta (se sube al guardar en el sistema) =====
+function addDocGen(d){
+  d=d||{};
+  var cont=document.getElementById('docsGen');
+  var row=document.createElement('div'); row.className='card'; row.style.marginTop='8px';
+  row.innerHTML='<div class="row">'
+    +'<div><label>Tipo</label><select class="dg-cat"><option>DNI</option><option>Recibo de sueldo</option><option>Garantía / Solvencia</option><option>Otro</option></select></div>'
+    +'<div><label>¿De quién?</label><input class="dg-per" placeholder="Ej: Inquilino Ana / Fiador Juan"></div></div>'
+    +'<label>Archivo (PDF o imagen)</label><input type="file" class="dg-file" accept=".pdf,image/*">'
+    +'<button type="button" class="btn sec mini" style="margin-top:6px" onclick="this.closest(\'.card\').remove()">Quitar</button>';
+  cont.appendChild(row);
+}
+function getDocsGen(){
+  return [].slice.call(document.querySelectorAll('#docsGen .card')).map(function(c){
+    var f=c.querySelector('.dg-file').files[0];
+    if(!f) return null;
+    return {categoria:c.querySelector('.dg-cat').value, persona:c.querySelector('.dg-per').value.trim(), file:f};
+  }).filter(Boolean);
 }
 
 // ===== Secciones plegables (acorta el formulario) =====

@@ -422,9 +422,11 @@ def _validar(c: Contrato):
 # --------------------------------------------------------------------------- #
 def _generador_html():
     """Lee el generador original y le inyecta la barra + botón de guardado."""
+    from flask_wtf.csrf import generate_csrf
     ruta = Path(__file__).resolve().parents[2] / "app" / "generador_base.html"
     html = ruta.read_text(encoding="utf-8")
 
+    csrf_token = generate_csrf()
     save_url = url_for("contratos.desde_generador")
     volver_url = url_for("contratos.listar")
     api_url = url_for("contratos.api_personas")
@@ -444,6 +446,7 @@ def _generador_html():
     script = """
     <script>
     const SAVE_URL = "%s";
+    const SYS_CSRF = "%s";
     function guardarEnSistema(){
       // Si el documento no fue generado, avisar y ofrecer generarlo primero.
       const cont = document.getElementById('contrato');
@@ -478,18 +481,31 @@ def _generador_html():
       const box = document.getElementById('sysMsg');
       box.style.display='block'; box.style.background='#fff8e6'; box.style.color='#8a5a00';
       box.textContent='Guardando en el sistema…';
-      fetch(SAVE_URL,{method:'POST',headers:{'Content-Type':'application/json'},
+      fetch(SAVE_URL,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':SYS_CSRF},
             credentials:'same-origin',body:JSON.stringify(data)})
         .then(r=>r.json()).then(d=>{
-          if(d.ok){ box.style.background='#eefaf1'; box.style.color='#14663a';
-            box.innerHTML = '✅ '+d.mensaje+' <a href="'+d.ver_url+'" style="color:#14663a;font-weight:700">Ver contrato ▸</a>';
-          } else { box.style.background='#fdecec'; box.style.color='#9c2020';
-            box.textContent = '⚠️ '+(d.mensaje||'No se pudo guardar.'); }
+          if(!d.ok){ box.style.background='#fdecec'; box.style.color='#9c2020';
+            box.textContent='⚠️ '+(d.mensaje||'No se pudo guardar.'); return; }
+          function exito(extra){ box.style.background='#eefaf1'; box.style.color='#14663a';
+            box.innerHTML='✅ '+d.mensaje+(extra||'')+' <a href="'+d.ver_url+'" style="color:#14663a;font-weight:700">Ver contrato ▸</a>'; }
+          var docs = (typeof getDocsGen==='function') ? getDocsGen() : [];
+          if(docs.length && d.contrato_id){
+            box.textContent='Contrato guardado. Subiendo '+docs.length+' documento(s)…';
+            Promise.allSettled(docs.map(function(doc){
+              var fd=new FormData(); fd.append('categoria',doc.categoria);
+              fd.append('persona',doc.persona); fd.append('archivo',doc.file);
+              return fetch('/contratos/'+d.contrato_id+'/documentos',
+                {method:'POST',credentials:'same-origin',headers:{'X-CSRFToken':SYS_CSRF},body:fd});
+            })).then(function(res){
+              var fail=res.filter(function(x){return x.status!=='fulfilled'||!x.value.ok;}).length;
+              exito(fail? ' ('+(docs.length-fail)+'/'+docs.length+' documentos subidos)':' Documentos subidos.');
+            });
+          } else { exito(''); }
         }).catch(e=>{ box.style.background='#fdecec'; box.style.color='#9c2020';
           box.textContent='⚠️ Error de conexión: '+e.message; });
     }
     </script>
-    """ % save_url
+    """ % (save_url, csrf_token)
 
     autocomplete = """
     <style>
