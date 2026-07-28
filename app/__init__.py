@@ -66,6 +66,8 @@ def create_app(config_class=Config):
             for c in Contrato.query.filter_by(estado="Vigente").all():
                 if c.metodo_ajuste == "sin_ajuste" or not c.ajuste_cada_meses:
                     continue
+                if c.aumento_pospuesto and c.aumento_pospuesto > hoy:
+                    continue
                 prox = proximo_ajuste(c.fecha_inicio, c.ajuste_cada_meses, len(c.aumentos))
                 if prox and prox <= hoy:
                     n += 1
@@ -132,6 +134,7 @@ def create_app(config_class=Config):
         for _sql in [
             "ALTER TABLE fiadores ADD COLUMN IF NOT EXISTS solvencia VARCHAR(250)",
             "ALTER TABLE inmuebles ADD COLUMN IF NOT EXISTS cuenta_gas VARCHAR(30)",
+            "ALTER TABLE contratos ADD COLUMN IF NOT EXISTS aumento_pospuesto DATE",
         ]:
             try:
                 db.session.execute(text(_sql))

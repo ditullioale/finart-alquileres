@@ -10,11 +10,12 @@
 </div>
 {% endif %}
 
-<form method="post" class="cardform">
+<form method="post" action="{{ url_for('contratos.nuevo') if renovar_de else '' }}" class="cardform">
+  {% if renovar_de %}<input type="hidden" name="renovar_de" value="{{ renovar_de }}">{% endif %}
   <h2>Partes e inmueble</h2>
   <div class="grid2">
     <div><label>Inmueble *</label>
-      <select name="inmueble_id" id="inmueble_id" required>
+      <select name="inmueble_id" id="inmueble_id" class="js-search" data-ph="Buscar por código o dirección…" required>
         <option value="">— elegí —</option>
         {% for i in inmuebles %}
         <option value="{{ i.id }}" data-prop="{{ i.propietario_id or '' }}" {{ 'selected' if c.inmueble_id==i.id }}>
@@ -24,13 +25,13 @@
       <span class="hint">¿No está? <a href="{{ url_for('inmuebles.nuevo') }}" target="_blank">Cargá el inmueble</a>.</span></div>
     <div><label>Número de contrato</label><input name="numero" value="{{ c.numero or '' }}" placeholder="opcional"></div>
     <div><label>Inquilino *</label>
-      <select name="inquilino_id" required>
+      <select name="inquilino_id" class="js-search" data-ph="Buscar inquilino…" required>
         <option value="">— elegí —</option>
         {% for p in inquilinos %}<option value="{{ p.id }}" {{ 'selected' if c.inquilino_id==p.id }}>{{ p.nombre }}</option>{% endfor %}
       </select>
       <span class="hint">¿No está? <a href="{{ url_for('personas.nueva') }}" target="_blank">Cargá la persona</a> como inquilino.</span></div>
     <div><label>Propietario</label>
-      <select name="propietario_id" id="propietario_id">
+      <select name="propietario_id" id="propietario_id" class="js-search" data-ph="Buscar propietario…">
         <option value="">— (toma el del inmueble) —</option>
         {% for p in propietarios %}<option value="{{ p.id }}" {{ 'selected' if c.propietario_id==p.id }}>{{ p.nombre }}</option>{% endfor %}
       </select></div>
@@ -117,12 +118,67 @@ function addFiador(d){
 document.getElementById('inmueble_id').addEventListener('change', function(){
   const prop = this.options[this.selectedIndex]?.dataset.prop;
   const sel = document.getElementById('propietario_id');
-  if(prop && !sel.value) sel.value = prop;
+  if(prop && !sel.value){ sel.value = prop; sel.dispatchEvent(new Event('change')); }
 });
-// Fiadores existentes (al editar)
+// Fiadores existentes (al editar / al re-mostrar tras un error)
 {% for f in c.fiadores %}
 addFiador({nombre:{{ f.nombre|tojson }}, dni:{{ (f.dni or '')|tojson }}, dom:{{ (f.domicilio or '')|tojson }}, tel:{{ (f.telefono or '')|tojson }}, email:{{ (f.email or '')|tojson }}, solvencia:{{ (f.solvencia or '')|tojson }}});
 {% endfor %}
 toggleAjuste();
+
+// ===== Punto 5: fecha de fin automática (inicio + duración en meses) =====
+function addMonthsISO(iso, meses){
+  if(!iso || !meses) return '';
+  var p = iso.split('-'); var y=+p[0], m=+p[1]-1, d=+p[2];
+  var dt = new Date(y, m + meses, 1);
+  var ultimo = new Date(dt.getFullYear(), dt.getMonth()+1, 0).getDate();
+  dt.setDate(Math.min(d, ultimo));
+  var mm = String(dt.getMonth()+1).padStart(2,'0'), dd = String(dt.getDate()).padStart(2,'0');
+  return dt.getFullYear()+'-'+mm+'-'+dd;
+}
+var fIni = document.querySelector('[name="fecha_inicio"]');
+var fDur = document.querySelector('[name="duracion_meses"]');
+var fFin = document.querySelector('[name="fecha_fin"]');
+function recalcFin(){
+  var meses = parseInt(fDur.value);
+  if(fIni.value && meses){ fFin.value = addMonthsISO(fIni.value, meses); }
+}
+if(fIni && fDur && fFin){
+  fIni.addEventListener('change', recalcFin);
+  fDur.addEventListener('input', recalcFin);
+}
+
+// ===== Punto 1: selects buscables =====
+document.querySelectorAll('select.js-search').forEach(function(sel){
+  var opciones = Array.from(sel.options).map(function(o){ return {v:o.value, t:o.textContent.trim(), prop:o.dataset.prop}; });
+  var wrap = document.createElement('div'); wrap.className = 'combo'; wrap.style.position='relative';
+  var inp = document.createElement('input'); inp.type='text'; inp.autocomplete='off';
+  inp.placeholder = sel.dataset.ph || 'Buscar…';
+  inp.className = 'combo-input';
+  var list = document.createElement('div'); list.className='combo-list';
+  sel.style.display='none';
+  sel.parentNode.insertBefore(wrap, sel); wrap.appendChild(sel); wrap.appendChild(inp); wrap.appendChild(list);
+  function syncInput(){ var o = opciones.find(function(x){ return x.v === sel.value; }); inp.value = (o && o.v) ? o.t : ''; }
+  syncInput();
+  sel.addEventListener('change', syncInput);
+  function pintar(filtro){
+    var f = (filtro||'').toLowerCase();
+    list.innerHTML='';
+    opciones.filter(function(o){ return !f || o.t.toLowerCase().indexOf(f)!==-1; }).slice(0,50).forEach(function(o){
+      var it = document.createElement('div'); it.className='combo-item'; it.textContent = o.t || '— (ninguno) —';
+      it.addEventListener('mousedown', function(e){
+        e.preventDefault();
+        sel.value = o.v; inp.value = o.v ? o.t : '';
+        sel.dispatchEvent(new Event('change'));
+        list.style.display='none';
+      });
+      list.appendChild(it);
+    });
+    list.style.display='block';
+  }
+  inp.addEventListener('focus', function(){ pintar(''); });
+  inp.addEventListener('input', function(){ pintar(inp.value); });
+  inp.addEventListener('blur', function(){ setTimeout(function(){ list.style.display='none'; }, 150); });
+});
 </script>
 {% endblock %}

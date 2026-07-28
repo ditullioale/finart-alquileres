@@ -66,6 +66,17 @@
   </div>
 </form>
 
+<div class="cardform" style="margin-top:14px">
+  <h2 style="font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)">¿Cargarlo más tarde?</h2>
+  <p class="hint" style="margin:0 0 10px">Si el contrato lo permite (ej. "ICL o Casa Propia a elección del locador") o preferís esperar, podés posponer el recordatorio hasta una fecha. No va a figurar como pendiente hasta ese día.</p>
+  <form method="post" action="{{ url_for('aumentos.posponer', cid=c.id) }}" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap" data-no-busy>
+    <div><label>Recordar el aumento el</label>
+      <input type="date" name="hasta" value=""></div>
+    <button class="btn warn" type="submit">Posponer</button>
+    <span class="hint" style="margin:0">Si dejás la fecha vacía, se pospone 1 mes.</span>
+  </form>
+</div>
+
 <script>
 const PRECIO = parseFloat(document.querySelector('form.cardform').dataset.precio) || 0;
 const V_BASE = {{ v_base if v_base else 'null' }};

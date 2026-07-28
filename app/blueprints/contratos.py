@@ -162,15 +162,22 @@ def nuevo():
     if request.method == "POST":
         c = Contrato()
         _leer_form(c)
+        _leer_fiadores(c)   # cargar fiadores antes de validar, para no perderlos si falla
         error = _validar(c)
         if error:
             flash(error, "error")
             return render_template("contratos/form.html", c=c, **_opciones())
-        _leer_fiadores(c)
         db.session.add(c)
         _marcar_alquilado(c)
+        # Si es una renovación, finalizar el contrato anterior.
+        renovar_de = parse_num(request.form.get("renovar_de"), entero=True)
+        if renovar_de:
+            old = db.session.get(Contrato, renovar_de)
+            if old:
+                old.estado = "Finalizado"
         db.session.commit()
-        flash("Contrato dado de alta correctamente.", "ok")
+        flash("Contrato dado de alta correctamente." +
+              (" El contrato anterior quedó finalizado." if renovar_de else ""), "ok")
         return redirect(url_for("contratos.ver", cid=c.id))
     c = Contrato(fecha_inicio=date.today(), metodo_ajuste="porcentaje",
                  moneda="Pesos", estado="Vigente", dia_vencimiento=10)
@@ -183,16 +190,45 @@ def editar(cid):
     c = db.session.get(Contrato, cid) or abort(404)
     if request.method == "POST":
         _leer_form(c)
+        _leer_fiadores(c)
         error = _validar(c)
         if error:
             flash(error, "error")
             return render_template("contratos/form.html", c=c, **_opciones())
-        _leer_fiadores(c)
         _marcar_alquilado(c)
         db.session.commit()
         flash("Contrato actualizado.", "ok")
         return redirect(url_for("contratos.ver", cid=c.id))
     return render_template("contratos/form.html", c=c, **_opciones())
+
+
+@contratos_bp.route("/<int:cid>/renovar")
+@login_required
+def renovar(cid):
+    """Precarga un contrato nuevo con los datos del anterior, para renovarlo.
+    Al guardar, el contrato viejo queda Finalizado."""
+    from datetime import timedelta
+    old = db.session.get(Contrato, cid) or abort(404)
+    inicio = (old.fecha_fin + timedelta(days=1)) if old.fecha_fin else date.today()
+    c = Contrato(
+        inmueble_id=old.inmueble_id, inquilino_id=old.inquilino_id,
+        propietario_id=old.propietario_id, fecha_inicio=inicio,
+        duracion_meses=old.duracion_meses,
+        precio_inicial=old.precio_actual or old.precio_inicial,
+        precio_actual=old.precio_actual or old.precio_inicial,
+        moneda=old.moneda, dia_vencimiento=old.dia_vencimiento,
+        mora_diaria_pct=old.mora_diaria_pct, comision_pct=old.comision_pct,
+        metodo_ajuste=old.metodo_ajuste, indice_tipo=old.indice_tipo,
+        ajuste_cada_meses=old.ajuste_cada_meses, porcentaje_ajuste=old.porcentaje_ajuste,
+        estado="Vigente")
+    if inicio and c.duracion_meses:
+        c.fecha_fin = add_months(inicio, c.duracion_meses)
+    for f in old.fiadores:
+        c.fiadores.append(Fiador(nombre=f.nombre, dni=f.dni, domicilio=f.domicilio,
+                                 telefono=f.telefono, email=f.email, solvencia=f.solvencia))
+    flash("Renovación: revisá y actualizá lo que haga falta (fechas, precio, etc.) y guardá. "
+          "El contrato anterior quedará finalizado automáticamente.", "ok")
+    return render_template("contratos/form.html", c=c, renovar_de=old.id, **_opciones())
 
 
 @contratos_bp.route("/<int:cid>/rescindir", methods=["POST"])

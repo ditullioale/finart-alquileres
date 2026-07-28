@@ -32,9 +32,12 @@ def index():
         prox = proximo_ajuste(c.fecha_inicio, c.ajuste_cada_meses, n)
         if not prox:
             continue
-        item = {"c": c, "fecha": prox, "n": n}
+        # Si el aumento fue pospuesto y la fecha aún no llegó, no molestar.
+        pospuesto = c.aumento_pospuesto and c.aumento_pospuesto > hoy
+        item = {"c": c, "fecha": prox, "n": n, "pospuesto": c.aumento_pospuesto}
         if prox <= hoy:
-            pendientes.append(item)
+            if not pospuesto:
+                pendientes.append(item)
         elif (prox - hoy).days <= 45:
             proximos.append(item)
     pendientes.sort(key=lambda x: x["fecha"])
@@ -103,6 +106,7 @@ def aplicar(cid):
         aum.precio_nuevo = nuevo
         aum.observaciones = request.form.get("observaciones", "").strip()
         c.precio_actual = nuevo
+        c.aumento_pospuesto = None   # al aplicar, se limpia cualquier posposición
         db.session.add(aum)
         db.session.commit()
         flash(f"Aumento aplicado: {c.moneda} {precio_actual:,.2f} → {nuevo:,.2f}.", "ok")
@@ -119,6 +123,20 @@ def aplicar(cid):
         hoy=date.today(),
     )
     return render_template("aumentos/aplicar.html", **contexto)
+
+
+@aumentos_bp.route("/contrato/<int:cid>/posponer", methods=["POST"])
+@login_required
+def posponer(cid):
+    """Pospone el recordatorio de aumento hasta una fecha (cargarlo más tarde)."""
+    c = db.session.get(Contrato, cid) or abort(404)
+    hasta = parse_fecha(request.form.get("hasta"))
+    if not hasta:
+        hasta = add_months(date.today(), 1)
+    c.aumento_pospuesto = hasta
+    db.session.commit()
+    flash(f"Aumento pospuesto hasta el {hasta.strftime('%d/%m/%Y')}. No va a aparecer como pendiente hasta esa fecha.", "ok")
+    return redirect(url_for("aumentos.index"))
 
 
 @aumentos_bp.route("/<int:aid>/editar", methods=["GET", "POST"])

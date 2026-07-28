@@ -147,6 +147,7 @@ class Contrato(db.Model):
     porcentaje_ajuste = db.Column(db.Numeric(8, 2))       # % por período (método porcentaje)
 
     estado = db.Column(db.String(20), default="Vigente")  # Vigente/Finalizado/Rescindido
+    aumento_pospuesto = db.Column(db.Date)                 # no recordar el aumento hasta esta fecha
     origen = db.Column(db.String(20), default="manual")   # manual / generador
     documento_html = db.Column(db.Text)                   # contrato generado (para reimprimir)
     observaciones = db.Column(db.Text)
