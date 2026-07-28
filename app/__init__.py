@@ -34,6 +34,10 @@ def create_app(config_class=Config):
     csrf.init_app(app)
     migrate.init_app(app, db, directory=_MIGRATIONS_DIR)
 
+    # Multiempresa (paso 1): asignar inmobiliaria automáticamente al crear.
+    from .tenant import registrar_eventos
+    registrar_eventos()
+
     from .models import Usuario
 
     @login_manager.user_loader
@@ -171,48 +175,64 @@ def create_app(config_class=Config):
     return app
 
 
-def _iniciar_base(app):
-    """Prepara la base en el arranque, de forma segura para deploys en curso.
+# Revisión base de Alembic (esquema anterior a multiempresa). Se usa para
+# "estampar" bases que ya existían antes de adoptar Alembic.
+BASELINE_REVISION = "ba72a5e5c3ea"
 
-    Transición a Alembic: por ahora db.create_all() sigue asegurando el esquema
-    base (para instalaciones nuevas) y los ALTER idempotentes cubren columnas ya
-    agregadas antes de adoptar Alembic. Además se "estampa" la base con la
-    migración inicial para que, de acá en adelante, los cambios de esquema
-    (p. ej. multiempresa) se apliquen con `flask db upgrade`."""
+
+def _iniciar_base(app):
+    """Prepara la base en el arranque. El esquema lo maneja **Alembic**:
+
+    - Base vacía (instalación nueva): `upgrade()` crea todo desde las migraciones.
+    - Base pre-Alembic (con datos): se asegura que tenga las columnas base, se
+      estampa en la revisión inicial y luego `upgrade()` aplica las migraciones
+      nuevas (p. ej. multiempresa).
+    - Base al día: `upgrade()` aplica lo que falte (no-op si no hay nada).
+
+    Después siembra el admin y la inmobiliaria inicial y asigna los datos
+    existentes a esa inmobiliaria (backfill de multiempresa)."""
     from sqlalchemy import text, inspect
-    try:
-        from .models import Usuario
-        db.create_all()
-        Usuario.crear_admin_inicial()
-    except Exception:
-        pass
-    # Columnas agregadas antes de Alembic (idempotentes, no destructivas).
-    for _sql in [
-        "ALTER TABLE fiadores ADD COLUMN IF NOT EXISTS solvencia VARCHAR(250)",
-        "ALTER TABLE inmuebles ADD COLUMN IF NOT EXISTS cuenta_gas VARCHAR(30)",
-        "ALTER TABLE contratos ADD COLUMN IF NOT EXISTS aumento_pospuesto DATE",
-        "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT FALSE",
-    ]:
+    if os.environ.get("TESTING") or not os.path.isdir(_MIGRATIONS_DIR):
+        # En pruebas se usa create_all() directo (más simple y sin Alembic).
         try:
-            db.session.execute(text(_sql))
-            db.session.commit()
+            db.create_all()
         except Exception:
-            db.session.rollback()
-    # Alembic: la primera vez estampa la base al día con la migración inicial;
-    # en los deploys siguientes aplica las migraciones nuevas que haya.
-    if not os.environ.get("TESTING") and os.path.isdir(_MIGRATIONS_DIR):
+            pass
+    else:
         try:
             from flask_migrate import stamp as _stamp, upgrade as _upgrade
             tablas = inspect(db.engine).get_table_names()
-            if "alembic_version" in tablas:
-                _upgrade(directory=_MIGRATIONS_DIR)
+            if not tablas:
+                _upgrade(directory=_MIGRATIONS_DIR)                 # base nueva
+            elif "alembic_version" not in tablas:
+                # Base pre-Alembic: garantizar columnas base antes de estampar.
+                for _sql in [
+                    "ALTER TABLE fiadores ADD COLUMN IF NOT EXISTS solvencia VARCHAR(250)",
+                    "ALTER TABLE inmuebles ADD COLUMN IF NOT EXISTS cuenta_gas VARCHAR(30)",
+                    "ALTER TABLE contratos ADD COLUMN IF NOT EXISTS aumento_pospuesto DATE",
+                    "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT FALSE",
+                ]:
+                    try:
+                        db.session.execute(text(_sql)); db.session.commit()
+                    except Exception:
+                        db.session.rollback()
+                _stamp(directory=_MIGRATIONS_DIR, revision=BASELINE_REVISION)
+                _upgrade(directory=_MIGRATIONS_DIR)                 # aplica multiempresa, etc.
             else:
-                _stamp(directory=_MIGRATIONS_DIR)
+                _upgrade(directory=_MIGRATIONS_DIR)                 # al día / pendientes
         except Exception:
             db.session.rollback()
 
+    # Siembra: admin inicial + inmobiliaria #1 + backfill de datos existentes.
+    try:
+        from .models import Usuario, Inmobiliaria
+        Usuario.crear_admin_inicial()
+        inmo = Inmobiliaria.crear_inicial()
+        _backfill_inmobiliaria(inmo)
+    except Exception:
+        db.session.rollback()
+
     # Limpieza única: teléfonos importados como decimales ("3402539090.0").
-    # Quitar el ".0" final devuelve el número correcto. Es idempotente.
     try:
         import re as _re
         from .models import Persona
@@ -226,3 +246,22 @@ def _iniciar_base(app):
             db.session.commit()
     except Exception:
         db.session.rollback()
+
+
+def _backfill_inmobiliaria(inmo):
+    """Asigna a la inmobiliaria dada todos los registros que todavía no tengan
+    inmobiliaria_id. Idempotente: en cada arranque 'cura' lo que falte."""
+    if not inmo:
+        return
+    from sqlalchemy import text
+    tid = inmo.id
+    tablas = ["usuarios", "personas", "inmuebles", "contratos", "aumentos",
+              "pagos", "gas_estado", "recibos_manuales", "liquidaciones"]
+    for t in tablas:
+        try:
+            db.session.execute(
+                text(f"UPDATE {t} SET inmobiliaria_id = :tid "
+                     f"WHERE inmobiliaria_id IS NULL"), {"tid": tid})
+            db.session.commit()
+        except Exception:
+            db.session.rollback()

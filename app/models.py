@@ -26,6 +26,8 @@ class Usuario(UserMixin, db.Model):
     activo = db.Column(db.Boolean, default=True)
     # Obliga a cambiar la contraseña en el próximo ingreso (p.ej. admin inicial).
     must_change_password = db.Column(db.Boolean, default=False)
+    # Multiempresa: a qué inmobiliaria pertenece el usuario (None = superadmin).
+    inmobiliaria_id = db.Column(db.Integer, db.ForeignKey("inmobiliarias.id"), index=True)
     creado = db.Column(db.DateTime, default=datetime.utcnow)
 
     def set_password(self, password):
@@ -50,12 +52,68 @@ class Usuario(UserMixin, db.Model):
 
 
 # --------------------------------------------------------------------------- #
+#  Inmobiliaria (tenant del SaaS multiempresa)
+# --------------------------------------------------------------------------- #
+class Inmobiliaria(db.Model):
+    """Cada inmobiliaria es un 'tenant': ve y toca solo sus propios datos.
+
+    Por ahora se usa el fundamento (toda entidad pertenece a una inmobiliaria y
+    los datos actuales quedan asignados a la inmobiliaria #1). El filtrado de
+    aislamiento entre inmobiliarias se activa en el paso siguiente."""
+    __tablename__ = "inmobiliarias"
+
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(160), nullable=False, default="Mi Inmobiliaria")
+    slug = db.Column(db.String(60), unique=True)
+    cuit = db.Column(db.String(20))
+    direccion = db.Column(db.String(200))
+    localidad = db.Column(db.String(120))
+    telefono = db.Column(db.String(60))
+    email = db.Column(db.String(120))
+    logo_path = db.Column(db.String(300))
+    plan = db.Column(db.String(20), default="inicial")
+    activa = db.Column(db.Boolean, default=True)
+    creada = db.Column(db.DateTime, default=datetime.utcnow)
+
+    @staticmethod
+    def principal():
+        """La inmobiliaria por defecto (la primera). Durante la transición a
+        multiempresa, todos los datos pertenecen a esta."""
+        return Inmobiliaria.query.order_by(Inmobiliaria.id).first()
+
+    @staticmethod
+    def crear_inicial():
+        """Crea la inmobiliaria #1 si no existe, tomando los datos de Ajustes."""
+        if Inmobiliaria.query.first() is not None:
+            return Inmobiliaria.query.order_by(Inmobiliaria.id).first()
+        nombre = "Mi Inmobiliaria"
+        cuit = direccion = localidad = telefono = None
+        try:
+            a = Ajustes.query.first()
+            if a:
+                nombre = a.nombre or nombre
+                cuit, direccion = a.cuit, a.direccion
+                localidad, telefono = a.localidad, a.telefono
+        except Exception:
+            pass
+        inmo = Inmobiliaria(nombre=nombre, slug="principal", cuit=cuit,
+                            direccion=direccion, localidad=localidad, telefono=telefono)
+        db.session.add(inmo)
+        db.session.commit()
+        return inmo
+
+    def __repr__(self):
+        return f"<Inmobiliaria {self.nombre}>"
+
+
+# --------------------------------------------------------------------------- #
 #  Personas (propietarios e inquilinos)
 # --------------------------------------------------------------------------- #
 class Persona(db.Model):
     __tablename__ = "personas"
 
     id = db.Column(db.Integer, primary_key=True)
+    inmobiliaria_id = db.Column(db.Integer, db.ForeignKey("inmobiliarias.id"), index=True)
     nombre = db.Column(db.String(160), nullable=False)
     dni = db.Column(db.String(20))
     cuit = db.Column(db.String(20))
@@ -93,6 +151,7 @@ class Inmueble(db.Model):
     __tablename__ = "inmuebles"
 
     id = db.Column(db.Integer, primary_key=True)
+    inmobiliaria_id = db.Column(db.Integer, db.ForeignKey("inmobiliarias.id"), index=True)
     codigo = db.Column(db.String(20), unique=True)         # ej. DE17, CA3
     tipo = db.Column(db.String(40))                        # Casa, Departamento, Local...
     direccion = db.Column(db.String(200), nullable=False)
@@ -142,6 +201,7 @@ class Contrato(db.Model):
     __tablename__ = "contratos"
 
     id = db.Column(db.Integer, primary_key=True)
+    inmobiliaria_id = db.Column(db.Integer, db.ForeignKey("inmobiliarias.id"), index=True)
     numero = db.Column(db.String(30))                     # numeración interna
     inmueble_id = db.Column(db.Integer, db.ForeignKey("inmuebles.id"), nullable=False)
     inquilino_id = db.Column(db.Integer, db.ForeignKey("personas.id"), nullable=False)
@@ -244,6 +304,7 @@ class Aumento(db.Model):
     __tablename__ = "aumentos"
 
     id = db.Column(db.Integer, primary_key=True)
+    inmobiliaria_id = db.Column(db.Integer, db.ForeignKey("inmobiliarias.id"), index=True)
     contrato_id = db.Column(db.Integer, db.ForeignKey("contratos.id"), nullable=False)
     fecha_vigencia = db.Column(db.Date, nullable=False)
     precio_anterior = db.Column(db.Numeric(14, 2))
@@ -281,6 +342,7 @@ class Pago(db.Model):
     __tablename__ = "pagos"
 
     id = db.Column(db.Integer, primary_key=True)
+    inmobiliaria_id = db.Column(db.Integer, db.ForeignKey("inmobiliarias.id"), index=True)
     contrato_id = db.Column(db.Integer, db.ForeignKey("contratos.id"), nullable=False)
     numero = db.Column(db.Integer)                        # nro de pago dentro del contrato
     periodo_mes = db.Column(db.Integer)                   # 1-12
@@ -364,6 +426,7 @@ class GasEstado(db.Model):
     __tablename__ = "gas_estado"
 
     id = db.Column(db.Integer, primary_key=True)
+    inmobiliaria_id = db.Column(db.Integer, db.ForeignKey("inmobiliarias.id"), index=True)
     cuenta = db.Column(db.String(30), unique=True, nullable=False)  # N° de cliente (962500/01)
     titular = db.Column(db.String(160))
     direccion = db.Column(db.String(200))
@@ -390,6 +453,7 @@ class ReciboManual(db.Model):
     __tablename__ = "recibos_manuales"
 
     id = db.Column(db.Integer, primary_key=True)
+    inmobiliaria_id = db.Column(db.Integer, db.ForeignKey("inmobiliarias.id"), index=True)
     numero = db.Column(db.String(30))
     fecha = db.Column(db.Date)
     cliente = db.Column(db.String(160), nullable=False)
@@ -427,6 +491,7 @@ class Liquidacion(db.Model):
     __tablename__ = "liquidaciones"
 
     id = db.Column(db.Integer, primary_key=True)
+    inmobiliaria_id = db.Column(db.Integer, db.ForeignKey("inmobiliarias.id"), index=True)
     numero = db.Column(db.String(30))
     fecha = db.Column(db.Date)
     periodo_mes = db.Column(db.Integer)

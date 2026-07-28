@@ -30,10 +30,12 @@ Leyenda de "Quién": **Claude** = lo hago yo en el código · **Ale** = acción 
 ## Fase 2 · Núcleo multiempresa  ← **próximo bloque grande**
 
 - [x] ✅ Documento de diseño (`DISENO_MULTIEMPRESA.md`)
-- [ ] ⬜ Crear tabla `Inmobiliaria` y vincular `Usuario` — **Claude**
-- [ ] ⬜ `inmobiliaria_id` en todas las entidades + migrar datos actuales — **Claude**
-- [ ] ⬜ Filtro central de tenant (que ninguna consulta se olvide) — **Claude**
-- [ ] ⬜ Helper de acceso por ID con verificación de tenant — **Claude**
+- [x] ✅ Crear tabla `Inmobiliaria` y vincular `Usuario` (paso 1)
+- [x] ✅ `inmobiliaria_id` en todas las entidades + migrar datos actuales a la inmobiliaria #1 (backfill probado)
+- [x] ✅ Asignación automática de inmobiliaria al crear registros (Capa 2)
+- [ ] ⬜ Filtro central de tenant en las consultas (Capa 1, aislamiento de lectura) — **Claude**
+- [ ] ⬜ Helper de acceso por ID con verificación de tenant (Capa 3) — **Claude**
+- [ ] ⬜ Pasar `inmobiliaria_id` a NOT NULL + FK con nombre — **Claude**
 - [ ] ⬜ Pruebas **negativas** de aislamiento (no leer/editar/descargar ajeno) — **Claude**
 - [ ] ⬜ Config por inmobiliaria: logo, datos fiscales, mora, comisión, numeración — **Claude**
 - [ ] ⬜ Rol **superadmin** de plataforma — **Claude**
