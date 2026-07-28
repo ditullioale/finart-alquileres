@@ -57,6 +57,12 @@ def index():
                            ultima_actualizacion=ultima_actualizacion)
 
 
+@gas_bp.route("/react")
+@login_required
+def react():
+    return render_template("gas/react.html")
+
+
 @gas_bp.route("/importar", methods=["POST"])
 def importar():
     """Buzón para el robot de Litoral Gas: recibe el estado de deuda de las

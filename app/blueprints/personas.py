@@ -45,6 +45,18 @@ def react():
     return render_template("personas/react.html")
 
 
+@personas_bp.route("/react/nueva")
+@login_required
+def react_nueva():
+    return render_template("personas/form_react.html", pid=None)
+
+
+@personas_bp.route("/react/<int:pid>/editar")
+@login_required
+def react_editar(pid):
+    return render_template("personas/form_react.html", pid=pid)
+
+
 def _leer_form(persona):
     persona.nombre = request.form.get("nombre", "").strip()
     persona.dni = request.form.get("dni", "").strip()

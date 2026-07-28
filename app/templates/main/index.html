@@ -2,7 +2,10 @@
 {% from "_icons.html" import icon %}
 {% block title %}Inicio{% endblock %}
 {% block content %}
-<h1>Panel principal</h1>
+<div class="pagehead">
+  <h1>Panel principal</h1>
+  <a class="btn sec" href="{{ url_for('main.inicio_react') }}" title="Versión nueva, más rápida">⚛ Probar versión nueva</a>
+</div>
 
 <div class="cards">
   <a class="card ci" href="{{ url_for('inmuebles.listar') }}">

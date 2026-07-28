@@ -51,6 +51,18 @@ def react():
     return render_template("inmuebles/react.html")
 
 
+@inmuebles_bp.route("/react/nuevo")
+@login_required
+def react_nuevo():
+    return render_template("inmuebles/form_react.html", iid=None)
+
+
+@inmuebles_bp.route("/react/<int:iid>/editar")
+@login_required
+def react_editar(iid):
+    return render_template("inmuebles/form_react.html", iid=iid)
+
+
 def _leer_form(inmueble):
     inmueble.codigo = request.form.get("codigo", "").strip()
     inmueble.tipo = request.form.get("tipo", "").strip()

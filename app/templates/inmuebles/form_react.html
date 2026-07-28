@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Editar' if iid else 'Nuevo' }} inmueble{% endblock %}
+{% block content %}
+<div id="react-form-inmueble"{% if iid %} data-id="{{ iid }}"{% endif %}><p class="hint">Cargando…</p></div>
+<script type="module" src="{{ url_for('static', filename='js/react/bundle.js') }}"></script>
+{% endblock %}

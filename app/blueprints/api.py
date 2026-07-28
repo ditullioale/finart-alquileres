@@ -4,14 +4,16 @@ Convención: rutas bajo /api que devuelven JSON. Usan la misma sesión (cookie)
 y protección CSRF que el resto de la app. Los GET no requieren token; los POST
 lo reciben en el header X-CSRFToken (el front lo agrega automáticamente).
 """
-from datetime import date
+import json
+from datetime import date, timedelta
 
 from flask import Blueprint, jsonify, request, url_for
 from flask_login import login_required
 
 from .. import db
-from ..models import Contrato, Persona, Inmueble
-from ..utils import MESES_ES, link_whatsapp, whatsapp_valido
+from ..models import Contrato, Persona, Inmueble, Pago, GasEstado
+from ..utils import (MESES_ES, link_whatsapp, whatsapp_valido, normalizar_whatsapp,
+                     proximo_ajuste)
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -217,3 +219,310 @@ def contratos_rescindir(cid):
         c.inmueble.estado = "Disponible"
     db.session.commit()
     return jsonify(ok=True, estado="Rescindido")
+
+
+# --------------------------------------------------------------------------- #
+#  Sprint 3 — Panel de inicio y control de gas
+# --------------------------------------------------------------------------- #
+@api_bp.route("/dashboard")
+@login_required
+def dashboard():
+    hoy = date.today()
+    stats = dict(
+        personas=Persona.query.count(),
+        propietarios=Persona.query.filter_by(es_propietario=True).count(),
+        inquilinos=Persona.query.filter_by(es_inquilino=True).count(),
+        inmuebles=Inmueble.query.count(),
+        alquilados=Inmueble.query.filter_by(estado="Alquilado").count(),
+        contratos_vigentes=Contrato.query.filter_by(estado="Vigente").count(),
+    )
+    deuda = sum(float(p.saldo or 0) for p in Pago.query.all())
+    aumentos_pend = 0
+    for c in Contrato.query.filter_by(estado="Vigente").all():
+        if c.metodo_ajuste == "sin_ajuste" or not c.ajuste_cada_meses:
+            continue
+        prox = proximo_ajuste(c.fecha_inicio, c.ajuste_cada_meses, len(c.aumentos))
+        if prox and prox <= hoy:
+            aumentos_pend += 1
+
+    limite = hoy + timedelta(days=60)
+    por_vencer = []
+    q = (Contrato.query
+         .filter(Contrato.estado == "Vigente",
+                 Contrato.fecha_fin.isnot(None),
+                 Contrato.fecha_fin >= hoy,
+                 Contrato.fecha_fin <= limite)
+         .order_by(Contrato.fecha_fin).all())
+    for c in q:
+        dias = (c.fecha_fin - hoy).days
+        por_vencer.append(dict(
+            id=c.id, fecha_fin=c.fecha_fin.strftime("%d/%m/%Y"), dias=dias,
+            inquilino=(c.inquilino.nombre if c.inquilino else ""),
+            inmueble=(c.inmueble.direccion if c.inmueble else ""),
+            precio_txt=f"{_simbolo(c.moneda)} {_money(c.precio_actual)}",
+            ver_url=url_for("contratos.ver", cid=c.id),
+        ))
+
+    return jsonify(
+        stats=stats,
+        pendientes=dict(deuda=deuda, deuda_txt=_money(deuda),
+                        aumentos=aumentos_pend, vencen=len(por_vencer)),
+        por_vencer=por_vencer,
+        links=dict(
+            inmuebles=url_for("inmuebles.listar"),
+            alquilados=url_for("inmuebles.listar", estado="Alquilado"),
+            contratos=url_for("contratos.listar", estado="Vigente"),
+            propietarios=url_for("personas.listar", rol="propietario"),
+            inquilinos=url_for("personas.listar", rol="inquilino"),
+            deuda=url_for("cobros.index"),
+            aumentos=url_for("aumentos.index"),
+            nuevo_contrato=url_for("contratos.nuevo"),
+            generar_contrato=url_for("contratos.generador"),
+            nuevo_inmueble=url_for("inmuebles.nuevo"),
+        ),
+    )
+
+
+@api_bp.route("/gas")
+@login_required
+def gas():
+    inmuebles = Inmueble.query.filter(Inmueble.cuenta_gas.isnot(None),
+                                      Inmueble.cuenta_gas != "").all()
+    estados = {g.cuenta: g for g in GasEstado.query.all()}
+    filas = []
+    con_deuda = 0
+    deuda_total = 0.0
+    ultima = None
+    for inm in inmuebles:
+        g = estados.get((inm.cuenta_gas or "").strip())
+        cont = Contrato.query.filter_by(inmueble_id=inm.id, estado="Vigente").first()
+        inquilino = cont.inquilino.nombre if (cont and cont.inquilino) else ""
+        if g:
+            if g.tiene_deuda:
+                con_deuda += 1
+                deuda_total += float(g.deuda_total or 0)
+            if g.actualizado and (ultima is None or g.actualizado > ultima):
+                ultima = g.actualizado
+        filas.append(dict(
+            inmueble_id=inm.id, direccion=inm.direccion or "", codigo=inm.codigo or "",
+            editar_url=url_for("inmuebles.editar", iid=inm.id),
+            inquilino=inquilino, cuenta=inm.cuenta_gas or "",
+            tiene_datos=bool(g), gas_id=(g.id if g else None),
+            tiene_deuda=bool(g.tiene_deuda) if g else False,
+            deuda_txt=(_money(g.deuda_total) if (g and g.tiene_deuda) else None),
+            vencimiento=(g.ultimo_vencimiento.strftime("%d/%m/%Y")
+                         if (g and g.ultimo_vencimiento) else None),
+        ))
+    filas.sort(key=lambda f: (0 if f["tiene_deuda"] else 1, f["direccion"]))
+
+    asignadas = {(i.cuenta_gas or "").strip() for i in inmuebles}
+    sin_asignar = []
+    for g in estados.values():
+        if g.cuenta in asignadas:
+            continue
+        sin_asignar.append(dict(
+            gas_id=g.id, cuenta=g.cuenta, titular=g.titular or "",
+            direccion=g.direccion or "", tiene_deuda=bool(g.tiene_deuda),
+        ))
+    disponibles = [dict(id=i.id, texto=((i.codigo + " · " if i.codigo else "") + (i.direccion or "")))
+                   for i in (Inmueble.query
+                             .filter(db.or_(Inmueble.cuenta_gas.is_(None), Inmueble.cuenta_gas == ""))
+                             .order_by(Inmueble.direccion).all())]
+
+    return jsonify(
+        filas=filas, sin_asignar=sin_asignar, disponibles=disponibles,
+        total=len(inmuebles), con_deuda=con_deuda, deuda_total=deuda_total,
+        deuda_total_txt=_money(deuda_total),
+        actualizado=(ultima.strftime("%d/%m/%Y %H:%M") if ultima else None),
+    )
+
+
+@api_bp.route("/gas/estado")
+@login_required
+def gas_estado():
+    """Facturas de una cuenta (para la ventanita 'Ver gas')."""
+    cuenta = (request.args.get("cuenta") or "").strip()
+    g = GasEstado.query.filter_by(cuenta=cuenta).first()
+    if not g:
+        return jsonify(ok=False, cuenta=cuenta)
+    facturas = []
+    try:
+        parsed = json.loads(g.detalle) if g.detalle else []
+        if isinstance(parsed, list):
+            facturas = parsed
+    except Exception:
+        facturas = []
+    return jsonify(ok=True, cuenta=g.cuenta, titular=g.titular,
+                   tiene_deuda=bool(g.tiene_deuda),
+                   deuda_total=float(g.deuda_total or 0),
+                   deuda_total_txt=_money(g.deuda_total), facturas=facturas,
+                   actualizado=(g.actualizado.strftime("%d/%m/%Y %H:%M")
+                                if g.actualizado else None))
+
+
+@api_bp.route("/gas/asignar", methods=["POST"])
+@login_required
+def gas_asignar():
+    d = request.get_json(silent=True) or {}
+    cuenta = (d.get("cuenta") or "").strip()
+    inm = db.session.get(Inmueble, int(d.get("inmueble_id") or 0))
+    if not cuenta or not inm:
+        return jsonify(ok=False, error="Faltan datos."), 400
+    inm.cuenta_gas = cuenta
+    db.session.commit()
+    return jsonify(ok=True, inmueble=inm.direccion)
+
+
+@api_bp.route("/gas/<int:gid>/eliminar", methods=["POST"])
+@login_required
+def gas_eliminar(gid):
+    g = db.session.get(GasEstado, gid)
+    if not g:
+        return jsonify(ok=False, error="No se encontró el suministro."), 404
+    db.session.delete(g)
+    db.session.commit()
+    return jsonify(ok=True)
+
+
+# --------------------------------------------------------------------------- #
+#  Sprint 4 — Guardado de formularios (personas e inmuebles)
+# --------------------------------------------------------------------------- #
+def _persona_dict(p):
+    return dict(id=p.id, nombre=p.nombre or "", dni=p.dni or "", cuit=p.cuit or "",
+                domicilio=p.domicilio or "", localidad=p.localidad or "",
+                cond_iva=p.cond_iva or "Consumidor Final",
+                telefono=p.telefono or "", email=p.email or "",
+                es_propietario=bool(p.es_propietario),
+                es_inquilino=bool(p.es_inquilino),
+                observaciones=p.observaciones or "")
+
+
+@api_bp.route("/personas/nueva", methods=["GET"])
+@login_required
+def personas_nueva():
+    """Datos iniciales para el formulario de alta."""
+    return jsonify(persona=_persona_dict(Persona()))
+
+
+@api_bp.route("/personas/<int:pid>", methods=["GET"])
+@login_required
+def personas_uno(pid):
+    p = db.session.get(Persona, pid)
+    if not p:
+        return jsonify(ok=False, error="No se encontró la persona."), 404
+    return jsonify(persona=_persona_dict(p))
+
+
+@api_bp.route("/personas/guardar", methods=["POST"])
+@api_bp.route("/personas/<int:pid>/guardar", methods=["POST"])
+@login_required
+def personas_guardar(pid=None):
+    d = request.get_json(silent=True) or {}
+    p = db.session.get(Persona, pid) if pid else Persona()
+    if pid and not p:
+        return jsonify(ok=False, error="No se encontró la persona."), 404
+    nombre = (d.get("nombre") or "").strip()
+    if not nombre:
+        return jsonify(ok=False, error="El nombre es obligatorio."), 400
+    tel = (d.get("telefono") or "").strip()
+    if tel and normalizar_whatsapp(tel) is None:
+        return jsonify(ok=False, error=("El teléfono no parece válido para WhatsApp. "
+                                        "Cargalo con código de área.")), 400
+    p.nombre = nombre
+    p.dni = (d.get("dni") or "").strip()
+    p.cuit = (d.get("cuit") or "").strip()
+    p.domicilio = (d.get("domicilio") or "").strip()
+    p.localidad = (d.get("localidad") or "").strip()
+    p.cond_iva = (d.get("cond_iva") or "").strip()
+    p.telefono = tel
+    p.email = (d.get("email") or "").strip()
+    p.es_propietario = bool(d.get("es_propietario"))
+    p.es_inquilino = bool(d.get("es_inquilino"))
+    p.observaciones = (d.get("observaciones") or "").strip()
+    if not pid:
+        db.session.add(p)
+    db.session.commit()
+    return jsonify(ok=True, id=p.id, redirect=url_for("personas.listar"))
+
+
+TIPOS_INM = ["Casa", "Departamento", "Local", "Campo", "Cochera", "Oficina", "Terreno"]
+ESTADOS_INM = ["Disponible", "Alquilado", "Reservado"]
+
+
+def _num(v, entero=False):
+    s = str(v or "").strip().replace(".", "").replace(",", ".")
+    if s == "":
+        return None
+    try:
+        return int(float(s)) if entero else float(s)
+    except ValueError:
+        return None
+
+
+def _inmueble_dict(i):
+    return dict(id=i.id, codigo=i.codigo or "", tipo=i.tipo or "",
+                direccion=i.direccion or "", localidad=i.localidad or "",
+                provincia=i.provincia or "", barrio=i.barrio or "",
+                estado=i.estado or "Disponible", moneda=i.moneda or "Pesos",
+                cuenta_gas=i.cuenta_gas or "", descripcion=i.descripcion or "",
+                observaciones=i.observaciones or "",
+                dormitorios=(i.dormitorios if i.dormitorios is not None else ""),
+                banos=(i.banos if i.banos is not None else ""),
+                precio_referencia=(i.precio_referencia if i.precio_referencia is not None else ""),
+                comision_pct=(i.comision_pct if i.comision_pct is not None else ""),
+                propietario_id=(i.propietario_id or ""))
+
+
+def _opciones_inm():
+    props = [dict(id=p.id, nombre=p.nombre)
+             for p in Persona.query.filter_by(es_propietario=True).order_by(Persona.nombre).all()]
+    return dict(propietarios=props, tipos=TIPOS_INM, estados=ESTADOS_INM)
+
+
+@api_bp.route("/inmuebles/nuevo", methods=["GET"])
+@login_required
+def inmuebles_nuevo():
+    return jsonify(inmueble=_inmueble_dict(Inmueble()), **_opciones_inm())
+
+
+@api_bp.route("/inmuebles/<int:iid>", methods=["GET"])
+@login_required
+def inmuebles_uno(iid):
+    i = db.session.get(Inmueble, iid)
+    if not i:
+        return jsonify(ok=False, error="No se encontró el inmueble."), 404
+    return jsonify(inmueble=_inmueble_dict(i), **_opciones_inm())
+
+
+@api_bp.route("/inmuebles/guardar", methods=["POST"])
+@api_bp.route("/inmuebles/<int:iid>/guardar", methods=["POST"])
+@login_required
+def inmuebles_guardar(iid=None):
+    d = request.get_json(silent=True) or {}
+    i = db.session.get(Inmueble, iid) if iid else Inmueble()
+    if iid and not i:
+        return jsonify(ok=False, error="No se encontró el inmueble."), 404
+    direccion = (d.get("direccion") or "").strip()
+    if not direccion:
+        return jsonify(ok=False, error="La dirección es obligatoria."), 400
+    i.codigo = (d.get("codigo") or "").strip()
+    i.tipo = (d.get("tipo") or "").strip()
+    i.direccion = direccion
+    i.localidad = (d.get("localidad") or "").strip()
+    i.provincia = (d.get("provincia") or "").strip()
+    i.barrio = (d.get("barrio") or "").strip()
+    i.estado = (d.get("estado") or "Disponible").strip()
+    i.moneda = (d.get("moneda") or "Pesos").strip()
+    i.cuenta_gas = (d.get("cuenta_gas") or "").strip()
+    i.descripcion = (d.get("descripcion") or "").strip()
+    i.observaciones = (d.get("observaciones") or "").strip()
+    i.dormitorios = _num(d.get("dormitorios"), entero=True)
+    i.banos = _num(d.get("banos"), entero=True)
+    i.precio_referencia = _num(d.get("precio_referencia"))
+    i.comision_pct = _num(d.get("comision_pct"))
+    pid = d.get("propietario_id")
+    i.propietario_id = int(pid) if pid else None
+    if not iid:
+        db.session.add(i)
+    db.session.commit()
+    return jsonify(ok=True, id=i.id, redirect=url_for("inmuebles.listar"))

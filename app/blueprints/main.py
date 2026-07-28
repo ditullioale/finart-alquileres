@@ -59,3 +59,10 @@ def acerca():
 def react_test():
     """Página de prueba del pipeline React (Sprint 0)."""
     return render_template("main/react_test.html")
+
+
+@main_bp.route("/inicio/react")
+@login_required
+def inicio_react():
+    """Panel principal en React (Sprint 3)."""
+    return render_template("main/react_home.html")

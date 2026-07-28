@@ -31,7 +31,7 @@ export default function ListaInmuebles() {
   })
 
   const columns = [
-    { key: 'direccion', label: 'Dirección', render: (i) => <a href={i.editar_url}><b>{i.direccion}</b></a> },
+    { key: 'direccion', label: 'Dirección', render: (i) => <a href={`/inmuebles/react/${i.id}/editar`}><b>{i.direccion}</b></a> },
     { key: 'tipo', label: 'Tipo', render: (i) => i.tipo || '—' },
     { key: 'localidad', label: 'Localidad', render: (i) => i.localidad || '—' },
     { key: 'estado', label: 'Estado', render: (i) => <span className={`badge ${i.estado.toLowerCase()}`}>{i.estado}</span> },
@@ -40,7 +40,7 @@ export default function ListaInmuebles() {
     {
       key: 'acc', label: '', cls: 'actions', sortable: false, render: (i) => (
         <>
-          <a href={i.editar_url}>Editar</a>
+          <a href={`/inmuebles/react/${i.id}/editar`}>Editar</a>
           <button className="link-danger" type="button" onClick={() => eliminar(i)}>Eliminar</button>
         </>
       ),
@@ -52,7 +52,7 @@ export default function ListaInmuebles() {
       <div className="pagehead">
         <div><h1>Inmuebles</h1><p className="sub">Versión nueva (React).</p></div>
         <div className="quick">
-          <a className="btn" href="/inmuebles/nuevo">+ Nuevo inmueble</a>
+          <a className="btn" href="/inmuebles/react/nuevo">+ Nuevo inmueble</a>
           <a className="btn sec" href="/inmuebles/">Versión clásica</a>
         </div>
       </div>

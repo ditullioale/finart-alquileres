@@ -33,7 +33,7 @@ export default function ListaPersonas() {
   })
 
   const columns = [
-    { key: 'nombre', label: 'Nombre', render: (p) => <a href={p.editar_url}><b>{p.nombre}</b></a> },
+    { key: 'nombre', label: 'Nombre', render: (p) => <a href={`/personas/react/${p.id}/editar`}><b>{p.nombre}</b></a> },
     { key: 'dni', label: 'DNI', render: (p) => p.dni || '—' },
     { key: 'cuit', label: 'CUIT', render: (p) => p.cuit || '—' },
     { key: 'roles', label: 'Rol', sortable: false },
@@ -42,7 +42,7 @@ export default function ListaPersonas() {
     {
       key: 'acc', label: '', cls: 'actions', sortable: false, render: (p) => (
         <>
-          <a href={p.editar_url}>Editar</a>
+          <a href={`/personas/react/${p.id}/editar`}>Editar</a>
           <WaIcon href={p.wa} title={`Hola ${p.nombre}`} />
           <button className="link-danger" type="button" onClick={() => eliminar(p)}>Eliminar</button>
         </>
@@ -56,7 +56,7 @@ export default function ListaPersonas() {
         <div><h1>Personas</h1><p className="sub">Versión nueva (React).</p></div>
         <div className="quick">
           <a className="btn sec" href="/personas/telefonos">Revisar teléfonos</a>
-          <a className="btn" href="/personas/nueva">+ Nueva persona</a>
+          <a className="btn" href="/personas/react/nueva">+ Nueva persona</a>
           <a className="btn sec" href="/personas/">Versión clásica</a>
         </div>
       </div>
