@@ -1,7 +1,10 @@
 """Application factory del sistema de gestión de alquileres."""
+import os
+
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
+from flask_wtf import CSRFProtect
 
 from config import Config
 
@@ -9,14 +12,21 @@ db = SQLAlchemy()
 login_manager = LoginManager()
 login_manager.login_view = "auth.login"
 login_manager.login_message = "Iniciá sesión para continuar."
+csrf = CSRFProtect()
 
 
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
+    # En pruebas automáticas se desactiva la verificación CSRF (los tests no
+    # mandan token). En producción queda activa.
+    if os.environ.get("TESTING"):
+        app.config["WTF_CSRF_ENABLED"] = False
+
     db.init_app(app)
     login_manager.init_app(app)
+    csrf.init_app(app)
 
     from .models import Usuario
 
@@ -51,6 +61,9 @@ def create_app(config_class=Config):
     app.register_blueprint(usuarios_bp)
     app.register_blueprint(gas_bp)
 
+    # El buzón del robot de gas usa su propio token (X-Gas-Token), no CSRF.
+    csrf.exempt(app.view_functions["gas.importar"])
+
     # Aviso global: cantidad de aumentos vencidos (badge en el menú).
     @app.context_processor
     def _aumentos_pendientes():
@@ -74,6 +87,11 @@ def create_app(config_class=Config):
             return dict(aumentos_pendientes=n)
         except Exception:
             return dict(aumentos_pendientes=0)
+
+    # Versión de la app disponible en todas las plantillas.
+    @app.context_processor
+    def _version():
+        return dict(app_version=app.config.get("APP_VERSION", ""))
 
     # Filtro para mostrar montos con formato argentino
     @app.template_filter("money")

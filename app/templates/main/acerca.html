@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Acerca de{% endblock %}
+{% block content %}
+<div class="pagehead"><h1>Acerca del sistema</h1></div>
+
+<div class="panel" style="max-width:560px">
+  <h2 style="display:flex;align-items:center;gap:9px">🏠 Gestión de Alquileres</h2>
+  <p style="margin:6px 0 0">Sistema de administración de alquileres: contratos, cobranzas,
+  aumentos, liquidaciones, recibos y control de gas.</p>
+
+  <div class="grid2" style="margin-top:16px">
+    <div><span class="k">Versión</span><br><b>{{ app_version }}</b></div>
+    <div><span class="k">Usuario actual</span><br>{{ current_user.nombre or current_user.username }}</div>
+  </div>
+
+  <p class="hint" style="margin-top:16px">Producto en desarrollo continuo. Ante cualquier problema o
+  sugerencia, guardá una copia con el botón de respaldo (en Ajustes) antes de cambios importantes.</p>
+</div>
+{% endblock %}

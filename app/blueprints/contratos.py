@@ -156,6 +156,19 @@ def _marcar_alquilado(c: Contrato):
             inm.estado = "Alquilado"
 
 
+def _liberar_si_sin_contrato(inmueble_id, excluir_id=None):
+    """Marca un inmueble como Disponible si ya no tiene ningún contrato vigente."""
+    inm = db.session.get(Inmueble, inmueble_id)
+    if not inm:
+        return
+    q = Contrato.query.filter(Contrato.inmueble_id == inmueble_id,
+                              Contrato.estado == "Vigente")
+    if excluir_id:
+        q = q.filter(Contrato.id != excluir_id)
+    if q.first() is None and inm.estado == "Alquilado":
+        inm.estado = "Disponible"
+
+
 @contratos_bp.route("/nuevo", methods=["GET", "POST"])
 @login_required
 def nuevo():
@@ -189,6 +202,7 @@ def nuevo():
 def editar(cid):
     c = db.session.get(Contrato, cid) or abort(404)
     if request.method == "POST":
+        inm_anterior = c.inmueble_id
         _leer_form(c)
         _leer_fiadores(c)
         error = _validar(c)
@@ -196,6 +210,9 @@ def editar(cid):
             flash(error, "error")
             return render_template("contratos/form.html", c=c, **_opciones())
         _marcar_alquilado(c)
+        # Si se cambió el inmueble, liberar el anterior si ya no tiene contrato vigente.
+        if inm_anterior and inm_anterior != c.inmueble_id:
+            _liberar_si_sin_contrato(inm_anterior, excluir_id=c.id)
         db.session.commit()
         flash("Contrato actualizado.", "ok")
         return redirect(url_for("contratos.ver", cid=c.id))
@@ -274,6 +291,29 @@ def _validar(c: Contrato):
         return "Elegí el índice para el método por índice."
     if c.metodo_ajuste == "porcentaje" and not c.porcentaje_ajuste:
         return "Indicá el porcentaje de ajuste."
+    # Fechas coherentes.
+    if c.fecha_fin and c.fecha_inicio and c.fecha_fin <= c.fecha_inicio:
+        return "La fecha de fin debe ser posterior a la de inicio."
+    if c.dia_vencimiento is not None and not (1 <= c.dia_vencimiento <= 31):
+        return "El día de vencimiento debe estar entre 1 y 31."
+    # Un solo contrato Vigente por inmueble.
+    if c.estado == "Vigente" and c.inmueble_id:
+        q = Contrato.query.filter(Contrato.inmueble_id == c.inmueble_id,
+                                  Contrato.estado == "Vigente")
+        if c.id:
+            q = q.filter(Contrato.id != c.id)
+        otro = q.first()
+        if otro:
+            inq = otro.inquilino.nombre if otro.inquilino else "otro inquilino"
+            return (f"Ese inmueble ya tiene un contrato vigente (con {inq}). "
+                    "Finalizá o rescindí el anterior antes de cargar uno nuevo.")
+    # Número de contrato único (si se cargó).
+    if c.numero:
+        q = Contrato.query.filter(Contrato.numero == c.numero)
+        if c.id:
+            q = q.filter(Contrato.id != c.id)
+        if q.first():
+            return f"Ya existe un contrato con el número {c.numero}. Usá otro."
     return None
 
 

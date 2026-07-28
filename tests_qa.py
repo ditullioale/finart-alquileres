@@ -10,6 +10,7 @@ Imprime un resumen con PASA/FALLA por cada caso.
 import os
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 os.environ.setdefault("SECRET_KEY", "qa-test")
+os.environ["TESTING"] = "1"   # desactiva CSRF en las pruebas
 
 import sys
 from datetime import date

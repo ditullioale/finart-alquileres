@@ -2,7 +2,7 @@
 from datetime import date
 
 from flask import (Blueprint, render_template, redirect, url_for, request,
-                   flash, abort, jsonify)
+                   flash, abort, jsonify, make_response)
 from flask_login import login_required
 
 from .. import db
@@ -147,6 +147,52 @@ def index():
 # --------------------------------------------------------------------------- #
 #  Detalle de pagos por contrato
 # --------------------------------------------------------------------------- #
+@cobros_bp.route("/exportar")
+@login_required
+def exportar():
+    """Exporta el panel de cobranzas del mes a Excel."""
+    import pandas as pd
+    from io import BytesIO
+    hoy = date.today()
+    mes = parse_num(request.args.get("mes"), entero=True) or hoy.month
+    anio = parse_num(request.args.get("anio"), entero=True) or hoy.year
+    filas = []
+    tot_esp = tot_cob = tot_saldo = 0.0
+    for c in Contrato.query.filter_by(estado="Vigente").all():
+        pago = next((p for p in c.pagos
+                     if p.periodo_mes == mes and p.periodo_anio == anio), None)
+        esperado = float(c.precio_actual or c.precio_inicial or 0)
+        estado = pago.estado if pago else "Sin cobrar"
+        cobrado = float(pago.pagado or 0) if pago else 0.0
+        saldo = float(pago.saldo or 0) if pago else esperado
+        tot_esp += esperado; tot_cob += cobrado
+        if estado != "Pagado":
+            tot_saldo += saldo
+        filas.append({
+            "Inquilino": c.inquilino.nombre if c.inquilino else "",
+            "Inmueble": c.inmueble.direccion if c.inmueble else "",
+            "Localidad": (c.inmueble.localidad if c.inmueble else "") or "",
+            "Propietario": c.propietario.nombre if c.propietario else "",
+            "A cobrar": esperado, "Cobrado": cobrado, "Saldo": saldo,
+            "Estado": estado, "Forma de pago": (pago.forma_pago if pago else ""),
+            "Fecha de pago": (pago.fecha_pago.strftime("%d/%m/%Y")
+                              if pago and pago.fecha_pago else ""),
+        })
+    filas.append({"Inquilino": "TOTALES", "A cobrar": tot_esp,
+                  "Cobrado": tot_cob, "Saldo": tot_saldo})
+    df = pd.DataFrame(filas)
+    buf = BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as xl:
+        df.to_excel(xl, sheet_name="Cobranzas", index=False)
+    buf.seek(0)
+    nombre = f"Cobranzas_{MESES_ES[mes]}_{anio}.xlsx"
+    resp = make_response(buf.read())
+    resp.headers["Content-Type"] = ("application/vnd.openxmlformats-officedocument."
+                                    "spreadsheetml.sheet")
+    resp.headers["Content-Disposition"] = f'attachment; filename="{nombre}"'
+    return resp
+
+
 @cobros_bp.route("/recordatorios")
 @login_required
 def recordatorios():

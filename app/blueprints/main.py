@@ -46,3 +46,9 @@ def index():
                   "vencen": len(por_vencer)}
     return render_template("main/index.html", stats=stats, pendientes=pendientes,
                            por_vencer=por_vencer, hoy=hoy)
+
+
+@main_bp.route("/acerca")
+@login_required
+def acerca():
+    return render_template("main/acerca.html")

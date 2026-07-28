@@ -51,10 +51,20 @@ def _default_sqlite_path():
 
 
 class Config:
-    SECRET_KEY = os.environ.get("SECRET_KEY", "cambiar-esta-clave-en-produccion")
+    # Clave secreta de sesión. Ideal: definir la variable SECRET_KEY en el entorno
+    # (Railway). Si no está, se genera una aleatoria fuerte para no dejar una débil
+    # por defecto (las sesiones se reinician en cada arranque hasta que la definas).
+    SECRET_KEY = os.environ.get("SECRET_KEY")
+    if not SECRET_KEY:
+        import secrets
+        SECRET_KEY = secrets.token_hex(32)
+        print("AVISO: SECRET_KEY no está definida; usé una aleatoria. "
+              "Definí SECRET_KEY en las variables de entorno para sesiones estables.")
 
     SQLALCHEMY_DATABASE_URI = _database_uri()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    APP_VERSION = "1.0.0"
 
     # Datos de la inmobiliaria (se usan en recibos y liquidaciones).
     INMOBILIARIA_NOMBRE = os.environ.get("INMOBILIARIA_NOMBRE", "Mi Inmobiliaria")
