@@ -18,6 +18,69 @@ from ..utils import (MESES_ES, link_whatsapp, whatsapp_valido, normalizar_whatsa
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
+_BCRA_SIT = {
+    1: "Normal / al día", 2: "Riesgo bajo (seguimiento especial)",
+    3: "Riesgo medio (con problemas)", 4: "Riesgo alto (alto riesgo de insolvencia)",
+    5: "Irrecuperable", 6: "Irrecuperable por disposición técnica",
+}
+
+
+@api_bp.route("/bcra/<cuit>")
+@login_required
+def bcra(cuit):
+    """Situación crediticia de un CUIT según la Central de Deudores del BCRA
+    (API pública y gratuita). Devuelve la peor situación y el detalle por entidad
+    del período más reciente."""
+    import ssl
+    import urllib.request
+    import urllib.error
+
+    c = "".join(ch for ch in (cuit or "") if ch.isdigit())
+    if len(c) != 11:
+        return jsonify(ok=False, error="El CUIT/CUIL debe tener 11 dígitos."), 400
+
+    url = f"https://api.bcra.gob.ar/CentralDeDeudores/v1.0/Deudas/{c}"
+
+    def _fetch(ctx):
+        req = urllib.request.Request(url, headers={"User-Agent": "FINART/1.0"})
+        with urllib.request.urlopen(req, timeout=12, context=ctx) as r:
+            return json.loads(r.read().decode("utf-8"))
+
+    try:
+        try:
+            data = _fetch(None)                      # validando certificado
+        except ssl.SSLError:
+            unctx = ssl.create_default_context()      # fallback sin verificar
+            unctx.check_hostname = False
+            unctx.verify_mode = ssl.CERT_NONE
+            data = _fetch(unctx)
+    except urllib.error.HTTPError as e:
+        if e.code in (400, 404):
+            return jsonify(ok=True, sin_datos=True, cuit=c)
+        return jsonify(ok=False, error=f"El BCRA respondió con error {e.code}."), 502
+    except Exception:
+        return jsonify(ok=False, error="No se pudo consultar el BCRA en este momento."), 502
+
+    res = (data or {}).get("results") or {}
+    periodos = res.get("periodos") or []
+    if not periodos:
+        return jsonify(ok=True, sin_datos=True, cuit=c,
+                       denominacion=res.get("denominacion"))
+    per = periodos[0]
+    ents = per.get("entidades") or []
+    peor = max((e.get("situacion") or 1) for e in ents) if ents else 1
+    total = sum(float(e.get("monto") or 0) for e in ents)
+    entidades = [dict(
+        entidad=e.get("entidad"), situacion=e.get("situacion") or 1,
+        situacion_texto=_BCRA_SIT.get(e.get("situacion") or 1, str(e.get("situacion"))),
+        monto=float(e.get("monto") or 0), dias_atraso=e.get("diasAtrasoPago") or 0,
+    ) for e in ents]
+    entidades.sort(key=lambda x: (-x["situacion"], -x["monto"]))
+    return jsonify(ok=True, cuit=c, denominacion=res.get("denominacion"),
+                   periodo=per.get("periodo"), peor_situacion=peor,
+                   peor_situacion_texto=_BCRA_SIT.get(peor, str(peor)),
+                   total=total, entidades=entidades)
+
 
 def _simbolo(moneda):
     return "US$" if (moneda or "").strip().lower().startswith("d") else "$"

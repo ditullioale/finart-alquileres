@@ -121,8 +121,7 @@
           <button type="button" class="btn sec mini" onclick="calcCuit('loc')" title="Calcular desde el DNI">Averiguar</button>
         </div>
         <div class="tools">
-          <a href="https://micuilonline.com.ar/averiguar-cuil-cuit" target="_blank" rel="noopener">🔎 Buscar CUIT online</a>
-          <a onclick="verBcra('loc')">🏦 Situación BCRA</a>
+          <a onclick="verBcra('loc')">🏦 Ver situación crediticia (BCRA)</a>
         </div>
         <label>Email (domicilio especial)</label><input id="locEmail">
         <label>Domicilio</label><input id="locDom" placeholder="calle ... de la localidad de ...">
@@ -148,8 +147,7 @@
           <button type="button" class="btn sec mini" onclick="calcCuit('lat')" title="Calcular desde el DNI y el género">Averiguar</button>
         </div>
         <div class="tools">
-          <a href="https://micuilonline.com.ar/averiguar-cuil-cuit" target="_blank" rel="noopener">🔎 Buscar CUIT online</a>
-          <a onclick="verBcra('lat')">🏦 Situación BCRA</a>
+          <a onclick="verBcra('lat')">🏦 Ver situación crediticia (BCRA)</a>
         </div>
         <label>Domicilio</label><input id="latDom">
         <div id="coLocatarios"></div>
@@ -235,6 +233,7 @@
     <!-- ================= OUTPUT ================= -->
     <div>
       <div id="valPanel" class="valPanel" style="display:none"></div>
+      <div id="bcraPanel" class="valPanel" style="display:none"></div>
       <div id="aiPanel" class="valPanel" style="display:none"></div>
       <div class="out">
         <div class="toolbar">
@@ -633,10 +632,28 @@ function calcCuit(who){
   if(!cuit){alert('Cargá primero el DNI (7 u 8 dígitos).');return;}
   document.getElementById(who==='loc'?'locCuit':'latCuil').value=cuit;
 }
-function verBcra(who){
+function _plata(n){ return (n||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+async function verBcra(who){
   var cuit=_digs(document.getElementById(who==='loc'?'locCuit':'latCuil').value);
-  if(cuit.length!==11){alert('Primero completá o averiguá el CUIT (11 dígitos).');return;}
-  window.open('https://www.bcra.gob.ar/BCRAyVos/situacion_crediticia.asp','_blank');
+  var panel=document.getElementById('bcraPanel');
+  panel.style.display='block'; panel.className='valPanel';
+  if(cuit.length!==11){ panel.className='valPanel warn'; panel.innerHTML='<div class="head"><span class="dot"></span> Averiguá o cargá primero el CUIT (11 dígitos).</div>'; return; }
+  panel.innerHTML='<div class="head"><span class="dot"></span> Consultando BCRA…</div>';
+  try{
+    var r=await fetch('/api/bcra/'+cuit,{credentials:'same-origin'});
+    var j=await r.json();
+    if(!j.ok){ panel.className='valPanel err'; panel.innerHTML='<div class="head"><span class="dot"></span> BCRA</div><p style="margin:8px 0 0">'+(j.error||'No se pudo consultar.')+'</p>'; return; }
+    if(j.sin_datos){ panel.className='valPanel ok'; panel.innerHTML='<div class="head"><span class="dot"></span> BCRA · CUIT '+cuit+'</div><p style="margin:8px 0 0">✅ Sin deudas registradas en el sistema financiero.</p><div class="hint" style="margin-top:6px">Fuente: Central de Deudores del BCRA.</div>'; return; }
+    var clase = j.peor_situacion<=1?'ok':(j.peor_situacion===2?'warn':'err');
+    panel.className='valPanel '+clase;
+    var rows=j.entidades.map(function(e){
+      return '<li><span class="ic">•</span> <span>'+e.entidad+' — <b>Sit. '+e.situacion+'</b> ('+e.situacion_texto+') · $'+_plata(e.monto)+(e.dias_atraso? ' · '+e.dias_atraso+' días de atraso':'')+'</span></li>';
+    }).join('');
+    panel.innerHTML='<div class="head"><span class="dot"></span> '+(j.denominacion||('CUIT '+cuit))+' <span class="cnt">período '+j.periodo+'</span></div>'
+      +'<p style="margin:8px 0 4px"><b>Peor situación: '+j.peor_situacion+' — '+j.peor_situacion_texto+'</b></p>'
+      +'<ul>'+rows+'</ul>'
+      +'<div class="hint" style="margin-top:6px">Fuente: Central de Deudores del BCRA (últimos 24 meses). La situación 1 es "al día"; de 3 en adelante indica problemas.</div>';
+  }catch(e){ panel.className='valPanel err'; panel.innerHTML='<div class="head"><span class="dot"></span> BCRA</div><p style="margin:8px 0 0">Error de conexión.</p>'; }
 }
 
 // ===== Secciones plegables (acorta el formulario) =====
