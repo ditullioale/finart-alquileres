@@ -1,3 +1,10 @@
+/* Fuente Inter alojada localmente (no depende de Google Fonts). */
+@font-face{font-family:'Inter';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/inter-400.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-style:normal;font-weight:500;font-display:swap;src:url('fonts/inter-500.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/inter-600.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/inter-700.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-style:normal;font-weight:800;font-display:swap;src:url('fonts/inter-800.woff2') format('woff2')}
+
 :root{
   --b:#1f3a5f; --a:#2f6fed; --bd:#dbe2ec; --bg:#eef2f7; --txt:#1a2230;
   --ok:#1f9d55; --okbg:#eefaf1; --err:#d63636; --errbg:#fdecec; --muted:#6b7890;
