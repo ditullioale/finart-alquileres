@@ -64,6 +64,9 @@ class Config:
     SQLALCHEMY_DATABASE_URI = _database_uri()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    # Límite de subida de archivos (documentación de contratos): 10 MB por request.
+    MAX_CONTENT_LENGTH = 10 * 1024 * 1024
+
     # --- Endurecimiento de la sesión (cookies) ---
     # La cookie de sesión no es accesible por JavaScript (mitiga robo por XSS).
     SESSION_COOKIE_HTTPONLY = True

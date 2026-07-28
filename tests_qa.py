@@ -418,6 +418,28 @@ def run():
               cr.post("/recuperar", data={"ident": "resetme"},
                       follow_redirects=True).status_code == 200)
 
+        seccion("Documentación de contrato")
+        from io import BytesIO
+        cl.post(f"/contratos/{ids['c']}/documentos", data={
+            "categoria": "DNI", "persona": "Inquilino",
+            "archivo": (BytesIO(b"%PDF-1.4 test"), "dni.pdf", "application/pdf")},
+            content_type="multipart/form-data")
+
+        def _doc():
+            from app.models import DocumentoContrato
+            return DocumentoContrato.query.filter_by(categoria="DNI").first()
+        d = q(_doc)
+        check("sube y guarda el documento", d is not None and d.tamano > 0)
+        check("descarga el documento (PDF válido)",
+              bool(d) and cl.get(f"/contratos/documento/{d.id}").data[:5] == b"%PDF-")
+        check("rechaza formato no permitido (.exe)",
+              cl.post(f"/contratos/{ids['c']}/documentos", data={"categoria": "Otro",
+                      "archivo": (BytesIO(b"MZ"), "x.exe", "application/x-msdownload")},
+                      content_type="multipart/form-data", follow_redirects=True).status_code == 200
+              and q(lambda: __import__("app").models.DocumentoContrato.query.count()) == 1)
+        check("B no accede al documento de A (404)",
+              bool(d) and clB.get(f"/contratos/documento/{d.id}").status_code == 404)
+
     print("\n" + "=" * 44)
     print(f"RESULTADO QA:  {_pasa} PASA  /  {_falla} FALLA")
     if _fallos:

@@ -108,4 +108,56 @@
   <p class="hint">Sin aumentos registrados.</p>
   {% endif %}
 </div>
+
+<div class="panel" style="margin-top:16px">
+  <h2>📎 Documentación</h2>
+  <p class="hint" style="margin-top:0">Cargá el DNI y los recibos de sueldo del inquilino y los fiadores. Se guardan de forma segura y podés verlos cuando quieras. (PDF o imagen, hasta 8 MB.)</p>
+
+  {% if c.documentos %}
+  <div class="table-wrap">
+  <table class="grid">
+    <thead><tr><th>Tipo</th><th>De quién</th><th>Archivo</th><th>Tamaño</th><th>Subido</th><th></th></tr></thead>
+    <tbody>
+      {% for d in c.documentos %}
+      <tr>
+        <td><span class="badge">{{ d.categoria or 'Otro' }}</span></td>
+        <td>{{ d.persona or '—' }}</td>
+        <td>{% if d.es_imagen %}🖼️{% else %}📄{% endif %}
+          <a href="{{ url_for('contratos.ver_documento', doc_id=d.id) }}" target="_blank">{{ d.nombre_archivo }}</a></td>
+        <td>{{ d.tamano_texto }}</td>
+        <td class="hint" style="margin:0">{{ d.subido.strftime('%d/%m/%Y') if d.subido }}{% if d.subido_por %} · {{ d.subido_por }}{% endif %}</td>
+        <td class="actions">
+          <a href="{{ url_for('contratos.ver_documento', doc_id=d.id) }}" target="_blank">Ver</a>
+          <form method="post" action="{{ url_for('contratos.eliminar_documento', doc_id=d.id) }}"
+                onsubmit="return confirm('¿Eliminar este documento?')">
+            <button class="link-danger" type="submit">Eliminar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="hint">Todavía no cargaste documentación para este contrato.</p>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('contratos.subir_documento', cid=c.id) }}"
+        enctype="multipart/form-data" class="cardform" style="margin-top:12px;max-width:640px">
+    <h3 style="margin:0 0 8px">Subir un documento</h3>
+    <div class="grid2">
+      <div><label>Tipo de documento</label>
+        <select name="categoria">
+          {% for cat in cat_docs %}<option value="{{ cat }}">{{ cat }}</option>{% endfor %}
+        </select></div>
+      <div><label>¿De quién es?</label>
+        <input name="persona" placeholder="Ej: Inquilino Ana Pérez / Fiador Juan"></div>
+    </div>
+    <label style="margin-top:10px">Archivo (PDF o imagen)</label>
+    <input type="file" name="archivo" accept=".pdf,image/*" required>
+    <div class="formbtns">
+      <button class="btn" type="submit">⬆ Subir documento</button>
+    </div>
+  </form>
+</div>
 {% endblock %}

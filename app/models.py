@@ -305,6 +305,38 @@ class Contrato(db.Model):
         return f"<Contrato {self.numero or self.id}>"
 
 
+class DocumentoContrato(db.Model):
+    """Documentación adjunta a un contrato (DNI, recibos de sueldo, etc.).
+    El archivo se guarda dentro de la base para que no se pierda en la nube."""
+    __tablename__ = "documentos_contrato"
+
+    id = db.Column(db.Integer, primary_key=True)
+    inmobiliaria_id = db.Column(db.Integer, db.ForeignKey("inmobiliarias.id"), index=True)
+    contrato_id = db.Column(db.Integer, db.ForeignKey("contratos.id"),
+                            nullable=False, index=True)
+    categoria = db.Column(db.String(40))        # DNI / Recibo de sueldo / Garantía / Otro
+    persona = db.Column(db.String(160))          # a quién pertenece (texto libre)
+    nombre_archivo = db.Column(db.String(255))
+    tipo_mime = db.Column(db.String(100))
+    tamano = db.Column(db.Integer)
+    datos = db.Column(db.LargeBinary)
+    subido_por = db.Column(db.String(120))
+    subido = db.Column(db.DateTime, default=datetime.utcnow)
+
+    contrato = db.relationship("Contrato", backref=db.backref(
+        "documentos", cascade="all, delete-orphan",
+        order_by="DocumentoContrato.subido"))
+
+    @property
+    def es_imagen(self):
+        return (self.tipo_mime or "").startswith("image/")
+
+    @property
+    def tamano_texto(self):
+        kb = (self.tamano or 0) / 1024
+        return f"{kb/1024:.1f} MB" if kb >= 1024 else f"{kb:.0f} KB"
+
+
 class Fiador(db.Model):
     __tablename__ = "fiadores"
 

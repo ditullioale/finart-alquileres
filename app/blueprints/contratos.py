@@ -3,12 +3,13 @@ from pathlib import Path
 from datetime import date
 
 from flask import (Blueprint, render_template, redirect, url_for, request,
-                   flash, abort, jsonify, Response)
-from flask_login import login_required
+                   flash, abort, jsonify, Response, make_response)
+from flask_login import login_required, current_user
 from sqlalchemy.orm import aliased, joinedload
+from werkzeug.utils import secure_filename
 
 from .. import db
-from ..models import Contrato, Inmueble, Persona, Fiador
+from ..models import Contrato, Inmueble, Persona, Fiador, DocumentoContrato
 from ..utils import add_months, parse_fecha, parse_num, INDICE_MAP, INDICE_NOMBRE
 
 contratos_bp = Blueprint("contratos", __name__, url_prefix="/contratos")
@@ -98,7 +99,72 @@ def documento(cid):
 def ver(cid):
     contrato = db.session.get(Contrato, cid) or abort(404)
     return render_template("contratos/ver.html", c=contrato,
-                           indice_nombre=INDICE_NOMBRE)
+                           indice_nombre=INDICE_NOMBRE,
+                           cat_docs=CATEGORIAS_DOC)
+
+
+# --------------------------------------------------------------------------- #
+#  Documentación adjunta (DNI, recibos de sueldo, etc.)
+# --------------------------------------------------------------------------- #
+CATEGORIAS_DOC = ["DNI", "Recibo de sueldo", "Garantía / Solvencia",
+                  "Contrato firmado", "Otro"]
+MIME_PERMITIDOS = {"application/pdf", "image/jpeg", "image/jpg",
+                   "image/png", "image/webp"}
+MAX_DOC_BYTES = 8 * 1024 * 1024   # 8 MB por archivo
+
+
+@contratos_bp.route("/<int:cid>/documentos", methods=["POST"])
+@login_required
+def subir_documento(cid):
+    contrato = db.session.get(Contrato, cid) or abort(404)
+    f = request.files.get("archivo")
+    if not f or not f.filename:
+        flash("Elegí un archivo para subir.", "error")
+        return redirect(url_for("contratos.ver", cid=cid))
+    datos = f.read()
+    if len(datos) == 0:
+        flash("El archivo está vacío.", "error")
+        return redirect(url_for("contratos.ver", cid=cid))
+    if len(datos) > MAX_DOC_BYTES:
+        flash("El archivo supera el máximo de 8 MB.", "error")
+        return redirect(url_for("contratos.ver", cid=cid))
+    mime = (f.mimetype or "").lower()
+    if mime not in MIME_PERMITIDOS:
+        flash("Formato no permitido. Subí un PDF o una imagen (JPG/PNG).", "error")
+        return redirect(url_for("contratos.ver", cid=cid))
+    doc = DocumentoContrato(
+        contrato_id=contrato.id,
+        categoria=request.form.get("categoria", "Otro"),
+        persona=request.form.get("persona", "").strip(),
+        nombre_archivo=secure_filename(f.filename) or "documento",
+        tipo_mime=mime, tamano=len(datos), datos=datos,
+        subido_por=(getattr(current_user, "nombre", None) or current_user.username))
+    db.session.add(doc)
+    db.session.commit()
+    flash("Documento cargado.", "ok")
+    return redirect(url_for("contratos.ver", cid=cid))
+
+
+@contratos_bp.route("/documento/<int:doc_id>")
+@login_required
+def ver_documento(doc_id):
+    doc = db.session.get(DocumentoContrato, doc_id) or abort(404)
+    resp = make_response(doc.datos)
+    resp.headers["Content-Type"] = doc.tipo_mime or "application/octet-stream"
+    modo = "inline" if (doc.tipo_mime or "").startswith(("image/", "application/pdf")) else "attachment"
+    resp.headers["Content-Disposition"] = f'{modo}; filename="{doc.nombre_archivo}"'
+    return resp
+
+
+@contratos_bp.route("/documento/<int:doc_id>/eliminar", methods=["POST"])
+@login_required
+def eliminar_documento(doc_id):
+    doc = db.session.get(DocumentoContrato, doc_id) or abort(404)
+    cid = doc.contrato_id
+    db.session.delete(doc)
+    db.session.commit()
+    flash("Documento eliminado.", "ok")
+    return redirect(url_for("contratos.ver", cid=cid))
 
 
 # --------------------------------------------------------------------------- #
