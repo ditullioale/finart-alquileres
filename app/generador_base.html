@@ -14,8 +14,19 @@
   .wrap{max-width:1150px;margin:0 auto;padding:18px 22px 60px}
   .layout{display:grid;grid-template-columns:1fr;gap:22px}
   @media(min-width:1000px){.layout{grid-template-columns:440px 1fr}}
-  fieldset{border:1px solid var(--bd);border-radius:10px;margin:0 0 16px;padding:12px 14px;background:#fff}
+  fieldset{border:1px solid var(--bd);border-radius:10px;margin:0 0 12px;padding:12px 14px;background:#fff}
   legend{font-weight:700;color:var(--b);padding:0 6px;font-size:14px}
+  /* Secciones plegables: la leyenda actúa como cabecera clickeable */
+  .layout fieldset > legend{cursor:pointer;user-select:none}
+  .layout fieldset > legend::before{content:'▾';display:inline-block;width:14px;color:var(--a);font-size:11px}
+  .layout fieldset.collapsed > legend::before{content:'▸'}
+  .layout fieldset.collapsed{padding-bottom:4px}
+  .layout fieldset.collapsed > *:not(legend){display:none}
+  .cuit-row{display:flex;gap:6px;align-items:stretch}
+  .cuit-row input{flex:1}
+  .tools{font-size:11px;color:#6b7890;margin-top:4px;display:flex;flex-wrap:wrap;gap:4px 10px}
+  .tools a{color:var(--a);cursor:pointer;text-decoration:none}
+  .tools a:hover{text-decoration:underline}
   label{display:block;font-size:12px;font-weight:600;color:#41506b;margin:8px 0 3px}
   input,select,textarea{width:100%;padding:8px 9px;border:1px solid var(--bd);border-radius:7px;font-size:13px;font-family:inherit}
   textarea{min-height:60px;resize:vertical}
@@ -101,8 +112,19 @@
         <label>Nombre y apellido</label><input id="locNombre">
         <div class="row">
           <div><label>D.N.I.</label><input id="locDni"></div>
-          <div><label>Email (domicilio especial)</label><input id="locEmail"></div>
+          <div><label>Género (para calcular CUIT)</label>
+            <select id="locGenero"><option value="m">Masculino (20)</option><option value="f">Femenino (27)</option></select></div>
         </div>
+        <label>C.U.I.T. / C.U.I.L.</label>
+        <div class="cuit-row">
+          <input id="locCuit" placeholder="XX-XXXXXXXX-X">
+          <button type="button" class="btn sec mini" onclick="calcCuit('loc')" title="Calcular desde el DNI">Averiguar</button>
+        </div>
+        <div class="tools">
+          <a href="https://micuilonline.com.ar/averiguar-cuil-cuit" target="_blank" rel="noopener">🔎 Buscar CUIT online</a>
+          <a onclick="verBcra('loc')">🏦 Situación BCRA</a>
+        </div>
+        <label>Email (domicilio especial)</label><input id="locEmail">
         <label>Domicilio</label><input id="locDom" placeholder="calle ... de la localidad de ...">
         <div id="coLocadores"></div>
         <button class="btn sec mini" onclick="addCoLoc()">+ Agregar otro locador</button>
@@ -116,10 +138,18 @@
           </div>
           <div><label>Nombre y apellido</label><input id="latNombre"></div>
         </div>
-        <div class="row3">
+        <div class="row">
           <div><label>D.N.I.</label><input id="latDni"></div>
-          <div><label>C.U.I.L./C.U.I.T.</label><input id="latCuil"></div>
           <div><label>Email</label><input id="latEmail"></div>
+        </div>
+        <label>C.U.I.L. / C.U.I.T.</label>
+        <div class="cuit-row">
+          <input id="latCuil" placeholder="XX-XXXXXXXX-X">
+          <button type="button" class="btn sec mini" onclick="calcCuit('lat')" title="Calcular desde el DNI y el género">Averiguar</button>
+        </div>
+        <div class="tools">
+          <a href="https://micuilonline.com.ar/averiguar-cuil-cuit" target="_blank" rel="noopener">🔎 Buscar CUIT online</a>
+          <a onclick="verBcra('lat')">🏦 Situación BCRA</a>
         </div>
         <label>Domicilio</label><input id="latDom">
         <div id="coLocatarios"></div>
@@ -579,6 +609,47 @@ function limpiar(){document.querySelectorAll('input,textarea').forEach(e=>{if(e.
 addFiador();
 // cargar clave guardada si existe
 try{const p=V('aiProv');const k=localStorage.getItem('ai_'+p);if(k){document.getElementById('aiKey').value=k;document.getElementById('aiRecordar').checked=true;}}catch(e){}
+
+// ===== CUIT: calcular desde el DNI (algoritmo argentino) =====
+function _digs(s){return (s||'').replace(/\D/g,'');}
+function calcularCuit(dni, genero){
+  dni=_digs(dni);
+  if(dni.length<7||dni.length>8) return null;
+  dni=dni.padStart(8,'0');
+  function conPref(p){
+    var base=String(p)+dni, pesos=[5,4,3,2,7,6,5,4,3,2], s=0;
+    for(var i=0;i<10;i++) s+=(+base[i])*pesos[i];
+    var v=11-(s%11); if(v===11)v=0;
+    return {p:p,v:v};
+  }
+  var r=conPref(genero==='f'?27:20);
+  if(r.v===10) r=conPref(23);        // caso especial
+  return String(r.p)+'-'+dni+'-'+r.v;
+}
+function calcCuit(who){
+  var dni=document.getElementById(who==='loc'?'locDni':'latDni').value;
+  var gen=document.getElementById(who==='loc'?'locGenero':'latGenero').value;
+  var cuit=calcularCuit(dni,gen);
+  if(!cuit){alert('Cargá primero el DNI (7 u 8 dígitos).');return;}
+  document.getElementById(who==='loc'?'locCuit':'latCuil').value=cuit;
+}
+function verBcra(who){
+  var cuit=_digs(document.getElementById(who==='loc'?'locCuit':'latCuil').value);
+  if(cuit.length!==11){alert('Primero completá o averiguá el CUIT (11 dígitos).');return;}
+  window.open('https://www.bcra.gob.ar/BCRAyVos/situacion_crediticia.asp','_blank');
+}
+
+// ===== Secciones plegables (acorta el formulario) =====
+(function(){
+  var abiertas=['Locador','Locatario','Inmueble','Condiciones'];
+  document.querySelectorAll('.layout fieldset').forEach(function(fs){
+    var lg=fs.querySelector('legend'); if(!lg||lg.parentNode!==fs) return;
+    var txt=lg.textContent||'';
+    var abierta=abiertas.some(function(k){return txt.indexOf(k)>=0;});
+    if(!abierta) fs.classList.add('collapsed');
+    lg.addEventListener('click', function(){ fs.classList.toggle('collapsed'); });
+  });
+})();
 </script>
 </body>
 </html>

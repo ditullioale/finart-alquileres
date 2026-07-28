@@ -395,7 +395,7 @@ def _generador_html():
         tel:c.querySelector('.f-tel')?.value.trim(),
       })).filter(f=>f.nombre);
       const data = {
-        loc:{nombre:g('locNombre'),dni:g('locDni'),dom:g('locDom'),email:g('locEmail')},
+        loc:{nombre:g('locNombre'),dni:g('locDni'),cuil:g('locCuit'),dom:g('locDom'),email:g('locEmail')},
         lat:{nombre:g('latNombre'),dni:g('latDni'),cuil:g('latCuil'),dom:g('latDom'),
              email:g('latEmail'),genero:g('latGenero')},
         coLoc:(typeof getCoLoc==='function'?getCoLoc():[]),
