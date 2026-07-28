@@ -119,6 +119,21 @@ class Inmueble(db.Model):
 # --------------------------------------------------------------------------- #
 #  Contratos de alquiler
 # --------------------------------------------------------------------------- #
+# Tablas puente para sumar MÁS personas de cada lado del contrato (además del
+# inquilino y el propietario "titulares", que se siguen usando para cobros,
+# recibos y liquidaciones). Estas solo agregan co-firmantes al documento.
+contrato_colocatarios = db.Table(
+    "contrato_colocatarios",
+    db.Column("contrato_id", db.Integer, db.ForeignKey("contratos.id"), primary_key=True),
+    db.Column("persona_id", db.Integer, db.ForeignKey("personas.id"), primary_key=True),
+)
+contrato_colocadores = db.Table(
+    "contrato_colocadores",
+    db.Column("contrato_id", db.Integer, db.ForeignKey("contratos.id"), primary_key=True),
+    db.Column("persona_id", db.Integer, db.ForeignKey("personas.id"), primary_key=True),
+)
+
+
 class Contrato(db.Model):
     __tablename__ = "contratos"
 
@@ -156,12 +171,48 @@ class Contrato(db.Model):
     inmueble = db.relationship("Inmueble", back_populates="contratos")
     inquilino = db.relationship("Persona", foreign_keys=[inquilino_id])
     propietario = db.relationship("Persona", foreign_keys=[propietario_id])
+    # Co-firmantes adicionales (opcionales) de cada lado.
+    colocatarios = db.relationship("Persona", secondary=contrato_colocatarios)
+    colocadores = db.relationship("Persona", secondary=contrato_colocadores)
     fiadores = db.relationship("Fiador", back_populates="contrato",
                                cascade="all, delete-orphan")
     aumentos = db.relationship("Aumento", back_populates="contrato",
                                cascade="all, delete-orphan")
     pagos = db.relationship("Pago", back_populates="contrato",
                             cascade="all, delete-orphan")
+
+    # --- Partes completas de cada lado (titular + co-firmantes, sin repetir) ---
+    @property
+    def locatarios(self):
+        out = []
+        if self.inquilino:
+            out.append(self.inquilino)
+        for p in self.colocatarios:
+            if p and p.id != self.inquilino_id:
+                out.append(p)
+        return out
+
+    @property
+    def locadores(self):
+        out = []
+        prin = self.propietario or (self.inmueble.propietario if self.inmueble else None)
+        if prin:
+            out.append(prin)
+        prin_id = prin.id if prin else None
+        for p in self.colocadores:
+            if p and p.id != prin_id:
+                out.append(p)
+        return out
+
+    @property
+    def locatarios_texto(self):
+        nombres = [p.nombre for p in self.locatarios if p and p.nombre]
+        return " y ".join(nombres) if nombres else "—"
+
+    @property
+    def locadores_texto(self):
+        nombres = [p.nombre for p in self.locadores if p and p.nombre]
+        return " y ".join(nombres) if nombres else "—"
 
     def __repr__(self):
         return f"<Contrato {self.numero or self.id}>"

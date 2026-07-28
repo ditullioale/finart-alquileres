@@ -80,7 +80,7 @@
   </div>
   <div class="band">COBRO POR CUENTA Y ORDEN DE TERCEROS, IMPORTE PARA SER ENTREGADO AL PROPIETARIO O A QUIEN CORRESPONDA</div>
   <div class="cli">
-    <div class="r"><span><b>Cliente:</b> {{ c.inquilino.nombre if c.inquilino else '—' }}</span>
+    <div class="r"><span><b>Cliente:</b> {{ c.locatarios_texto }}</span>
       <span><b>C.U.I.T:</b> {{ c.inquilino.cuit if c.inquilino and c.inquilino.cuit else '' }}</span></div>
     <div class="r"><span><b>Dirección:</b> {{ c.inquilino.domicilio if c.inquilino and c.inquilino.domicilio else '—' }}</span>
       <span><b>Localidad:</b> {{ c.inquilino.localidad if c.inquilino else '' }}</span></div>
@@ -90,7 +90,7 @@
     <div class="l"><span><b>En concepto de:</b> ALQUILER</span>
       <span><b>N° de pago:</b> {{ pago.numero or '—' }}</span></div>
     <div><b>Inmueble:</b> {% if c.inmueble.codigo %}({{ c.inmueble.codigo }}) {% endif %}{{ c.inmueble.direccion }}</div>
-    <div><b>Propietario:</b> {{ c.propietario.nombre if c.propietario else '—' }}</div>
+    <div><b>Propietario:</b> {{ c.locadores_texto }}</div>
     <div><b>Contrato:</b> {{ c.fecha_inicio.strftime('%d/%m/%Y') if c.fecha_inicio }} al {{ c.fecha_fin.strftime('%d/%m/%Y') if c.fecha_fin else '—' }}</div>
     <div class="l"><span><b>Correspondiente al mes de:</b> {{ meses[pago.periodo_mes] if pago.periodo_mes }} de {{ pago.periodo_anio }}</span>
       <span><b>Alquiler:</b> {{ c.moneda|simbolo }} {{ pago.precio_alquiler|money }}</span></div>

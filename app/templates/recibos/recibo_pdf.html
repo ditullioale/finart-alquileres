@@ -68,7 +68,7 @@
 
     <table class="in cli">
       <tr>
-        <td width="60%"><b>Cliente:</b> {{ c.inquilino.nombre if c.inquilino else '—' }}</td>
+        <td width="60%"><b>Cliente:</b> {{ c.locatarios_texto }}</td>
         <td><b>C.U.I.T:</b> {{ c.inquilino.cuit if c.inquilino and c.inquilino.cuit else '' }}</td>
       </tr>
       <tr>
@@ -81,7 +81,7 @@
     <div class="cuerpo">
       <p><b>En concepto de:</b> ALQUILER &nbsp;&nbsp; <b>N° de pago:</b> {{ pago.numero or '—' }}</p>
       <p><b>Inmueble:</b> {% if c.inmueble.codigo %}({{ c.inmueble.codigo }}) {% endif %}{{ c.inmueble.direccion }}</p>
-      <p><b>Propietario:</b> {{ c.propietario.nombre if c.propietario else '—' }}</p>
+      <p><b>Propietario:</b> {{ c.locadores_texto }}</p>
       <p><b>Contrato:</b> {{ c.fecha_inicio.strftime('%d/%m/%Y') if c.fecha_inicio }} al {{ c.fecha_fin.strftime('%d/%m/%Y') if c.fecha_fin else '—' }}</p>
       <p><b>Correspondiente al mes de:</b> {{ meses[pago.periodo_mes] if pago.periodo_mes }} de {{ pago.periodo_anio }} &nbsp;&nbsp; <b>Alquiler:</b> {{ c.moneda|simbolo }} {{ pago.precio_alquiler|money }}</p>
       {% if conceptos %}

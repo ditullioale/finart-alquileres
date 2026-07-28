@@ -52,9 +52,9 @@
     </div>
     <div class="band">LIQUIDACIÓN AL PROPIETARIO</div>
     <div class="info">
-      <div><b>Propietario:</b> {{ c.propietario.nombre if c.propietario else '—' }}</div>
+      <div><b>Propietario:</b> {{ c.locadores_texto }}</div>
       <div><b>Inmueble:</b> {{ c.inmueble.direccion }}{% if c.inmueble.codigo %} ({{ c.inmueble.codigo }}){% endif %}</div>
-      <div><b>Inquilino:</b> {{ c.inquilino.nombre if c.inquilino else '—' }}</div>
+      <div><b>Inquilino:</b> {{ c.locatarios_texto }}</div>
       <div><b>Período:</b> {{ meses[pago.periodo_mes] if pago.periodo_mes }} de {{ pago.periodo_anio }}</div>
     </div>
     <table>

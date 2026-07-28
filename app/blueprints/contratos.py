@@ -155,6 +155,26 @@ def _leer_fiadores(c: Contrato):
             ))
 
 
+def _leer_copartes(c: Contrato):
+    """Carga co-locatarios y co-locadores (personas adicionales de cada lado)
+    a partir de los IDs enviados en el formulario. Ignora vacíos, duplicados y
+    a los titulares para no repetirlos."""
+    def personas_de(campo, excluir_id):
+        vistos, out = set(), []
+        for v in request.form.getlist(campo):
+            pid = parse_num(v, entero=True)
+            if not pid or pid == excluir_id or pid in vistos:
+                continue
+            per = db.session.get(Persona, pid)
+            if per:
+                vistos.add(pid)
+                out.append(per)
+        return out
+
+    c.colocatarios = personas_de("colocatario_id", c.inquilino_id)
+    c.colocadores = personas_de("colocador_id", c.propietario_id)
+
+
 def _marcar_alquilado(c: Contrato):
     if c.estado == "Vigente" and c.inmueble_id:
         inm = db.session.get(Inmueble, c.inmueble_id)
@@ -182,6 +202,7 @@ def nuevo():
         c = Contrato()
         _leer_form(c)
         _leer_fiadores(c)   # cargar fiadores antes de validar, para no perderlos si falla
+        _leer_copartes(c)
         error = _validar(c)
         if error:
             flash(error, "error")
@@ -211,6 +232,7 @@ def editar(cid):
         inm_anterior = c.inmueble_id
         _leer_form(c)
         _leer_fiadores(c)
+        _leer_copartes(c)
         error = _validar(c)
         if error:
             flash(error, "error")
@@ -249,6 +271,9 @@ def renovar(cid):
     for f in old.fiadores:
         c.fiadores.append(Fiador(nombre=f.nombre, dni=f.dni, domicilio=f.domicilio,
                                  telefono=f.telefono, email=f.email, solvencia=f.solvencia))
+    # Arrastrar co-firmantes de cada lado a la renovación.
+    c.colocatarios = list(old.colocatarios)
+    c.colocadores = list(old.colocadores)
     flash("Renovación: revisá y actualizá lo que haga falta (fechas, precio, etc.) y guardá. "
           "El contrato anterior quedará finalizado automáticamente.", "ok")
     return render_template("contratos/form.html", c=c, renovar_de=old.id, **_opciones())

@@ -37,6 +37,21 @@
       </select></div>
   </div>
 
+  <div class="grid2" style="margin-top:12px">
+    <div>
+      <label>Otros locatarios (además del inquilino principal)</label>
+      <div id="colocatarios"></div>
+      <button type="button" class="btn sec sm" style="margin-top:6px" onclick="addCoparte('colocatario')">+ Agregar locatario</button>
+      <span class="hint">Para contratos con más de un inquilino (esposos, socios…). Aparecen en el contrato y en los recibos.</span>
+    </div>
+    <div>
+      <label>Otros locadores (además del propietario)</label>
+      <div id="colocadores"></div>
+      <button type="button" class="btn sec sm" style="margin-top:6px" onclick="addCoparte('colocador')">+ Agregar locador</button>
+      <span class="hint">Para inmuebles con más de un dueño. Aparecen en el contrato y en la liquidación.</span>
+    </div>
+  </div>
+
   <h2 style="margin-top:18px">Condiciones</h2>
   <div class="grid2">
     <div><label>Fecha de inicio *</label>
@@ -124,6 +139,31 @@ document.getElementById('inmueble_id').addEventListener('change', function(){
 {% for f in c.fiadores %}
 addFiador({nombre:{{ f.nombre|tojson }}, dni:{{ (f.dni or '')|tojson }}, dom:{{ (f.domicilio or '')|tojson }}, tel:{{ (f.telefono or '')|tojson }}, email:{{ (f.email or '')|tojson }}, solvencia:{{ (f.solvencia or '')|tojson }}});
 {% endfor %}
+
+// ===== Co-locatarios / co-locadores (varias personas por lado) =====
+var OPC_LOCATARIO = [{% for p in inquilinos %}{id:{{ p.id }}, n:{{ p.nombre|tojson }}},{% endfor %}];
+var OPC_LOCADOR   = [{% for p in propietarios %}{id:{{ p.id }}, n:{{ p.nombre|tojson }}},{% endfor %}];
+function optionsHtml(arr, selId){
+  var h = '<option value="">— elegí una persona —</option>';
+  arr.forEach(function(o){
+    h += '<option value="'+o.id+'"'+(String(o.id)===String(selId)?' selected':'')+'>'+
+         o.n.replace(/</g,'&lt;')+'</option>';
+  });
+  return h;
+}
+function addCoparte(tipo, selId){
+  var arr  = (tipo==='colocatario') ? OPC_LOCATARIO : OPC_LOCADOR;
+  var cont = document.getElementById(tipo==='colocatario' ? 'colocatarios' : 'colocadores');
+  var row = document.createElement('div');
+  row.className = 'coparte-row';
+  row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-top:6px';
+  row.innerHTML = '<select name="'+tipo+'_id" style="flex:1">'+optionsHtml(arr, selId)+'</select>'+
+    '<button type="button" class="btn sec sm" onclick="this.closest(\'.coparte-row\').remove()">Quitar</button>';
+  cont.appendChild(row);
+}
+{% for p in c.colocatarios %}addCoparte('colocatario', {{ p.id }});{% endfor %}
+{% for p in c.colocadores %}addCoparte('colocador', {{ p.id }});{% endfor %}
+
 toggleAjuste();
 
 // ===== Punto 5: fecha de fin automática (inicio + duración en meses) =====
