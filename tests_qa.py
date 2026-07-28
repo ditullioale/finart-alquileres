@@ -313,6 +313,25 @@ def run():
         check("A no ve el cliente de B", "Cliente Solo B" not in lista_a)
         check("A sí ve sus propios datos", "Santamaria Guido" in lista_a)
 
+        seccion("Auditoría")
+
+        def _audit():
+            from app.models import RegistroAuditoria
+            return RegistroAuditoria.query.filter_by(entidad="Persona",
+                                                     accion="crear").count()
+        check("registra las altas de personas", q(_audit) > 0)
+
+        def _audit_cobro():
+            from app.models import RegistroAuditoria
+            return RegistroAuditoria.query.filter_by(entidad="Pago").count()
+        check("registra los cobros (Pago)", q(_audit_cobro) > 0)
+        ra = cl.get("/usuarios/auditoria")
+        check("vista de auditoría 200 (admin)", ra.status_code == 200)
+        check("auditoría muestra un alta", "Alta" in ra.data.decode("utf-8", "ignore"))
+        rb = clB.get("/usuarios/auditoria").data.decode("utf-8", "ignore")
+        check("auditoría de B no filtra datos de A",
+              "Nuevo Inquilino" not in rb and "Santamaria Guido" not in rb)
+
     print("\n" + "=" * 44)
     print(f"RESULTADO QA:  {_pasa} PASA  /  {_falla} FALLA")
     if _fallos:

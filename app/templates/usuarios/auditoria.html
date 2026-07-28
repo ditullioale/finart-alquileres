@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Auditoría{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Auditoría</h1>
+    <p class="sub">Quién hizo qué y cuándo. Se registran altas, cambios y eliminaciones.</p>
+  </div>
+</div>
+
+<form class="filters" method="get">
+  <input name="q" value="{{ q }}" placeholder="Buscar por usuario, acción, entidad o descripción"
+         data-live-filter="#audit-body" autocomplete="off">
+  <button class="btn sec" type="submit">Filtrar</button>
+</form>
+
+<div class="table-wrap">
+<table class="grid">
+  <thead>
+    <tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Qué</th><th>Detalle</th><th>IP</th></tr>
+  </thead>
+  <tbody id="audit-body">
+    {% for r in registros %}
+    <tr>
+      <td>{{ r.fecha.strftime('%d/%m/%Y %H:%M') if r.fecha else '—' }}</td>
+      <td>{{ r.usuario_nombre or '—' }}</td>
+      <td>
+        {% if r.accion == 'crear' %}<span class="badge pagado">＋ Alta</span>
+        {% elif r.accion == 'eliminar' %}<span class="badge pendiente">✕ Eliminación</span>
+        {% else %}<span class="badge">✎ Cambio</span>{% endif %}
+      </td>
+      <td>{{ r.entidad }}{% if r.entidad_id %} #{{ r.entidad_id }}{% endif %}</td>
+      <td>{{ r.descripcion or '—' }}</td>
+      <td class="hint" style="margin:0">{{ r.ip or '—' }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="empty">Todavía no hay movimientos registrados.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

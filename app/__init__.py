@@ -34,9 +34,12 @@ def create_app(config_class=Config):
     csrf.init_app(app)
     migrate.init_app(app, db, directory=_MIGRATIONS_DIR)
 
-    # Multiempresa (paso 1): asignar inmobiliaria automáticamente al crear.
+    # Multiempresa: asignar inmobiliaria al crear + filtro de aislamiento.
     from .tenant import registrar_eventos
     registrar_eventos()
+    # Auditoría automática de altas/cambios/eliminaciones.
+    from .auditoria import registrar_auditoria
+    registrar_auditoria()
 
     from .models import Usuario
 
@@ -223,11 +226,12 @@ def _iniciar_base(app):
         except Exception:
             db.session.rollback()
 
-    # Siembra: admin inicial + inmobiliaria #1 + backfill de datos existentes.
+    # Siembra: inmobiliaria #1 primero (para que el admin pueda asignarse a ella
+    # cuando inmobiliaria_id es obligatorio), luego admin + backfill.
     try:
         from .models import Usuario, Inmobiliaria
-        Usuario.crear_admin_inicial()
         inmo = Inmobiliaria.crear_inicial()
+        Usuario.crear_admin_inicial()
         _backfill_inmobiliaria(inmo)
     except Exception:
         db.session.rollback()

@@ -73,7 +73,8 @@
       <a class="nav-item {{ 'active' if bp=='aumentos' and 'indice' in ep }}" href="{{ url_for('aumentos.indices') }}"><span class="i">{{ icon('bar-chart') }}</span> Índices</a>
       <a class="nav-item {{ 'active' if bp=='ajustes' }}" href="{{ url_for('ajustes.index') }}"><span class="i">{{ icon('settings') }}</span> Ajustes</a>
       {% if current_user.rol == 'admin' %}
-      <a class="nav-item {{ 'active' if bp=='usuarios' }}" href="{{ url_for('usuarios.listar') }}"><span class="i">{{ icon('user') }}</span> Usuarios</a>
+      <a class="nav-item {{ 'active' if bp=='usuarios' and 'auditoria' not in ep }}" href="{{ url_for('usuarios.listar') }}"><span class="i">{{ icon('user') }}</span> Usuarios</a>
+      <a class="nav-item {{ 'active' if 'auditoria' in ep }}" href="{{ url_for('usuarios.auditoria') }}"><span class="i">{{ icon('file-text') }}</span> Auditoría</a>
       {% endif %}
     </nav>
     <div class="side-foot">

@@ -38,6 +38,24 @@ def listar():
     return render_template("usuarios/list.html", usuarios=usuarios)
 
 
+@usuarios_bp.route("/auditoria")
+@login_required
+@admin_required
+def auditoria():
+    """Bitácora de altas, cambios y eliminaciones (solo de tu inmobiliaria)."""
+    from ..models import RegistroAuditoria
+    q = request.args.get("q", "").strip()
+    query = RegistroAuditoria.query
+    if q:
+        like = f"%{q}%"
+        query = query.filter(db.or_(RegistroAuditoria.entidad.ilike(like),
+                                    RegistroAuditoria.usuario_nombre.ilike(like),
+                                    RegistroAuditoria.accion.ilike(like),
+                                    RegistroAuditoria.descripcion.ilike(like)))
+    registros = query.order_by(RegistroAuditoria.fecha.desc()).limit(300).all()
+    return render_template("usuarios/auditoria.html", registros=registros, q=q)
+
+
 @usuarios_bp.route("/cambiar-clave", methods=["GET", "POST"])
 @login_required
 def cambiar_clave():

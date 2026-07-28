@@ -36,7 +36,8 @@ Leyenda de "Quién": **Claude** = lo hago yo en el código · **Ale** = acción 
 - [x] ✅ Filtro central de tenant en las consultas (Capa 1: cubre listados, búsquedas y accesos por ID)
 - [x] ✅ Helper de acceso por ID con verificación de tenant (Capa 3, `get_or_404_tenant`)
 - [x] ✅ Pruebas **negativas** de aislamiento (A no ve/abre datos de B; 7 tests en la batería QA)
-- [ ] ⬜ Pasar `inmobiliaria_id` a NOT NULL + FK con nombre (cierra el hueco de NULL) — **Claude**
+- [x] ✅ Pasar `inmobiliaria_id` a NOT NULL (cierra el hueco de registros sin dueño)
+- [ ] ⬜ FK a nivel base con convención de nombres (endurecimiento opcional) — **Claude**
 - [ ] ⬜ Config por inmobiliaria: logo, datos fiscales, mora, comisión, numeración — **Claude**
 - [ ] ⬜ Rol **superadmin** de plataforma — **Claude**
 
@@ -44,7 +45,7 @@ Leyenda de "Quién": **Claude** = lo hago yo en el código · **Ale** = acción 
 
 - [ ] 🟡 Onboarding asistido (importación Excel ya existe; falta el flujo guiado) — **Claude**
 - [ ] 🟡 Roles ampliados: solo lectura, contador, soporte (hoy: admin/operador) — **Claude**
-- [ ] ⬜ **Auditoría** de altas, cambios, anulaciones y eliminaciones — **Claude**
+- [x] ✅ **Auditoría** automática de altas, cambios y eliminaciones + pantalla admin (aislada por inmobiliaria)
 - [ ] ⬜ **Backups automáticos** diarios + copia externa + prueba real de restauración — **Claude/Ale**
 - [ ] ⬜ Exportación completa por inmobiliaria (portabilidad / baja) — **Claude**
 - [x] ✅ Dashboard de cartera/mora/vencimientos (existe; se afinará por tenant)
@@ -78,7 +79,7 @@ Leyenda de "Quién": **Claude** = lo hago yo en el código · **Ale** = acción 
 - [ ] ⬜ Recuperación segura de contraseña (reset por email) — **Claude**
 - [ ] 🟡 Validación de archivos y límites de carga (import Excel: falta límite) — **Claude**
 - [ ] ⬜ Roles ampliados (ver Fase 3)
-- [ ] ⬜ Auditoría (ver Fase 3)
+- [x] ✅ Auditoría (altas, cambios, eliminaciones)
 - [ ] ⬜ Pruebas de aislamiento entre inmobiliarias (ver Fase 2)
 - [ ] ⬜ Cifrado de backups y secretos gestionados por el proveedor — **Ale/Claude**
 

@@ -18,7 +18,8 @@ from . import db
 
 # Nombres de los modelos con inmobiliaria_id (se resuelven en runtime).
 _TENANT_MODEL_NAMES = ["Persona", "Inmueble", "Contrato", "Aumento", "Pago",
-                       "GasEstado", "ReciboManual", "Liquidacion", "Usuario"]
+                       "GasEstado", "ReciboManual", "Liquidacion", "Usuario",
+                       "RegistroAuditoria"]
 
 
 def _tenant_modelos():
@@ -67,12 +68,23 @@ def registrar_eventos():
     # --- Capa 2: asignar inmobiliaria al crear ---
     @event.listens_for(db.session, "before_flush")
     def _asignar_tenant(session, flush_ctx, instances):
+        pendientes = [o for o in session.new
+                      if hasattr(o, "inmobiliaria_id")
+                      and getattr(o, "inmobiliaria_id", None) is None]
+        if not pendientes:
+            return
         tid = _tenant_para_filtro()
         if not tid:
+            # Sin usuario (robot, seeds, scripts): caer a la inmobiliaria
+            # principal. no_autoflush evita recursión durante el flush.
+            from .models import Inmobiliaria
+            with session.no_autoflush:
+                inmo = Inmobiliaria.query.order_by(Inmobiliaria.id).first()
+            tid = inmo.id if inmo else None
+        if not tid:
             return
-        for obj in session.new:
-            if hasattr(obj, "inmobiliaria_id") and getattr(obj, "inmobiliaria_id", None) is None:
-                obj.inmobiliaria_id = tid
+        for obj in pendientes:
+            obj.inmobiliaria_id = tid
 
     # --- Capa 1: filtro central de lectura ---
     def _crit(model, tid):
