@@ -5,7 +5,7 @@ from datetime import date
 from flask import (Blueprint, render_template, redirect, url_for, request,
                    flash, abort, jsonify, Response)
 from flask_login import login_required
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, joinedload
 
 from .. import db
 from ..models import Contrato, Inmueble, Persona, Fiador
@@ -53,6 +53,9 @@ def listar():
         query = query.order_by(col.desc() if direccion == "desc" else col.asc())
     else:
         query = query.order_by(Contrato.fecha_inicio.desc())
+    query = query.options(joinedload(Contrato.inquilino),
+                          joinedload(Contrato.propietario),
+                          joinedload(Contrato.inmueble))
     contratos = query.all()
     return render_template("contratos/list.html", contratos=contratos,
                            q=q, estado=estado, estados=ESTADOS)

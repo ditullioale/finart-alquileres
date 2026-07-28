@@ -11,10 +11,25 @@ Cuando no hay usuario logueado (login, robot, seeds) NO se filtra: el tenant es
 None y las consultas ven todo (necesario para autenticar y para procesos de
 sistema). Los datos sin inmobiliaria se curan en el backfill del arranque.
 """
-from flask import abort
+from flask import abort, g, has_request_context
 from flask_login import current_user
 
 from . import db
+
+
+def _usuario_cargado():
+    """Usuario ya autenticado en este request, SIN forzar su carga desde la base.
+
+    Lee el usuario que Flask-Login dejó en `g._login_user`. Si todavía no se
+    cargó (p. ej. durante el propio login), devuelve None. Evita que el filtro de
+    tenant re-consulte la tabla de usuarios en cada query (era una fuente enorme
+    de lentitud)."""
+    if not has_request_context():
+        return None
+    u = getattr(g, "_login_user", None)
+    if u is not None and getattr(u, "is_authenticated", False):
+        return u
+    return None
 
 # Modelos con inmobiliaria_id sujetos al filtro central de lectura.
 # Usuario NO se incluye acá: filtrarlo rompería la carga del propio usuario en
@@ -25,9 +40,15 @@ _TENANT_MODEL_NAMES = ["Persona", "Inmueble", "Contrato", "Aumento", "Pago",
                        "RegistroAuditoria"]
 
 
+_MODELOS_CACHE = None
+
+
 def _tenant_modelos():
-    from . import models
-    return [getattr(models, n) for n in _TENANT_MODEL_NAMES]
+    global _MODELOS_CACHE
+    if _MODELOS_CACHE is None:
+        from . import models
+        _MODELOS_CACHE = [getattr(models, n) for n in _TENANT_MODEL_NAMES]
+    return _MODELOS_CACHE
 
 
 def _tenant_para_filtro():
@@ -37,15 +58,13 @@ def _tenant_para_filtro():
     - Usuario normal: su inmobiliaria. Si por error no tuviera, -1 (no ve nada),
       nunca 'ver todo'.
     """
-    try:
-        if getattr(current_user, "is_authenticated", False):
-            if getattr(current_user, "rol", None) == "superadmin":
-                return None
-            tid = getattr(current_user, "inmobiliaria_id", None)
-            return tid if tid else -1
-    except Exception:
-        pass
-    return None
+    u = _usuario_cargado()
+    if u is None:
+        return None
+    if getattr(u, "rol", None) == "superadmin":
+        return None
+    tid = getattr(u, "inmobiliaria_id", None)
+    return tid if tid else -1
 
 
 def tenant_actual():

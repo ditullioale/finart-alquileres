@@ -9,6 +9,7 @@ from datetime import date, timedelta
 
 from flask import Blueprint, jsonify, request, url_for
 from flask_login import login_required
+from sqlalchemy.orm import joinedload, selectinload
 
 from .. import db
 from ..models import Contrato, Persona, Inmueble, Pago, GasEstado
@@ -36,7 +37,10 @@ def cobranzas():
 
     filas = []
     tot_esp = tot_cob = tot_pen = 0.0
-    for c in Contrato.query.filter_by(estado="Vigente").all():
+    _cs = (Contrato.query.filter_by(estado="Vigente")
+           .options(joinedload(Contrato.inquilino), joinedload(Contrato.propietario),
+                    joinedload(Contrato.inmueble), selectinload(Contrato.pagos)).all())
+    for c in _cs:
         pago = next((p for p in c.pagos
                      if p.periodo_mes == mes and p.periodo_anio == anio), None)
         esperado = float(c.precio_actual or c.precio_inicial or 0)
@@ -94,7 +98,7 @@ def cobranzas():
 @login_required
 def personas():
     filas = []
-    for p in Persona.query.order_by(Persona.nombre).all():
+    for p in Persona.query.options(selectinload(Persona.inmuebles)).order_by(Persona.nombre).all():
         wa = link_whatsapp(p.telefono, f"Hola {p.nombre}!") if p.telefono else None
         filas.append(dict(
             id=p.id, nombre=p.nombre or "", dni=p.dni or "", cuit=p.cuit or "",
@@ -112,7 +116,8 @@ def personas():
 def inmuebles():
     estados = ["Disponible", "Alquilado", "Reservado"]
     filas = []
-    for i in Inmueble.query.order_by(Inmueble.direccion).all():
+    for i in (Inmueble.query.options(joinedload(Inmueble.propietario),
+              selectinload(Inmueble.contratos)).order_by(Inmueble.direccion).all()):
         precio = (f"{_simbolo(i.moneda)} {_money(i.precio_referencia)}"
                   if i.precio_referencia else "—")
         filas.append(dict(
@@ -131,7 +136,10 @@ def inmuebles():
 def contratos():
     estados = ["Vigente", "Rescindido", "Finalizado"]
     filas = []
-    for c in Contrato.query.order_by(Contrato.fecha_inicio.desc()).all():
+    _cs = (Contrato.query.options(joinedload(Contrato.inquilino),
+           joinedload(Contrato.propietario), joinedload(Contrato.inmueble))
+           .order_by(Contrato.fecha_inicio.desc()).all())
+    for c in _cs:
         inq = c.inquilino
         if c.metodo_ajuste == "indice":
             ajuste = c.indice_tipo or "Índice"
@@ -238,12 +246,16 @@ def dashboard():
         alquilados=Inmueble.query.filter_by(estado="Alquilado").count(),
         contratos_vigentes=Contrato.query.filter_by(estado="Vigente").count(),
     )
-    deuda = sum(float(p.saldo or 0) for p in Pago.query.all())
+    from sqlalchemy import func
+    from ..models import Aumento
+    deuda = float(db.session.query(func.coalesce(func.sum(Pago.saldo), 0)).scalar() or 0)
+    _cnt = dict(db.session.query(Aumento.contrato_id, func.count(Aumento.id))
+                .group_by(Aumento.contrato_id).all())
     aumentos_pend = 0
     for c in Contrato.query.filter_by(estado="Vigente").all():
         if c.metodo_ajuste == "sin_ajuste" or not c.ajuste_cada_meses:
             continue
-        prox = proximo_ajuste(c.fecha_inicio, c.ajuste_cada_meses, len(c.aumentos))
+        prox = proximo_ajuste(c.fecha_inicio, c.ajuste_cada_meses, _cnt.get(c.id, 0))
         if prox and prox <= hoy:
             aumentos_pend += 1
 
@@ -254,6 +266,7 @@ def dashboard():
                  Contrato.fecha_fin.isnot(None),
                  Contrato.fecha_fin >= hoy,
                  Contrato.fecha_fin <= limite)
+         .options(joinedload(Contrato.inquilino), joinedload(Contrato.inmueble))
          .order_by(Contrato.fecha_fin).all())
     for c in q:
         dias = (c.fecha_fin - hoy).days

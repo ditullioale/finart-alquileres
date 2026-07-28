@@ -40,7 +40,8 @@ def listar():
         query = query.order_by(col.desc() if direccion == "desc" else col.asc())
     else:
         query = query.order_by(Inmueble.direccion)
-    inmuebles = query.all()
+    from sqlalchemy.orm import joinedload
+    inmuebles = query.options(joinedload(Inmueble.propietario)).all()
     return render_template("inmuebles/list.html", inmuebles=inmuebles,
                            q=q, estado=estado, estados=ESTADOS)
 

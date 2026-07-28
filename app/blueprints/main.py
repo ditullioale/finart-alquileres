@@ -4,6 +4,7 @@ from datetime import date, timedelta
 from flask import Blueprint, render_template
 from flask_login import login_required
 
+from .. import db
 from ..models import Persona, Inmueble, Contrato, Pago
 from ..utils import proximo_ajuste
 
@@ -23,13 +24,19 @@ def index():
     }
 
     # Pendientes: deuda total y aumentos por aplicar.
-    deuda = sum(float(p.saldo or 0) for p in Pago.query.all())
+    from sqlalchemy import func
+    from sqlalchemy.orm import joinedload
+    from ..models import Aumento
+    deuda = float(db.session.query(func.coalesce(func.sum(Pago.saldo), 0)).scalar() or 0)
     hoy = date.today()
+    # Cantidad de aumentos por contrato en UNA consulta (evita N+1).
+    _cnt = dict(db.session.query(Aumento.contrato_id, func.count(Aumento.id))
+                .group_by(Aumento.contrato_id).all())
     aumentos_pend = 0
     for c in Contrato.query.filter_by(estado="Vigente").all():
         if c.metodo_ajuste == "sin_ajuste" or not c.ajuste_cada_meses:
             continue
-        prox = proximo_ajuste(c.fecha_inicio, c.ajuste_cada_meses, len(c.aumentos))
+        prox = proximo_ajuste(c.fecha_inicio, c.ajuste_cada_meses, _cnt.get(c.id, 0))
         if prox and prox <= hoy:
             aumentos_pend += 1
 
@@ -40,6 +47,8 @@ def index():
                           Contrato.fecha_fin != None,  # noqa: E711
                           Contrato.fecha_fin >= hoy,
                           Contrato.fecha_fin <= limite)
+                  .options(joinedload(Contrato.inquilino),
+                           joinedload(Contrato.inmueble))
                   .order_by(Contrato.fecha_fin).all())
 
     pendientes = {"deuda": deuda, "aumentos": aumentos_pend,

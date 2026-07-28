@@ -4,6 +4,7 @@ from datetime import date
 from flask import (Blueprint, render_template, redirect, url_for, request,
                    flash, abort, jsonify, make_response)
 from flask_login import login_required
+from sqlalchemy.orm import joinedload, selectinload
 
 from .. import db
 from ..models import Contrato, Pago, GastoExtra
@@ -84,7 +85,12 @@ def index():
 
     filas = []
     tot_esperado = tot_cobrado = tot_pendiente = 0.0
-    contratos = Contrato.query.filter_by(estado="Vigente").all()
+    contratos = (Contrato.query.filter_by(estado="Vigente")
+                 .options(joinedload(Contrato.inquilino),
+                          joinedload(Contrato.propietario),
+                          joinedload(Contrato.inmueble),
+                          selectinload(Contrato.pagos))
+                 .all())
     for c in contratos:
         if q:
             campos = " ".join(filter(None, [
