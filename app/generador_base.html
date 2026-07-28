@@ -16,12 +16,13 @@
   @media(min-width:1000px){.layout{grid-template-columns:440px 1fr}}
   fieldset{border:1px solid var(--bd);border-radius:10px;margin:0 0 12px;padding:12px 14px;background:#fff}
   legend{font-weight:700;color:var(--b);padding:0 6px;font-size:14px}
-  /* Secciones plegables: la leyenda actúa como cabecera clickeable */
-  .layout fieldset > legend{cursor:pointer;user-select:none}
-  .layout fieldset > legend::before{content:'▾';display:inline-block;width:14px;color:var(--a);font-size:11px}
-  .layout fieldset.collapsed > legend::before{content:'▸'}
-  .layout fieldset.collapsed{padding-bottom:4px}
-  .layout fieldset.collapsed > *:not(legend){display:none}
+  /* Wizard por pasos */
+  .wz-nav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
+  .wz-tab{flex:1 1 90px;padding:8px 6px;border:1px solid var(--bd);border-radius:8px;background:#fff;font-size:12px;font-weight:600;color:#5a6b86;cursor:pointer;text-align:center}
+  .wz-tab.active{background:var(--a);color:#fff;border-color:var(--a)}
+  .wz-tab.done{border-color:#a9dcbb;color:#1f9d55;background:#f2fbf5}
+  .wz-actions{display:flex;align-items:center;gap:10px;margin-top:8px;padding-top:14px;border-top:1px solid var(--bd)}
+  .wz-count{flex:1;text-align:center;font-size:12px;color:#6b7890}
   .cuit-row{display:flex;gap:6px;align-items:stretch}
   .cuit-row input{flex:1}
   .tools{font-size:11px;color:#6b7890;margin-top:4px;display:flex;flex-wrap:wrap;gap:4px 10px}
@@ -99,6 +100,15 @@
         <button class="btn sec" onclick="limpiar()">Limpiar</button>
       </div>
 
+      <div class="wz-nav">
+        <button type="button" class="wz-tab" onclick="wzGoto(1)">1 · Partes</button>
+        <button type="button" class="wz-tab" onclick="wzGoto(2)">2 · Inmueble</button>
+        <button type="button" class="wz-tab" onclick="wzGoto(3)">3 · Condiciones</button>
+        <button type="button" class="wz-tab" onclick="wzGoto(4)">4 · Garantías</button>
+        <button type="button" class="wz-tab" onclick="wzGoto(5)">5 · Generar</button>
+      </div>
+
+      <div class="wz-step" data-step="1">
       <fieldset>
         <legend>Firma</legend>
         <div class="row">
@@ -154,6 +164,8 @@
         <button class="btn sec mini" onclick="addCoLat()">+ Agregar otro locatario</button>
       </fieldset>
 
+      </div>
+      <div class="wz-step" data-step="2" hidden>
       <fieldset>
         <legend>Inmueble</legend>
         <div class="row">
@@ -168,6 +180,8 @@
         <textarea id="inmDesc" style="min-height:120px" placeholder="Detalle de ambientes, artefactos, marcas y estado..."></textarea>
       </fieldset>
 
+      </div>
+      <div class="wz-step" data-step="3" hidden>
       <fieldset>
         <legend>Condiciones económicas</legend>
         <div class="row3">
@@ -183,6 +197,11 @@
           <div><label>Punitorio diario (%)</label><input id="punitorio" type="number" step="0.01" value="0.4"></div>
         </div>
         <div class="hint">Vencimiento del contrato = fecha de firma + plazo (se calcula solo).</div>
+        <div class="tools" style="margin-top:8px">
+          <a onclick="datosSellado()">🧾 Datos para el sellado (e-seta)</a>
+          <a href="https://www.santafe.gov.ar/e-setaweb/" target="_blank" rel="noopener">Abrir e-seta (Santa Fe)</a>
+        </div>
+        <div id="selladoOut" class="hint" style="display:none;margin-top:6px"></div>
       </fieldset>
 
       <fieldset>
@@ -195,6 +214,8 @@
         <div class="chk"><input type="checkbox" id="mascotas"><label for="mascotas" style="margin:0">Permitir mascotas (si se destilda, quedan prohibidas)</label></div>
       </fieldset>
 
+      </div>
+      <div class="wz-step" data-step="4" hidden>
       <fieldset>
         <legend>Fiadores / Garantes</legend>
         <div id="fiadores"></div>
@@ -217,6 +238,8 @@
         <div class="hint">Se genera un pagaré por cada fiador, por el equivalente a esa cantidad de meses (cláusula 17). Vencimiento siempre <b>a la vista</b>.</div>
       </fieldset>
 
+      </div>
+      <div class="wz-step" data-step="5" hidden>
       <fieldset>
         <legend>Revisión de redacción con IA (opcional)</legend>
         <div class="hint" style="margin:0 0 8px">Revisa coherencia interna y redacción de los datos insertados (concordancia de género, fechas/montos que coincidan, textos sin cortar). No evalúa cuestiones legales.</div>
@@ -235,6 +258,14 @@
         <button class="btn mini" style="margin-top:10px" onclick="revisarIA()">🤖 Revisar con IA</button>
         <div class="hint">La clave queda solo en tu navegador. Al revisar, el texto del contrato se envía al proveedor elegido. No usa IA si no apretás el botón.</div>
       </fieldset>
+      </div>
+
+      <div class="wz-actions">
+        <button id="wzPrev" type="button" class="btn sec" onclick="wzPrev()">◀ Atrás</button>
+        <span id="wzCount" class="wz-count"></span>
+        <button id="wzNext" type="button" class="btn" onclick="wzNext()">Siguiente ▶</button>
+        <button id="wzGen" type="button" class="btn" onclick="generar()" style="display:none">Generar documentos ▸</button>
+      </div>
     </div>
 
     <!-- ================= OUTPUT ================= -->
@@ -663,6 +694,25 @@ async function verBcra(who){
   }catch(e){ panel.className='valPanel err'; panel.innerHTML='<div class="head"><span class="dot"></span> BCRA</div><p style="margin:8px 0 0">Error de conexión.</p>'; }
 }
 
+// ===== Sellado (impuesto de sellos, Santa Fe) =====
+function datosSellado(){
+  var out=document.getElementById('selladoOut');
+  out.style.display='block'; out.style.color='#1a2230';
+  var canon=parseFloat(document.getElementById('canon').value)||0;
+  var monto=canon*24;
+  var locC=(document.getElementById('locCuit').value||'—');
+  var latC=(document.getElementById('latCuil').value||'—');
+  var fecha=(document.getElementById('fechaFirma').value||'—');
+  function p(n){ return '$'+(n||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  out.innerHTML='Las locaciones con destino a <b>vivienda única</b> están <b>exentas</b> de sellos (da $0), '
+    +'pero igual hay que generar el formulario en e-seta (no requiere login). Cargá estos datos:<br>'
+    +'• Fecha del acto: <b>'+fecha+'</b><br>'
+    +'• CUIT locador: <b>'+locC+'</b><br>'
+    +'• CUIT locatario: <b>'+latC+'</b><br>'
+    +'• Monto (alquiler × 24): <b>'+p(monto)+'</b><br>'
+    +'<span style="color:#6b7890">El sistema calcula $0 y te deja imprimir el formulario.</span>';
+}
+
 // ===== Documentación adjunta (se sube al guardar en el sistema) =====
 function addDocGen(d){
   d=d||{};
@@ -683,17 +733,20 @@ function getDocsGen(){
   }).filter(Boolean);
 }
 
-// ===== Secciones plegables (acorta el formulario) =====
-(function(){
-  var abiertas=['Locador','Locatario','Inmueble','Condiciones'];
-  document.querySelectorAll('.layout fieldset').forEach(function(fs){
-    var lg=fs.querySelector('legend'); if(!lg||lg.parentNode!==fs) return;
-    var txt=lg.textContent||'';
-    var abierta=abiertas.some(function(k){return txt.indexOf(k)>=0;});
-    if(!abierta) fs.classList.add('collapsed');
-    lg.addEventListener('click', function(){ fs.classList.toggle('collapsed'); });
-  });
-})();
+// ===== Wizard por pasos =====
+var WZ_TOTAL=5, wzCur=1;
+function wzRender(){
+  document.querySelectorAll('.wz-step').forEach(function(s){ s.hidden = (parseInt(s.dataset.step)!==wzCur); });
+  document.querySelectorAll('.wz-tab').forEach(function(t,i){ var n=i+1; t.classList.toggle('active',n===wzCur); t.classList.toggle('done',n<wzCur); });
+  var cnt=document.getElementById('wzCount'); if(cnt) cnt.textContent='Paso '+wzCur+' de '+WZ_TOTAL;
+  var pv=document.getElementById('wzPrev'); if(pv) pv.style.visibility=(wzCur>1?'visible':'hidden');
+  var nx=document.getElementById('wzNext'); if(nx) nx.style.display=(wzCur<WZ_TOTAL?'inline-block':'none');
+  var gn=document.getElementById('wzGen'); if(gn) gn.style.display=(wzCur===WZ_TOTAL?'inline-block':'none');
+}
+function wzGoto(n){ wzCur=Math.max(1,Math.min(WZ_TOTAL,n)); wzRender(); try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){} }
+function wzNext(){ wzGoto(wzCur+1); }
+function wzPrev(){ wzGoto(wzCur-1); }
+wzRender();
 </script>
 </body>
 </html>
