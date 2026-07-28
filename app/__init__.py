@@ -5,6 +5,7 @@ from flask import Flask, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_wtf import CSRFProtect
+from flask_migrate import Migrate
 
 from config import Config
 
@@ -13,6 +14,10 @@ login_manager = LoginManager()
 login_manager.login_view = "auth.login"
 login_manager.login_message = "Iniciá sesión para continuar."
 csrf = CSRFProtect()
+migrate = Migrate()
+
+# Carpeta de migraciones de Alembic (en la raíz del proyecto, junto a app/).
+_MIGRATIONS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "migrations")
 
 
 def create_app(config_class=Config):
@@ -27,6 +32,7 @@ def create_app(config_class=Config):
     db.init_app(app)
     login_manager.init_app(app)
     csrf.init_app(app)
+    migrate.init_app(app, db, directory=_MIGRATIONS_DIR)
 
     from .models import Usuario
 
@@ -156,42 +162,67 @@ def create_app(config_class=Config):
         resp.headers["Content-Type"] = "application/json"
         return resp
 
-    # Crear tablas y usuario admin al arrancar (útil en el primer deploy en la nube).
-    with app.app_context():
+    # Arranque de la base. Se puede saltear con SKIP_STARTUP_DB=1 (se usa al
+    # generar migraciones con Alembic, para no crear tablas antes de comparar).
+    if not os.environ.get("SKIP_STARTUP_DB"):
+        with app.app_context():
+            _iniciar_base(app)
+
+    return app
+
+
+def _iniciar_base(app):
+    """Prepara la base en el arranque, de forma segura para deploys en curso.
+
+    Transición a Alembic: por ahora db.create_all() sigue asegurando el esquema
+    base (para instalaciones nuevas) y los ALTER idempotentes cubren columnas ya
+    agregadas antes de adoptar Alembic. Además se "estampa" la base con la
+    migración inicial para que, de acá en adelante, los cambios de esquema
+    (p. ej. multiempresa) se apliquen con `flask db upgrade`."""
+    from sqlalchemy import text, inspect
+    try:
+        from .models import Usuario
+        db.create_all()
+        Usuario.crear_admin_inicial()
+    except Exception:
+        pass
+    # Columnas agregadas antes de Alembic (idempotentes, no destructivas).
+    for _sql in [
+        "ALTER TABLE fiadores ADD COLUMN IF NOT EXISTS solvencia VARCHAR(250)",
+        "ALTER TABLE inmuebles ADD COLUMN IF NOT EXISTS cuenta_gas VARCHAR(30)",
+        "ALTER TABLE contratos ADD COLUMN IF NOT EXISTS aumento_pospuesto DATE",
+        "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT FALSE",
+    ]:
         try:
-            from .models import Usuario
-            db.create_all()
-            Usuario.crear_admin_inicial()
+            db.session.execute(text(_sql))
+            db.session.commit()
         except Exception:
-            pass
-        # Migraciones no destructivas: agregan columnas nuevas si faltan (autocura
-        # la base en cada deploy sin borrar datos).
-        from sqlalchemy import text
-        for _sql in [
-            "ALTER TABLE fiadores ADD COLUMN IF NOT EXISTS solvencia VARCHAR(250)",
-            "ALTER TABLE inmuebles ADD COLUMN IF NOT EXISTS cuenta_gas VARCHAR(30)",
-            "ALTER TABLE contratos ADD COLUMN IF NOT EXISTS aumento_pospuesto DATE",
-            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT FALSE",
-        ]:
-            try:
-                db.session.execute(text(_sql))
-                db.session.commit()
-            except Exception:
-                db.session.rollback()
-        # Limpieza única: teléfonos importados como decimales ("3402539090.0").
-        # Quitar el ".0" final devuelve el número correcto. Es idempotente.
+            db.session.rollback()
+    # Alembic: la primera vez estampa la base al día con la migración inicial;
+    # en los deploys siguientes aplica las migraciones nuevas que haya.
+    if not os.environ.get("TESTING") and os.path.isdir(_MIGRATIONS_DIR):
         try:
-            import re as _re
-            from .models import Persona
-            cambiados = 0
-            for _p in Persona.query.filter(Persona.telefono.like("%.0")).all():
-                nuevo = _re.sub(r"\.0+$", "", (_p.telefono or "").strip())
-                if nuevo != _p.telefono:
-                    _p.telefono = nuevo
-                    cambiados += 1
-            if cambiados:
-                db.session.commit()
+            from flask_migrate import stamp as _stamp, upgrade as _upgrade
+            tablas = inspect(db.engine).get_table_names()
+            if "alembic_version" in tablas:
+                _upgrade(directory=_MIGRATIONS_DIR)
+            else:
+                _stamp(directory=_MIGRATIONS_DIR)
         except Exception:
             db.session.rollback()
 
-    return app
+    # Limpieza única: teléfonos importados como decimales ("3402539090.0").
+    # Quitar el ".0" final devuelve el número correcto. Es idempotente.
+    try:
+        import re as _re
+        from .models import Persona
+        cambiados = 0
+        for _p in Persona.query.filter(Persona.telefono.like("%.0")).all():
+            nuevo = _re.sub(r"\.0+$", "", (_p.telefono or "").strip())
+            if nuevo != _p.telefono:
+                _p.telefono = nuevo
+                cambiados += 1
+        if cambiados:
+            db.session.commit()
+    except Exception:
+        db.session.rollback()
