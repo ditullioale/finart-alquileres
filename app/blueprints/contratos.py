@@ -58,6 +58,12 @@ def listar():
                            q=q, estado=estado, estados=ESTADOS)
 
 
+@contratos_bp.route("/react")
+@login_required
+def react():
+    return render_template("contratos/react.html")
+
+
 @contratos_bp.route("/<int:cid>/documento")
 @login_required
 def documento(cid):

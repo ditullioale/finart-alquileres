@@ -39,6 +39,12 @@ def listar():
     return render_template("personas/list.html", personas=personas, q=q, rol=rol)
 
 
+@personas_bp.route("/react")
+@login_required
+def react():
+    return render_template("personas/react.html")
+
+
 def _leer_form(persona):
     persona.nombre = request.form.get("nombre", "").strip()
     persona.dni = request.form.get("dni", "").strip()

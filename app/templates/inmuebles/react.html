@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Inmuebles (nueva){% endblock %}
+{% block content %}
+<div id="react-inmuebles"><p class="hint">Cargando…</p></div>
+<script type="module" src="{{ url_for('static', filename='js/react/bundle.js') }}"></script>
+{% endblock %}

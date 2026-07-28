@@ -1,6 +1,9 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import Cobranzas from './Cobranzas'
+import ListaPersonas from './ListaPersonas'
+import ListaInmuebles from './ListaInmuebles'
+import ListaContratos from './ListaContratos'
 
 function mount(id, element) {
   const el = document.getElementById(id)
@@ -30,3 +33,8 @@ if (cob) {
     <React.StrictMode><Cobranzas mesIni={mesIni} anioIni={anioIni} /></React.StrictMode>
   )
 }
+
+// Sprint 2: islas de listados.
+mount('react-personas', <ListaPersonas />)
+mount('react-inmuebles', <ListaInmuebles />)
+mount('react-contratos', <ListaContratos />)

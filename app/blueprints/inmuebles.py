@@ -45,6 +45,12 @@ def listar():
                            q=q, estado=estado, estados=ESTADOS)
 
 
+@inmuebles_bp.route("/react")
+@login_required
+def react():
+    return render_template("inmuebles/react.html")
+
+
 def _leer_form(inmueble):
     inmueble.codigo = request.form.get("codigo", "").strip()
     inmueble.tipo = request.form.get("tipo", "").strip()
