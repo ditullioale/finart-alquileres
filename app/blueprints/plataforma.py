@@ -11,8 +11,10 @@ from flask import (Blueprint, render_template, redirect, url_for, request,
                    flash, abort)
 from flask_login import login_required, current_user
 
+from datetime import datetime
+
 from .. import db
-from ..models import Inmobiliaria, Usuario
+from ..models import Inmobiliaria, Usuario, SolicitudAlta
 
 plataforma_bp = Blueprint("plataforma", __name__, url_prefix="/plataforma")
 
@@ -35,7 +37,57 @@ def index():
     for i in inmos:
         usuarios = Usuario.query.filter_by(inmobiliaria_id=i.id).count()
         datos.append(dict(i=i, usuarios=usuarios))
-    return render_template("plataforma/index.html", datos=datos)
+    solicitudes = (SolicitudAlta.query.filter_by(estado="pendiente")
+                   .order_by(SolicitudAlta.creada).all())
+    return render_template("plataforma/index.html", datos=datos,
+                           solicitudes=solicitudes)
+
+
+@plataforma_bp.route("/solicitudes/<int:sid>/aprobar", methods=["POST"])
+@login_required
+@superadmin_required
+def aprobar_solicitud(sid):
+    s = db.session.get(SolicitudAlta, sid)
+    if not s:
+        abort(404)
+    if s.estado != "pendiente":
+        flash("Esa solicitud ya fue procesada.", "error")
+        return redirect(url_for("plataforma.index"))
+    if Usuario.query.filter_by(username=s.username).first():
+        flash(f"El usuario «{s.username}» ya existe. Rechazá la solicitud o pedí "
+              "que se registre con otro usuario.", "error")
+        return redirect(url_for("plataforma.index"))
+
+    inmo = Inmobiliaria(nombre=s.nombre_inmobiliaria, localidad=s.localidad,
+                        plan="inicial")
+    db.session.add(inmo)
+    db.session.flush()   # obtener inmo.id
+    u = Usuario(username=s.username, nombre=(s.nombre_contacto or s.username),
+                email=(s.email or None), rol="admin", activo=True,
+                must_change_password=False, inmobiliaria_id=inmo.id)
+    u.password_hash = s.password_hash   # ya la eligió al registrarse
+    db.session.add(u)
+    s.estado = "aprobada"
+    s.procesada = datetime.utcnow()
+    db.session.commit()
+    flash(f"Solicitud aprobada. «{s.nombre_inmobiliaria}» ya puede ingresar "
+          f"con el usuario «{s.username}».", "ok")
+    return redirect(url_for("plataforma.index"))
+
+
+@plataforma_bp.route("/solicitudes/<int:sid>/rechazar", methods=["POST"])
+@login_required
+@superadmin_required
+def rechazar_solicitud(sid):
+    s = db.session.get(SolicitudAlta, sid)
+    if not s:
+        abort(404)
+    if s.estado == "pendiente":
+        s.estado = "rechazada"
+        s.procesada = datetime.utcnow()
+        db.session.commit()
+    flash("Solicitud rechazada.", "ok")
+    return redirect(url_for("plataforma.index"))
 
 
 @plataforma_bp.route("/inmobiliarias/nueva", methods=["GET", "POST"])

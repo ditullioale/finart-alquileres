@@ -108,6 +108,30 @@ class Inmobiliaria(db.Model):
 
 
 # --------------------------------------------------------------------------- #
+#  Solicitudes de alta (auto-registro con aprobación del superadmin)
+# --------------------------------------------------------------------------- #
+class SolicitudAlta(db.Model):
+    """Pedido de acceso de una inmobiliaria nueva. Queda pendiente hasta que el
+    superadmin la aprueba (crea la inmobiliaria + su admin) o la rechaza."""
+    __tablename__ = "solicitudes_alta"
+
+    id = db.Column(db.Integer, primary_key=True)
+    nombre_inmobiliaria = db.Column(db.String(160), nullable=False)
+    nombre_contacto = db.Column(db.String(160))
+    email = db.Column(db.String(120))
+    telefono = db.Column(db.String(60))
+    localidad = db.Column(db.String(120))
+    username = db.Column(db.String(60), nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    estado = db.Column(db.String(20), default="pendiente")   # pendiente/aprobada/rechazada
+    creada = db.Column(db.DateTime, default=datetime.utcnow)
+    procesada = db.Column(db.DateTime)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+
+# --------------------------------------------------------------------------- #
 #  Auditoría (quién hizo qué y cuándo)
 # --------------------------------------------------------------------------- #
 class RegistroAuditoria(db.Model):

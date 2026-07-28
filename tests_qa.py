@@ -385,6 +385,71 @@ def run():
         check("onboarding crea su admin (aislado y con cambio de clave forzado)",
               q(_admin_c_ok))
 
+        seccion("Alta autogestionada (registro con aprobación)")
+        from app.models import SolicitudAlta
+
+        # página pública accesible sin login
+        cpub = app.test_client()
+        check("la página de solicitar acceso es pública (200)",
+              cpub.get("/registro").status_code == 200)
+
+        # enviar una solicitud
+        cpub.post("/registro", data={
+            "nombre_inmobiliaria": "Inmobiliaria D", "nombre_contacto": "Dora",
+            "email": "dora@correo.com", "telefono": "341555", "localidad": "Funes",
+            "username": "admind", "password": "claveD123", "password2": "claveD123"},
+            follow_redirects=True)
+
+        def _sol_d():
+            return SolicitudAlta.query.filter_by(username="admind").first()
+        sol_d = q(_sol_d)
+        check("la solicitud queda registrada como pendiente",
+              sol_d is not None and sol_d.estado == "pendiente")
+        check("la solicitud NO crea usuario todavía",
+              q(lambda: Usuario.query.filter_by(username="admind").first()) is None)
+
+        # contraseñas que no coinciden -> no crea nada
+        antes_sol = q(lambda: SolicitudAlta.query.count())
+        cpub.post("/registro", data={
+            "nombre_inmobiliaria": "X", "username": "otrouser",
+            "password": "aaa111", "password2": "bbb222"})
+        check("registro rechaza contraseñas que no coinciden",
+              q(lambda: SolicitudAlta.query.count()) == antes_sol)
+
+        # el superadmin ve la solicitud en el panel
+        check("el superadmin ve la solicitud pendiente en /plataforma",
+              b"Inmobiliaria D" in clS.get("/plataforma/").data)
+
+        # aprobar -> crea inmobiliaria + admin que puede ingresar
+        clS.post(f"/plataforma/solicitudes/{sol_d.id}/aprobar", follow_redirects=True)
+
+        def _admind_ok():
+            u = Usuario.query.filter_by(username="admind").first()
+            if not u:
+                return False
+            from app.models import Inmobiliaria
+            inmo = db.session.get(Inmobiliaria, u.inmobiliaria_id)
+            return (u.rol == "admin" and inmo is not None
+                    and inmo.nombre == "Inmobiliaria D")
+        check("aprobar crea la inmobiliaria y su admin", q(_admind_ok))
+        check("la solicitud queda marcada como aprobada",
+              q(lambda: SolicitudAlta.query.filter_by(username="admind").first().estado) == "aprobada")
+
+        cD = app.test_client()
+        cD.post("/login", data={"username": "admind", "password": "claveD123"})
+        check("el admin nuevo entra con la clave que eligió",
+              cD.get("/personas/").status_code == 200)
+
+        # rechazar otra solicitud
+        cpub.post("/registro", data={
+            "nombre_inmobiliaria": "Inmobiliaria E", "username": "admine",
+            "password": "claveE123", "password2": "claveE123"}, follow_redirects=True)
+        sol_e = q(lambda: SolicitudAlta.query.filter_by(username="admine").first())
+        clS.post(f"/plataforma/solicitudes/{sol_e.id}/rechazar", follow_redirects=True)
+        check("rechazar marca la solicitud y no crea usuario",
+              q(lambda: SolicitudAlta.query.filter_by(username="admine").first().estado) == "rechazada"
+              and q(lambda: Usuario.query.filter_by(username="admine").first()) is None)
+
         seccion("Recuperación de contraseña")
         from app.blueprints.auth import generar_token_reset
 

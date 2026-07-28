@@ -92,6 +92,57 @@ def logout():
     return redirect(url_for("auth.login"))
 
 
+@auth_bp.route("/registro", methods=["GET", "POST"])
+def registro():
+    """Alta autogestionada: una inmobiliaria pide acceso. Queda pendiente hasta
+    que el superadmin la aprueba. No crea nada activo por sí sola."""
+    if current_user.is_authenticated:
+        return redirect(url_for("main.index"))
+
+    from ..models import SolicitudAlta
+
+    if request.method == "POST":
+        nombre_inmo = request.form.get("nombre_inmobiliaria", "").strip()
+        contacto = request.form.get("nombre_contacto", "").strip()
+        email = request.form.get("email", "").strip()
+        telefono = request.form.get("telefono", "").strip()
+        localidad = request.form.get("localidad", "").strip()
+        username = request.form.get("username", "").strip().lower()
+        password = request.form.get("password", "")
+        password2 = request.form.get("password2", "")
+
+        error = None
+        if not nombre_inmo:
+            error = "El nombre de la inmobiliaria es obligatorio."
+        elif not username or len(username) < 3:
+            error = "Elegí un usuario de al menos 3 caracteres."
+        elif Usuario.query.filter_by(username=username).first():
+            error = "Ese usuario ya está en uso. Probá con otro."
+        elif SolicitudAlta.query.filter_by(username=username, estado="pendiente").first():
+            error = "Ya hay una solicitud pendiente con ese usuario."
+        elif len(password) < 6:
+            error = "La contraseña debe tener al menos 6 caracteres."
+        elif password != password2:
+            error = "Las contraseñas no coinciden."
+
+        if error:
+            flash(error, "error")
+            return render_template("auth/registro.html", datos=request.form)
+
+        sol = SolicitudAlta(
+            nombre_inmobiliaria=nombre_inmo, nombre_contacto=contacto,
+            email=email, telefono=telefono, localidad=localidad,
+            username=username, estado="pendiente")
+        sol.set_password(password)
+        db.session.add(sol)
+        db.session.commit()
+        flash("¡Solicitud enviada! Te vamos a habilitar el acceso a la brevedad. "
+              "Después vas a poder ingresar con el usuario y contraseña que elegiste.", "ok")
+        return redirect(url_for("auth.login"))
+
+    return render_template("auth/registro.html", datos={})
+
+
 @auth_bp.route("/recuperar", methods=["GET", "POST"])
 def recuperar():
     """Pide un enlace de recuperación. Nunca revela si el usuario existe."""

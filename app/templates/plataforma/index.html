@@ -9,6 +9,42 @@
   <a class="btn" href="{{ url_for('plataforma.nueva_inmobiliaria') }}">+ Nueva inmobiliaria</a>
 </div>
 
+{% if solicitudes %}
+<div class="panel" style="margin-bottom:18px;border:1px solid #f0c36d;background:#fffdf5">
+  <h2 style="margin-top:0">📥 Solicitudes de acceso pendientes ({{ solicitudes|length }})</h2>
+  <p class="hint" style="margin-top:0">Inmobiliarias que pidieron acceso. Al aprobar se crea la inmobiliaria y su administrador con el usuario y la contraseña que eligieron.</p>
+  <div class="table-wrap">
+  <table class="grid">
+    <thead>
+      <tr><th>Inmobiliaria</th><th>Contacto</th><th>Email / Tel.</th><th>Localidad</th><th>Usuario</th><th>Fecha</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for s in solicitudes %}
+      <tr>
+        <td><b>{{ s.nombre_inmobiliaria }}</b></td>
+        <td>{{ s.nombre_contacto or '—' }}</td>
+        <td>{{ s.email or '—' }}{% if s.telefono %}<br><span class="hint" style="margin:0">{{ s.telefono }}</span>{% endif %}</td>
+        <td>{{ s.localidad or '—' }}</td>
+        <td><code>{{ s.username }}</code></td>
+        <td class="hint" style="margin:0">{{ s.creada.strftime('%d/%m/%Y') if s.creada }}</td>
+        <td class="actions" style="white-space:nowrap">
+          <form method="post" action="{{ url_for('plataforma.aprobar_solicitud', sid=s.id) }}" style="display:inline"
+                onsubmit="return confirm('¿Aprobar y crear la inmobiliaria «{{ s.nombre_inmobiliaria }}»?')">
+            <button class="btn ok" type="submit" style="padding:5px 12px">✓ Aprobar</button>
+          </form>
+          <form method="post" action="{{ url_for('plataforma.rechazar_solicitud', sid=s.id) }}" style="display:inline"
+                onsubmit="return confirm('¿Rechazar esta solicitud?')">
+            <button class="link-danger" type="submit">Rechazar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+
 <div class="table-wrap">
 <table class="grid">
   <thead>

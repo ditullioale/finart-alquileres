@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Solicitar acceso{% endblock %}
+{% block content %}
+<div class="login-box" style="max-width:520px">
+  <h1>🏠 Solicitar acceso</h1>
+  <p class="sub">Completá los datos de tu inmobiliaria. Revisamos la solicitud y te habilitamos el ingreso.</p>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
+  {% endwith %}
+  <form method="post">
+    <label>Nombre de la inmobiliaria *</label>
+    <input name="nombre_inmobiliaria" value="{{ datos.nombre_inmobiliaria or '' }}" autofocus required>
+
+    <label>Tu nombre (contacto)</label>
+    <input name="nombre_contacto" value="{{ datos.nombre_contacto or '' }}">
+
+    <div class="grid2">
+      <div>
+        <label>Email</label>
+        <input name="email" type="email" value="{{ datos.email or '' }}">
+      </div>
+      <div>
+        <label>Teléfono</label>
+        <input name="telefono" value="{{ datos.telefono or '' }}">
+      </div>
+    </div>
+
+    <label>Localidad</label>
+    <input name="localidad" value="{{ datos.localidad or '' }}" placeholder="Ej: Rosario, Santa Fe">
+
+    <hr style="margin:16px 0;border:none;border-top:1px solid #e5e9f0">
+    <p class="hint" style="margin-top:0">Con estos datos vas a ingresar una vez aprobada la solicitud.</p>
+
+    <label>Usuario para ingresar *</label>
+    <input name="username" value="{{ datos.username or '' }}" required>
+
+    <div class="grid2">
+      <div>
+        <label>Contraseña *</label>
+        <input name="password" type="password" required>
+      </div>
+      <div>
+        <label>Repetir contraseña *</label>
+        <input name="password2" type="password" required>
+      </div>
+    </div>
+
+    <button class="btn" type="submit" style="margin-top:14px">Enviar solicitud</button>
+  </form>
+  <p style="text-align:center;margin-top:12px">
+    <a href="{{ url_for('auth.login') }}" style="color:#6f86a6;font-size:13px">Ya tengo cuenta · Ingresar</a>
+  </p>
+</div>
+{% endblock %}
