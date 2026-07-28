@@ -395,6 +395,8 @@ def _generador_html():
         loc:{nombre:g('locNombre'),dni:g('locDni'),dom:g('locDom'),email:g('locEmail')},
         lat:{nombre:g('latNombre'),dni:g('latDni'),cuil:g('latCuil'),dom:g('latDom'),
              email:g('latEmail'),genero:g('latGenero')},
+        coLoc:(typeof getCoLoc==='function'?getCoLoc():[]),
+        coLat:(typeof getCoLat==='function'?getCoLat():[]),
         inm:{dir:g('inmDir'),cochera:g('inmCochera'),ciudad:g('inmCiudad'),
              provincia:g('inmProvincia'),desc:g('inmDesc')},
         econ:{plazo:g('plazo'),canon:g('canon'),ajusteMeses:g('ajusteMeses'),
@@ -630,6 +632,22 @@ def desde_generador():
                 nombre=f["nombre"], dni=f.get("dni", ""), domicilio=f.get("dom", ""),
                 telefono=f.get("tel", ""), email=f.get("email", ""),
                 solvencia=f.get("solvencia", "")))
+
+    # Co-locadores y co-locatarios (personas adicionales de cada lado).
+    prop_id = propietario.id if propietario else None
+    inq_id = inquilino.id if inquilino else None
+    for cl in (d.get("coLoc") or []):
+        per = _upsert_persona(cl, propietario=True)
+        if per:
+            db.session.flush()
+            if per.id != prop_id and per not in contrato.colocadores:
+                contrato.colocadores.append(per)
+    for cl in (d.get("coLat") or []):
+        per = _upsert_persona(cl, inquilino=True)
+        if per:
+            db.session.flush()
+            if per.id != inq_id and per not in contrato.colocatarios:
+                contrato.colocatarios.append(per)
 
     db.session.commit()
     return jsonify(ok=True, contrato_id=contrato.id,

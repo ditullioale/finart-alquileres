@@ -104,6 +104,8 @@
           <div><label>Email (domicilio especial)</label><input id="locEmail"></div>
         </div>
         <label>Domicilio</label><input id="locDom" placeholder="calle ... de la localidad de ...">
+        <div id="coLocadores"></div>
+        <button class="btn sec mini" onclick="addCoLoc()">+ Agregar otro locador</button>
       </fieldset>
 
       <fieldset>
@@ -120,6 +122,8 @@
           <div><label>Email</label><input id="latEmail"></div>
         </div>
         <label>Domicilio</label><input id="latDom">
+        <div id="coLocatarios"></div>
+        <button class="btn sec mini" onclick="addCoLat()">+ Agregar otro locatario</button>
       </fieldset>
 
       <fieldset>
@@ -245,6 +249,47 @@ function getFiadores(){
     solvencia:c.querySelector('.f-solvencia').value.trim(),
   })).filter(f=>f.nombre);
 }
+// ---- Co-locadores (más dueños) y co-locatarios (más inquilinos) ----
+let nCoLoc=0;
+function addCoLoc(d){
+  d=d||{};const id=++nCoLoc;
+  const div=document.createElement('div');div.className='card';
+  div.innerHTML=`<h4>Locador ${id+1} <button class="btn sec mini" style="float:right" onclick="this.closest('.card').remove()">✕</button></h4>
+    <label>Nombre y apellido</label><input class="cl-nombre" value="${d.nombre||''}">
+    <div class="row"><div><label>D.N.I.</label><input class="cl-dni" value="${d.dni||''}"></div>
+    <div><label>Email</label><input class="cl-email" value="${d.email||''}"></div></div>
+    <label>Domicilio</label><input class="cl-dom" value="${d.dom||''}">`;
+  document.getElementById('coLocadores').appendChild(div);
+}
+function getCoLoc(){
+  return [...document.querySelectorAll('#coLocadores .card')].map(c=>({
+    nombre:c.querySelector('.cl-nombre').value.trim(),
+    dni:c.querySelector('.cl-dni').value.trim(),
+    dom:c.querySelector('.cl-dom').value.trim(),
+    email:c.querySelector('.cl-email').value.trim(),
+  })).filter(x=>x.nombre);
+}
+let nCoLat=0;
+function addCoLat(d){
+  d=d||{};const id=++nCoLat;
+  const div=document.createElement('div');div.className='card';
+  div.innerHTML=`<h4>Locatario ${id+1} <button class="btn sec mini" style="float:right" onclick="this.closest('.card').remove()">✕</button></h4>
+    <label>Nombre y apellido</label><input class="ct-nombre" value="${d.nombre||''}">
+    <div class="row3"><div><label>D.N.I.</label><input class="ct-dni" value="${d.dni||''}"></div>
+    <div><label>C.U.I.L./C.U.I.T.</label><input class="ct-cuil" value="${d.cuil||''}"></div>
+    <div><label>Email</label><input class="ct-email" value="${d.email||''}"></div></div>
+    <label>Domicilio</label><input class="ct-dom" value="${d.dom||''}">`;
+  document.getElementById('coLocatarios').appendChild(div);
+}
+function getCoLat(){
+  return [...document.querySelectorAll('#coLocatarios .card')].map(c=>({
+    nombre:c.querySelector('.ct-nombre').value.trim(),
+    dni:c.querySelector('.ct-dni').value.trim(),
+    cuil:c.querySelector('.ct-cuil').value.trim(),
+    dom:c.querySelector('.ct-dom').value.trim(),
+    email:c.querySelector('.ct-email').value.trim(),
+  })).filter(x=>x.nombre);
+}
 const V=id=>{const e=document.getElementById(id);return e?e.value.trim():''};
 const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 function cap(s){return s?s.charAt(0).toUpperCase()+s.slice(1):s}
@@ -284,9 +329,19 @@ function generar(){
 
   const fiadorEnc = fiadores.map(f=>`<b>${f.nombre}</b>, D.N.I. ${f.dni||'—'}, con domicilio en ${f.dom||'—'}${f.email?`, correo electrónico ${f.email}`:''}${f.tel?`, tel ${f.tel}`:''}${f.solvencia?`, que acredita solvencia con ${f.solvencia}`:''}`).join('; ');
 
+  // Todas las personas de cada lado: el titular del formulario + los agregados.
+  const locadores = [{nombre:V('locNombre')||'________', dni:V('locDni'), dom:V('locDom'), email:V('locEmail')}].concat(getCoLoc());
+  const locatarios = [{nombre:V('latNombre')||'________', dni:V('latDni'), cuil:V('latCuil'), dom:V('latDom'), email:V('latEmail')}].concat(getCoLat());
+  const descLoc = l=>`<b>${l.nombre}</b>, titular de D.N.I. ${l.dni||'—'}, con domicilio en ${l.dom||'—'}`;
+  const descLat = l=>`<b>${l.nombre}</b>, titular de D.N.I. ${l.dni||'—'}${l.cuil?`, C.U.I.L. ${l.cuil}`:''}, con domicilio en ${l.dom||'—'}${l.email?` (mail ${l.email})`:''}`;
+  const varios = 'en forma conjunta, indistinta y solidaria, ';
+  const locSeg = locadores.map(descLoc).join('; y ') + `, en adelante ${locadores.length>1?varios:''}el <b>Locador</b>`;
+  const latSeg = locatarios.map(descLat).join('; y ') + `, en adelante ${locatarios.length>1?varios:''}${elLa} <b>${locatario}</b>`;
+  const locPayee = locadores.map(l=>l.nombre).join(' y/o ');
+
   const c=`
   <h2>CONTRATO DE LOCACIÓN</h2>
-  <p>En la ciudad de ${V('ciudadFirma')||'________'}, a los ${fechaTexto(V('fechaFirma'))}, entre <b>${V('locNombre')||'________'}</b>, titular de D.N.I. ${V('locDni')||'—'}, con domicilio en ${V('locDom')||'—'}, en adelante el <b>Locador</b> y <b>${V('latNombre')||'________'}</b>, titular de D.N.I. ${V('latDni')||'—'}${V('latCuil')?`, C.U.I.L. ${V('latCuil')}`:''}, con domicilio en ${V('latDom')||'—'}${V('latEmail')?` (mail ${V('latEmail')})`:''}, en adelante ${elLa} <b>${locatario}</b>, han convenido celebrar el presente contrato de locación que se regirá por las siguientes cláusulas:</p>
+  <p>En la ciudad de ${V('ciudadFirma')||'________'}, a los ${fechaTexto(V('fechaFirma'))}, entre ${locSeg} y ${latSeg}, han convenido celebrar el presente contrato de locación que se regirá por las siguientes cláusulas:</p>
   <ol>
     <li>El Locador alquila al ${locatario} una vivienda ubicada en la calle <b>${V('inmDir')||'________'}</b>${V('inmCochera')?`, y su correspondiente cochera designada como ${V('inmCochera')}`:''}, en la ciudad de ${V('inmCiudad')||'________'}, provincia de ${V('inmProvincia')||'________'}. ${V('inmDesc')||'[Descripción del inmueble e inventario].'} Todos los elementos y artefactos mencionados se encuentran en perfecto estado de uso y conservación, y deben ser devueltos al finalizar el contrato de alquiler en las mismas condiciones en que se recibieron.</li>
     <li>El término de este contrato es de <b>${numLetras(plazo)} meses</b> por lo que su vencimiento se operará de pleno derecho el día <b>${addMeses(V('fechaFirma'),plazo)}</b> sin necesidad de notificación o requerimiento alguno por parte del locador.</li>
@@ -311,8 +366,8 @@ function generar(){
   </ol>
   <p>En prueba de conformidad, se firman tres ejemplares de un mismo tenor y a un solo efecto, quedando el original en poder del Locador, una copia en poder ${gf?'de la Locataria':'del Locatario'} y otra copia en poder del/los Fiador/es.</p>
   <div class="firmas">
-    <div class="firma">${V('locNombre')||'________________'}<br>LOCADOR</div>
-    <div class="firma">${V('latNombre')||'________________'}<br>${locatario.toUpperCase()}</div>
+    ${locadores.map(l=>`<div class="firma">${l.nombre||'________________'}<br>LOCADOR</div>`).join('')}
+    ${locatarios.map(l=>`<div class="firma">${l.nombre||'________________'}<br>${locatario.toUpperCase()}</div>`).join('')}
     ${fiadores.map(f=>`<div class="firma">${f.nombre}<br>FIADOR/A</div>`).join('')}
   </div>`;
   document.getElementById('contrato').innerHTML=c;
@@ -326,7 +381,7 @@ function generar(){
     ph+=`<div class="pagare">
       <div class="tt"><span>PAGARÉ ${i+1}/${fiadores.length} — SIN PROTESTO</span><span>$ ${fmt(monto)}</span></div>
       <p>${lugar}, ${fechaTexto(V('fechaFirma'))}.</p>
-      <p>Vencimiento: <b>a la vista</b>. Por igual valor recibido a mi entera satisfacción, pagaré SIN PROTESTO (art. 50 Dec. Ley 5965/63) a <b>${V('locNombre')||'________'}</b> o a su orden, la cantidad de <b>$ ${fmt(monto)}</b> (${pesosLetras(monto)}), equivalente a ${numLetras(pagMeses)} (${pagMeses}) meses de alquiler.</p>
+      <p>Vencimiento: <b>a la vista</b>. Por igual valor recibido a mi entera satisfacción, pagaré SIN PROTESTO (art. 50 Dec. Ley 5965/63) a <b>${locPayee||'________'}</b> o a su orden, la cantidad de <b>$ ${fmt(monto)}</b> (${pesosLetras(monto)}), equivalente a ${numLetras(pagMeses)} (${pagMeses}) meses de alquiler.</p>
       <p>Pagadero en ${lugar}. Librado en garantía de las obligaciones del contrato de locación del inmueble sito en ${V('inmDir')||'________'}, ${V('inmCiudad')}.</p>
       <div style="margin-top:34px;border-top:1px solid #333;width:60%;padding-top:5px;font-size:12px">
         <b>${f.nombre}</b> — Fiador/a<br>D.N.I.: ${f.dni||'____________'}<br>Domicilio: ${f.dom||'____________'}</div>
@@ -519,7 +574,7 @@ function cargarEjemplo(){
   addFiador({nombre:'CALZETTI ROMINA BELEN',dni:'35.447.345',dom:'calle Viamonte 3721 de la ciudad de Rosario',email:'romina.b.calzetti@hotmail.com',tel:'341-6603555'});
   generar();
 }
-function limpiar(){document.querySelectorAll('input,textarea').forEach(e=>{if(e.type==='checkbox')e.checked=false;else if(e.type!=='button')e.value=''});document.getElementById('fiadores').innerHTML='';nFiador=0;addFiador();document.getElementById('contrato').innerHTML='<p style="text-align:center;color:#889">Completá el formulario y presioná Generar documentos.</p>';document.getElementById('pagares').innerHTML='';}
+function limpiar(){document.querySelectorAll('input,textarea').forEach(e=>{if(e.type==='checkbox')e.checked=false;else if(e.type!=='button')e.value=''});document.getElementById('fiadores').innerHTML='';nFiador=0;addFiador();document.getElementById('coLocadores').innerHTML='';nCoLoc=0;document.getElementById('coLocatarios').innerHTML='';nCoLat=0;document.getElementById('contrato').innerHTML='<p style="text-align:center;color:#889">Completá el formulario y presioná Generar documentos.</p>';document.getElementById('pagares').innerHTML='';}
 
 addFiador();
 // cargar clave guardada si existe
