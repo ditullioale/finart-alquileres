@@ -14,6 +14,9 @@
       {% endif %}
     </div>
     <div><label>Nombre y apellido</label><input name="nombre" value="{{ u.nombre if u else (datos.nombre or '') }}"></div>
+    <div><label>Email</label>
+      <input name="email" type="email" value="{{ u.email if u else (datos.email or '') }}" placeholder="para recuperar la contraseña">
+      <span class="hint">Necesario para recuperar la contraseña por email.</span></div>
     <div><label>Rol</label>
       <select name="rol">
         {% for val,lbl in roles %}<option value="{{ val }}" {{ 'selected' if (u.rol if u else datos.rol)==val }}>{{ lbl }}</option>{% endfor %}

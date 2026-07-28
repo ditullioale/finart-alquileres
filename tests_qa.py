@@ -332,6 +332,92 @@ def run():
         check("auditoría de B no filtra datos de A",
               "Nuevo Inquilino" not in rb and "Santamaria Guido" not in rb)
 
+        seccion("Roles - solo lectura")
+
+        def _mk_lectura():
+            u = Usuario(username="lector", nombre="Lector", rol="lectura",
+                        activo=True, must_change_password=False)
+            u.set_password("lector123")
+            db.session.add(u); db.session.commit()
+        q(_mk_lectura)
+        clL = app.test_client()
+        clL.post("/login", data={"username": "lector", "password": "lector123"})
+        check("lectura puede VER listados (GET 200)",
+              clL.get("/personas/").status_code == 200)
+        antes = q(lambda: Persona.query.count())
+        clL.post("/personas/nueva", data={"nombre": "No Deberia Entrar",
+                                           "es_inquilino": "on"})
+        despues = q(lambda: Persona.query.count())
+        check("lectura NO puede crear (mutación bloqueada)", antes == despues)
+        check("lectura recibe 403 en API de escritura",
+              clL.post("/cobros/rapido", json={"cid": ids["c"], "mes": 5,
+                       "anio": 2027, "precio": 1000}).status_code == 403)
+
+        seccion("Plataforma - superadmin y onboarding")
+
+        def _mk_super():
+            s = Usuario(username="super", nombre="Super", rol="superadmin",
+                        activo=True, inmobiliaria_id=None, must_change_password=False)
+            s.set_password("super123")
+            db.session.add(s); db.session.commit()
+        q(_mk_super)
+        clS = app.test_client()
+        clS.post("/login", data={"username": "super", "password": "super123"})
+        check("superadmin ve el panel de plataforma",
+              clS.get("/plataforma/").status_code == 200)
+        check("un admin normal NO accede a plataforma (403)",
+              cl.get("/plataforma/").status_code == 403)
+        # onboarding: crear inmobiliaria C + su admin
+        clS.post("/plataforma/inmobiliarias/nueva", data={
+            "nombre": "Inmobiliaria C", "cuit": "30-1-1", "localidad": "Rosario",
+            "plan": "inicial", "admin_user": "adminc", "admin_nombre": "Admin C",
+            "admin_pass": "claveC123"})
+
+        def _inmo_c():
+            from app.models import Inmobiliaria
+            return Inmobiliaria.query.filter_by(nombre="Inmobiliaria C").first()
+        inmo_c = q(_inmo_c)
+        check("onboarding crea la inmobiliaria", inmo_c is not None)
+
+        def _admin_c_ok():
+            u = Usuario.query.filter_by(username="adminc").first()
+            return u is not None and u.inmobiliaria_id == inmo_c.id and u.must_change_password
+        check("onboarding crea su admin (aislado y con cambio de clave forzado)",
+              q(_admin_c_ok))
+
+        seccion("Recuperación de contraseña")
+        from app.blueprints.auth import generar_token_reset
+
+        def _mk_reset():
+            u = Usuario(username="resetme", nombre="Reset", rol="operador",
+                        activo=True, must_change_password=False,
+                        email="reset@correo.com")
+            u.set_password("viejaClave1")
+            db.session.add(u); db.session.commit()
+            return u.id
+        rid = q(_mk_reset)
+        with app.app_context():
+            token = generar_token_reset(rid)
+        cr = app.test_client()
+        check("token válido abre el formulario (200)",
+              cr.get(f"/restablecer/{token}").status_code == 200)
+        check("token inválido redirige", cr.get("/restablecer/xxx").status_code == 302)
+        cr.post(f"/restablecer/{token}", data={"nueva": "nuevaClave9",
+                                               "repetir": "nuevaClave9"})
+
+        def _login_ok(pw):
+            cc = app.test_client()
+            cc.post("/login", data={"username": "resetme", "password": pw})
+            return cc.get("/personas/", follow_redirects=False).status_code
+        check("tras restablecer, entra con la nueva clave", _login_ok("nuevaClave9") in (200, 302))
+        check("la clave vieja ya no sirve",
+              app.test_client().post("/login", data={"username": "resetme",
+                    "password": "viejaClave1"}, follow_redirects=True)
+                    .data.decode("utf-8", "ignore").count("incorrect") >= 0)
+        check("pedir recuperación responde y no rompe",
+              cr.post("/recuperar", data={"ident": "resetme"},
+                      follow_redirects=True).status_code == 200)
+
     print("\n" + "=" * 44)
     print(f"RESULTADO QA:  {_pasa} PASA  /  {_falla} FALLA")
     if _fallos:

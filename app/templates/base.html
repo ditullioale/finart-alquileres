@@ -72,6 +72,9 @@
       <a class="nav-item {{ 'active' if 'pagare_manual' in ep or ep=='recibos.pagares_manuales' }}" href="{{ url_for('recibos.pagares_manuales') }}"><span class="i">{{ icon('scroll') }}</span> Pagarés manuales</a>
       <a class="nav-item {{ 'active' if bp=='aumentos' and 'indice' in ep }}" href="{{ url_for('aumentos.indices') }}"><span class="i">{{ icon('bar-chart') }}</span> Índices</a>
       <a class="nav-item {{ 'active' if bp=='ajustes' }}" href="{{ url_for('ajustes.index') }}"><span class="i">{{ icon('settings') }}</span> Ajustes</a>
+      {% if current_user.rol == 'superadmin' %}
+      <a class="nav-item {{ 'active' if bp=='plataforma' }}" href="{{ url_for('plataforma.index') }}"><span class="i">{{ icon('building') }}</span> Plataforma</a>
+      {% endif %}
       {% if current_user.rol == 'admin' %}
       <a class="nav-item {{ 'active' if bp=='usuarios' and 'auditoria' not in ep }}" href="{{ url_for('usuarios.listar') }}"><span class="i">{{ icon('user') }}</span> Usuarios</a>
       <a class="nav-item {{ 'active' if 'auditoria' in ep }}" href="{{ url_for('usuarios.auditoria') }}"><span class="i">{{ icon('file-text') }}</span> Auditoría</a>

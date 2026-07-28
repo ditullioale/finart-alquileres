@@ -11,13 +11,15 @@ from ..models import Usuario
 usuarios_bp = Blueprint("usuarios", __name__, url_prefix="/usuarios")
 
 ROLES = [("admin", "Administrador (gestiona usuarios y todo el sistema)"),
-         ("operador", "Operador (usa el sistema)")]
+         ("operador", "Operador (usa el sistema y carga datos)"),
+         ("contador", "Contador (ve y exporta, sin modificar)"),
+         ("lectura", "Solo lectura (ve todo, no modifica)")]
 
 
 def admin_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        if not current_user.is_authenticated or current_user.rol != "admin":
+        if not current_user.is_authenticated or current_user.rol not in ("admin", "superadmin"):
             abort(403)
         return f(*args, **kwargs)
     return wrapper
@@ -25,16 +27,37 @@ def admin_required(f):
 
 def _cant_admins_activos(excluir_id=None):
     q = Usuario.query.filter_by(rol="admin", activo=True)
+    # Contar solo dentro de la inmobiliaria del usuario actual.
+    tid = getattr(current_user, "inmobiliaria_id", None)
+    if getattr(current_user, "rol", None) != "superadmin" and tid is not None:
+        q = q.filter(Usuario.inmobiliaria_id == tid)
     if excluir_id:
         q = q.filter(Usuario.id != excluir_id)
     return q.count()
+
+
+def _usuarios_de_mi_inmobiliaria():
+    """Query de usuarios de la inmobiliaria del usuario actual (superadmin: todos)."""
+    q = Usuario.query
+    if current_user.rol != "superadmin":
+        q = q.filter(Usuario.inmobiliaria_id == current_user.inmobiliaria_id)
+    return q
+
+
+def _usuario_de_mi_inmobiliaria(uid):
+    """Trae un usuario verificando que sea de mi inmobiliaria (o 404)."""
+    u = db.session.get(Usuario, uid) or abort(404)
+    if current_user.rol != "superadmin" and u.inmobiliaria_id != current_user.inmobiliaria_id:
+        abort(404)
+    return u
 
 
 @usuarios_bp.route("/")
 @login_required
 @admin_required
 def listar():
-    usuarios = Usuario.query.order_by(Usuario.nombre, Usuario.username).all()
+    usuarios = _usuarios_de_mi_inmobiliaria().order_by(
+        Usuario.nombre, Usuario.username).all()
     return render_template("usuarios/list.html", usuarios=usuarios)
 
 
@@ -106,7 +129,9 @@ def nuevo():
             flash(error, "error")
             return render_template("usuarios/form.html", u=None, roles=ROLES,
                                    datos={"username": username, "nombre": nombre, "rol": rol})
-        u = Usuario(username=username, nombre=nombre, rol=rol, activo=True)
+        u = Usuario(username=username, nombre=nombre, rol=rol, activo=True,
+                    email=request.form.get("email", "").strip(),
+                    inmobiliaria_id=getattr(current_user, "inmobiliaria_id", None))
         u.set_password(password)
         db.session.add(u)
         db.session.commit()
@@ -119,7 +144,7 @@ def nuevo():
 @login_required
 @admin_required
 def editar(uid):
-    u = db.session.get(Usuario, uid) or abort(404)
+    u = _usuario_de_mi_inmobiliaria(uid)
     if request.method == "POST":
         nuevo_rol = request.form.get("rol", u.rol)
         activo = bool(request.form.get("activo"))
@@ -129,6 +154,7 @@ def editar(uid):
             flash("No podés dejar el sistema sin ningún administrador activo.", "error")
             return redirect(url_for("usuarios.editar", uid=u.id))
         u.nombre = request.form.get("nombre", "").strip()
+        u.email = request.form.get("email", "").strip()
         u.rol = nuevo_rol
         u.activo = activo
         nueva = request.form.get("password", "")
@@ -147,7 +173,7 @@ def editar(uid):
 @login_required
 @admin_required
 def eliminar(uid):
-    u = db.session.get(Usuario, uid) or abort(404)
+    u = _usuario_de_mi_inmobiliaria(uid)
     if u.id == current_user.id:
         flash("No podés eliminar tu propio usuario.", "error")
         return redirect(url_for("usuarios.listar"))

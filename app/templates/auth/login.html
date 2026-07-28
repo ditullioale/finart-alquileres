@@ -14,5 +14,8 @@
     <input name="password" type="password" required>
     <button class="btn" type="submit">Ingresar</button>
   </form>
+  <p style="text-align:center;margin-top:12px">
+    <a href="{{ url_for('auth.recuperar') }}" style="color:#6f86a6;font-size:13px">¿Olvidaste tu contraseña?</a>
+  </p>
 </div>
 {% endblock %}

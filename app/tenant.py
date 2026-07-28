@@ -16,9 +16,12 @@ from flask_login import current_user
 
 from . import db
 
-# Nombres de los modelos con inmobiliaria_id (se resuelven en runtime).
+# Modelos con inmobiliaria_id sujetos al filtro central de lectura.
+# Usuario NO se incluye acá: filtrarlo rompería la carga del propio usuario en
+# el login. La separación de usuarios por inmobiliaria se hace explícitamente en
+# las pantallas de Usuarios (listar/editar/eliminar).
 _TENANT_MODEL_NAMES = ["Persona", "Inmueble", "Contrato", "Aumento", "Pago",
-                       "GasEstado", "ReciboManual", "Liquidacion", "Usuario",
+                       "GasEstado", "ReciboManual", "Liquidacion",
                        "RegistroAuditoria"]
 
 
@@ -28,10 +31,18 @@ def _tenant_modelos():
 
 
 def _tenant_para_filtro():
-    """Inmobiliaria a usar para FILTRAR. None = no filtrar (anónimo o superadmin)."""
+    """Inmobiliaria a usar para FILTRAR lecturas.
+
+    - Anónimo (login, robot) o superadmin de plataforma: None = no filtrar.
+    - Usuario normal: su inmobiliaria. Si por error no tuviera, -1 (no ve nada),
+      nunca 'ver todo'.
+    """
     try:
         if getattr(current_user, "is_authenticated", False):
-            return getattr(current_user, "inmobiliaria_id", None)
+            if getattr(current_user, "rol", None) == "superadmin":
+                return None
+            tid = getattr(current_user, "inmobiliaria_id", None)
+            return tid if tid else -1
     except Exception:
         pass
     return None
@@ -66,17 +77,25 @@ def registrar_eventos():
     from sqlalchemy.orm import with_loader_criteria
 
     # --- Capa 2: asignar inmobiliaria al crear ---
+    # (Los Usuario NO se auto-asignan: superadmin=None, el resto se asignan
+    # explícitamente al crearlos.)
     @event.listens_for(db.session, "before_flush")
     def _asignar_tenant(session, flush_ctx, instances):
         pendientes = [o for o in session.new
                       if hasattr(o, "inmobiliaria_id")
-                      and getattr(o, "inmobiliaria_id", None) is None]
+                      and getattr(o, "inmobiliaria_id", None) is None
+                      and type(o).__name__ != "Usuario"]
         if not pendientes:
             return
-        tid = _tenant_para_filtro()
+        # Inmobiliaria del usuario logueado (no superadmin); si no hay, principal.
+        tid = None
+        try:
+            if (getattr(current_user, "is_authenticated", False)
+                    and getattr(current_user, "rol", None) != "superadmin"):
+                tid = getattr(current_user, "inmobiliaria_id", None)
+        except Exception:
+            tid = None
         if not tid:
-            # Sin usuario (robot, seeds, scripts): caer a la inmobiliaria
-            # principal. no_autoflush evita recursión durante el flush.
             from .models import Inmobiliaria
             with session.no_autoflush:
                 inmo = Inmobiliaria.query.order_by(Inmobiliaria.id).first()

@@ -22,7 +22,8 @@ class Usuario(UserMixin, db.Model):
     username = db.Column(db.String(60), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     nombre = db.Column(db.String(120))
-    rol = db.Column(db.String(20), default="operador")  # admin / operador
+    email = db.Column(db.String(120))   # para recuperación de contraseña
+    rol = db.Column(db.String(20), default="operador")  # admin / operador / contador / lectura
     activo = db.Column(db.Boolean, default=True)
     # Obliga a cambiar la contraseña en el próximo ingreso (p.ej. admin inicial).
     must_change_password = db.Column(db.Boolean, default=False)

@@ -61,6 +61,7 @@ def create_app(config_class=Config):
     from .blueprints.usuarios import usuarios_bp
     from .blueprints.gas import gas_bp
     from .blueprints.api import api_bp
+    from .blueprints.plataforma import plataforma_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -75,6 +76,7 @@ def create_app(config_class=Config):
     app.register_blueprint(usuarios_bp)
     app.register_blueprint(gas_bp)
     app.register_blueprint(api_bp)
+    app.register_blueprint(plataforma_bp)
 
     # El buzón del robot de gas usa su propio token (X-Gas-Token), no CSRF.
     csrf.exempt(app.view_functions["gas.importar"])
@@ -94,6 +96,26 @@ def create_app(config_class=Config):
             return
         flash("Por seguridad, cambiá la contraseña por defecto antes de continuar.", "error")
         return redirect(url_for("usuarios.cambiar_clave"))
+
+    # Roles de solo lectura (lectura / contador): pueden ver y exportar, pero no
+    # hacer cambios. Se bloquean las operaciones que modifican datos (POST/etc.).
+    @app.before_request
+    def _guardia_solo_lectura():
+        from flask_login import current_user
+        if not getattr(current_user, "is_authenticated", False):
+            return
+        if getattr(current_user, "rol", None) not in ("lectura", "contador"):
+            return
+        if request.method in ("GET", "HEAD", "OPTIONS"):
+            return
+        permitidos = {"auth.logout", "usuarios.cambiar_clave"}
+        if request.endpoint in permitidos:
+            return
+        if request.path.startswith("/api") or request.is_json:
+            from flask import jsonify
+            return jsonify(ok=False, error="Tu usuario es de solo lectura."), 403
+        flash("Tu usuario es de solo lectura: no podés hacer cambios.", "error")
+        return redirect(request.referrer or url_for("main.index"))
 
     # Aviso global: cantidad de aumentos vencidos (badge en el menú).
     @app.context_processor
@@ -233,6 +255,7 @@ def _iniciar_base(app):
         inmo = Inmobiliaria.crear_inicial()
         Usuario.crear_admin_inicial()
         _backfill_inmobiliaria(inmo)
+        _asegurar_superadmin()
     except Exception:
         db.session.rollback()
 
@@ -250,6 +273,23 @@ def _iniciar_base(app):
             db.session.commit()
     except Exception:
         db.session.rollback()
+
+
+def _asegurar_superadmin():
+    """Crea el superadmin de plataforma si se definen SUPERADMIN_USER/PASS en el
+    entorno. No tiene inmobiliaria (ve todas) y sirve para el onboarding."""
+    su_user = (os.environ.get("SUPERADMIN_USER") or "").strip().lower()
+    su_pass = os.environ.get("SUPERADMIN_PASS")
+    if not su_user or not su_pass:
+        return
+    from .models import Usuario
+    if Usuario.query.filter_by(username=su_user).first():
+        return
+    su = Usuario(username=su_user, nombre="Superadmin", rol="superadmin",
+                 activo=True, inmobiliaria_id=None, must_change_password=False)
+    su.set_password(su_pass)
+    db.session.add(su)
+    db.session.commit()
 
 
 def _backfill_inmobiliaria(inmo):

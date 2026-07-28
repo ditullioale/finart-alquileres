@@ -43,11 +43,11 @@ Leyenda de "Quién": **Claude** = lo hago yo en el código · **Ale** = acción 
 
 ## Fase 3 · Producto mínimo vendible (PMV)
 
-- [ ] 🟡 Onboarding asistido (importación Excel ya existe; falta el flujo guiado) — **Claude**
-- [ ] 🟡 Roles ampliados: solo lectura, contador, soporte (hoy: admin/operador) — **Claude**
+- [x] ✅ Onboarding de inmobiliaria (superadmin crea inmobiliaria + su primer admin)
+- [x] ✅ Roles ampliados: solo lectura y contador (bloqueo de mutaciones) + superadmin de plataforma
 - [x] ✅ **Auditoría** automática de altas, cambios y eliminaciones + pantalla admin (aislada por inmobiliaria)
-- [ ] ⬜ **Backups automáticos** diarios + copia externa + prueba real de restauración — **Claude/Ale**
-- [ ] ⬜ Exportación completa por inmobiliaria (portabilidad / baja) — **Claude**
+- [x] ✅ Exportación completa **por inmobiliaria** (portabilidad / baja) — tenant-safe
+- [ ] 🟡 **Backups automáticos** diarios + copia externa + prueba de restauración — **Ale** (hosting; ver `BACKUPS.md`)
 - [x] ✅ Dashboard de cartera/mora/vencimientos (existe; se afinará por tenant)
 - [ ] ⬜ Documentos con identidad (logo/datos) de cada inmobiliaria — **Claude**
 - [ ] ⬜ Términos, privacidad, soporte y proceso de baja/exportación — **Ale** (con asesor)
@@ -76,7 +76,8 @@ Leyenda de "Quién": **Claude** = lo hago yo en el código · **Ale** = acción 
 - [x] ✅ Registro de intentos fallidos y límite de abuso (bloqueo de login)
 - [x] ✅ Forzar cambio de contraseña por defecto
 - [x] ✅ SECRET_KEY sin default débil
-- [ ] ⬜ Recuperación segura de contraseña (reset por email) — **Claude**
+- [x] ✅ Recuperación de contraseña por email (flujo con token; requiere SMTP de Ale para enviar)
+- [x] ✅ Roles ampliados (solo lectura / contador)
 - [ ] 🟡 Validación de archivos y límites de carga (import Excel: falta límite) — **Claude**
 - [ ] ⬜ Roles ampliados (ver Fase 3)
 - [x] ✅ Auditoría (altas, cambios, eliminaciones)

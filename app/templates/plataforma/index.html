@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Plataforma{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Plataforma · Inmobiliarias</h1>
+    <p class="sub">Panel del superadministrador. Cada inmobiliaria opera aislada, con sus propios datos y usuarios.</p>
+  </div>
+  <a class="btn" href="{{ url_for('plataforma.nueva_inmobiliaria') }}">+ Nueva inmobiliaria</a>
+</div>
+
+<div class="table-wrap">
+<table class="grid">
+  <thead>
+    <tr><th>#</th><th>Inmobiliaria</th><th>CUIT</th><th>Localidad</th><th>Plan</th><th class="r">Usuarios</th><th>Estado</th></tr>
+  </thead>
+  <tbody>
+    {% for d in datos %}
+    <tr>
+      <td>{{ d.i.id }}</td>
+      <td><b>{{ d.i.nombre }}</b></td>
+      <td>{{ d.i.cuit or '—' }}</td>
+      <td>{{ d.i.localidad or '—' }}</td>
+      <td>{{ d.i.plan or 'inicial' }}</td>
+      <td class="r">{{ d.usuarios }}</td>
+      <td>{% if d.i.activa %}<span class="badge pagado">Activa</span>{% else %}<span class="badge pendiente">Suspendida</span>{% endif %}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="empty">Todavía no hay inmobiliarias.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

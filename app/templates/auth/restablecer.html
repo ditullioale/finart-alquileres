@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Nueva contraseña{% endblock %}
+{% block content %}
+<div class="login-box">
+  <h1>🔒 Elegí tu nueva contraseña</h1>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
+  {% endwith %}
+  <form method="post" action="{{ url_for('auth.restablecer', token=token) }}">
+    <label>Nueva contraseña</label>
+    <input name="nueva" type="password" autofocus required placeholder="Al menos 6 caracteres">
+    <label>Repetir nueva contraseña</label>
+    <input name="repetir" type="password" required>
+    <button class="btn" type="submit">Guardar contraseña</button>
+  </form>
+</div>
+{% endblock %}

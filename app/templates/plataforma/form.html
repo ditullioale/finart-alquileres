@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Nueva inmobiliaria{% endblock %}
+{% block content %}
+<div class="pagehead"><h1>Nueva inmobiliaria</h1></div>
+<p class="hint" style="margin-bottom:14px">Se crea la inmobiliaria y su primer administrador. Ese administrador deberá cambiar la contraseña en su primer ingreso.</p>
+
+<form method="post" class="cardform" style="max-width:640px">
+  <h2>Datos de la inmobiliaria</h2>
+  <div class="grid2">
+    <div class="full"><label>Nombre *</label><input name="nombre" value="{{ datos.nombre or '' }}" required autofocus></div>
+    <div><label>CUIT</label><input name="cuit" value="{{ datos.cuit or '' }}"></div>
+    <div><label>Localidad</label><input name="localidad" value="{{ datos.localidad or '' }}"></div>
+    <div><label>Plan</label>
+      <select name="plan">
+        <option value="inicial" {{ 'selected' if datos.plan=='inicial' }}>Inicial</option>
+        <option value="profesional" {{ 'selected' if datos.plan=='profesional' }}>Profesional</option>
+        <option value="empresa" {{ 'selected' if datos.plan=='empresa' }}>Empresa</option>
+      </select></div>
+  </div>
+
+  <h2 style="margin-top:18px">Primer administrador</h2>
+  <div class="grid2">
+    <div><label>Usuario *</label><input name="admin_user" value="{{ datos.admin_user or '' }}" required></div>
+    <div><label>Nombre y apellido</label><input name="admin_nombre" value="{{ datos.admin_nombre or '' }}"></div>
+    <div class="full"><label>Contraseña temporal *</label>
+      <input name="admin_pass" type="text" placeholder="Al menos 6 caracteres" required>
+      <span class="hint">Se la das al administrador; la cambia al entrar por primera vez.</span></div>
+  </div>
+
+  <div class="formbtns">
+    <button class="btn" type="submit">Crear inmobiliaria</button>
+    <a class="btn sec" href="{{ url_for('plataforma.index') }}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

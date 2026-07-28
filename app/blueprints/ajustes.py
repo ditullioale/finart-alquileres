@@ -73,44 +73,51 @@ def cambiar_clave():
 def respaldo():
     """Descarga un Excel con todos los datos del sistema (respaldo)."""
     import pandas as pd
+    from flask_login import current_user
     from ..models import (Persona, Inmueble, Contrato, Fiador, Aumento, Pago,
-                          GastoExtra, Liquidacion, ReciboManual, PagareManual,
+                          GastoExtra, Liquidacion, ReciboManual,
                           IndiceValor, Usuario)
 
-    def filas(modelo, campos):
-        out = []
-        for o in modelo.query.all():
-            out.append({c: getattr(o, c) for c in campos})
-        return pd.DataFrame(out)
+    def filas(query, campos):
+        return pd.DataFrame([{c: getattr(o, c) for c in campos} for o in query])
+
+    # Modelos con inmobiliaria_id: sus .query ya vienen filtrados por tenant.
+    # Los "hijos" (Fiador, GastoExtra) se acotan por su contrato/pago (que sí
+    # está filtrado). Usuarios se acota a la inmobiliaria del que exporta.
+    usuarios_q = Usuario.query
+    if getattr(current_user, "rol", None) != "superadmin":
+        usuarios_q = usuarios_q.filter(
+            Usuario.inmobiliaria_id == current_user.inmobiliaria_id)
 
     hojas = {
-        "Personas": filas(Persona, ["id", "nombre", "dni", "cuit", "domicilio",
+        "Personas": filas(Persona.query, ["id", "nombre", "dni", "cuit", "domicilio",
             "localidad", "telefono", "email", "cond_iva", "es_propietario",
             "es_inquilino", "observaciones"]),
-        "Inmuebles": filas(Inmueble, ["id", "codigo", "tipo", "direccion", "localidad",
+        "Inmuebles": filas(Inmueble.query, ["id", "codigo", "tipo", "direccion", "localidad",
             "provincia", "barrio", "estado", "moneda", "precio_referencia",
             "comision_pct", "propietario_id", "observaciones"]),
-        "Contratos": filas(Contrato, ["id", "numero", "inmueble_id", "inquilino_id",
+        "Contratos": filas(Contrato.query, ["id", "numero", "inmueble_id", "inquilino_id",
             "propietario_id", "fecha_inicio", "fecha_fin", "duracion_meses",
             "precio_inicial", "precio_actual", "moneda", "dia_vencimiento",
             "mora_diaria_pct", "comision_pct", "metodo_ajuste", "indice_tipo",
             "ajuste_cada_meses", "porcentaje_ajuste", "estado"]),
-        "Fiadores": filas(Fiador, ["id", "contrato_id", "nombre", "dni", "domicilio",
-            "telefono", "email", "solvencia"]),
-        "Aumentos": filas(Aumento, ["id", "contrato_id", "fecha_vigencia",
+        "Fiadores": filas(Fiador.query.join(Contrato), ["id", "contrato_id", "nombre",
+            "dni", "domicilio", "telefono", "email", "solvencia"]),
+        "Aumentos": filas(Aumento.query, ["id", "contrato_id", "fecha_vigencia",
             "precio_anterior", "precio_nuevo", "metodo", "indice_tipo", "porcentaje"]),
-        "Pagos": filas(Pago, ["id", "contrato_id", "numero", "periodo_mes",
+        "Pagos": filas(Pago.query, ["id", "contrato_id", "numero", "periodo_mes",
             "periodo_anio", "fecha_pago", "precio_alquiler", "mora", "total",
             "pagado", "saldo", "moneda", "forma_pago", "recibo_numero", "estado",
             "observaciones"]),
-        "GastosExtra": filas(GastoExtra, ["id", "pago_id", "descripcion", "monto"]),
-        "Liquidaciones": filas(Liquidacion, ["id", "numero", "fecha", "periodo_mes",
+        "GastosExtra": filas(GastoExtra.query.join(Pago), ["id", "pago_id",
+            "descripcion", "monto"]),
+        "Liquidaciones": filas(Liquidacion.query, ["id", "numero", "fecha", "periodo_mes",
             "periodo_anio", "propietario_id", "contrato_id", "total_ingresos",
             "total_comision", "total_neto"]),
-        "RecibosManuales": filas(ReciboManual, ["id", "numero", "fecha", "cliente",
+        "RecibosManuales": filas(ReciboManual.query, ["id", "numero", "fecha", "cliente",
             "concepto_general", "total", "forma_pago"]),
-        "Indices": filas(IndiceValor, ["id", "tipo", "periodo", "valor", "fuente"]),
-        "Usuarios": filas(Usuario, ["id", "username", "nombre", "rol", "activo"]),
+        "Indices": filas(IndiceValor.query, ["id", "tipo", "periodo", "valor", "fuente"]),
+        "Usuarios": filas(usuarios_q, ["id", "username", "nombre", "email", "rol", "activo"]),
     }
 
     buf = BytesIO()
