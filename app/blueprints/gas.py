@@ -87,11 +87,18 @@ def importar():
                 venc = date(int(y), int(m), int(d))
             except Exception:
                 venc = None
-        GasEstado.upsert(cuenta, titular=c.get("titular"), direccion=c.get("direccion"),
-                         contrato_vigente=bool(c.get("contrato_vigente", True)),
-                         tiene_deuda=bool(c.get("tiene_deuda", False)),
-                         deuda_total=c.get("deuda_total") or 0,
-                         ultimo_vencimiento=venc, detalle=c.get("detalle"))
+        g = GasEstado.upsert(cuenta, titular=c.get("titular"), direccion=c.get("direccion"),
+                             contrato_vigente=bool(c.get("contrato_vigente", True)),
+                             tiene_deuda=bool(c.get("tiene_deuda", False)),
+                             deuda_total=c.get("deuda_total") or 0,
+                             ultimo_vencimiento=venc, detalle=c.get("detalle"))
+        # El robot corre sin usuario: asignar el suministro a la inmobiliaria
+        # principal (paso 1 de multiempresa; se hará por tenant al escalar).
+        if getattr(g, "inmobiliaria_id", None) is None:
+            from ..models import Inmobiliaria
+            inmo = Inmobiliaria.principal()
+            if inmo:
+                g.inmobiliaria_id = inmo.id
         guardadas += 1
     db.session.commit()
     return jsonify(ok=True, guardadas=guardadas)

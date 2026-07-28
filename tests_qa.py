@@ -81,6 +81,17 @@ def sembrar():
                   precio_actual=200000, dia_vencimiento=10, moneda="Pesos")
     db.session.add_all([c, c2])
     db.session.commit()
+
+    # Multiempresa: asignar los datos sembrados a la inmobiliaria principal
+    # (en las pruebas no hay usuario logueado al sembrar, así que se asigna acá).
+    from app.models import Inmobiliaria
+    inmo = Inmobiliaria.principal()
+    if inmo:
+        for t in ["usuarios", "personas", "inmuebles", "contratos"]:
+            db.session.execute(db.text(
+                f"UPDATE {t} SET inmobiliaria_id = :x WHERE inmobiliaria_id IS NULL"),
+                {"x": inmo.id})
+        db.session.commit()
     return dict(prop=prop.id, inq=inq.id, inq2=inq2.id, inm=inm.id,
                 c=c.id, c2=c2.id)
 
@@ -151,7 +162,10 @@ def run():
         check("alta de persona OK", "Nuevo Inquilino" in r.data.decode("utf-8", "ignore"))
 
         def _crear_mal():
-            p = Persona(nombre="Tel Malo", es_inquilino=True, telefono="34026085029")
+            from app.models import Inmobiliaria
+            inmo = Inmobiliaria.principal()
+            p = Persona(nombre="Tel Malo", es_inquilino=True, telefono="34026085029",
+                        inmobiliaria_id=(inmo.id if inmo else None))
             db.session.add(p); db.session.commit()
             return p.id
         p_mal_id = q(_crear_mal)
@@ -267,6 +281,37 @@ def run():
         blo = cb.post("/login", data={"username": "oper", "password": "clave123"},
                       follow_redirects=True).data.decode("utf-8", "ignore")
         check("bloquea login tras 5 intentos fallidos", "Demasiados intentos" in blo)
+
+        seccion("Multiempresa - aislamiento entre inmobiliarias")
+
+        def _crear_b():
+            from app.models import Inmobiliaria, Usuario, Persona
+            b = Inmobiliaria(nombre="Inmobiliaria B", slug="b")
+            db.session.add(b); db.session.commit()
+            ub = Usuario(username="userb", nombre="User B", rol="admin", activo=True,
+                         must_change_password=False, inmobiliaria_id=b.id)
+            ub.set_password("claveB123")
+            pb = Persona(nombre="Cliente Solo B", es_inquilino=True, inmobiliaria_id=b.id)
+            db.session.add_all([ub, pb]); db.session.commit()
+            return {"b": b.id, "pb": pb.id}
+        b = q(_crear_b)
+        idA_persona = q(lambda: Persona.query.filter_by(
+            nombre="Santamaria Guido").first().id)
+
+        clB = app.test_client()
+        clB.post("/login", data={"username": "userb", "password": "claveB123"})
+        lista_b = clB.get("/personas/").data.decode("utf-8", "ignore")
+        check("B no ve datos de A en el listado", "Santamaria Guido" not in lista_b)
+        check("B ve su propio cliente", "Cliente Solo B" in lista_b)
+        check("B no puede abrir por ID una persona de A (404)",
+              clB.get(f"/personas/{idA_persona}/editar").status_code == 404)
+        lc_b = clB.get("/contratos/").data.decode("utf-8", "ignore")
+        check("B no ve contratos de A", "Santamaria Guido" not in lc_b)
+        check("B no puede abrir por ID un contrato de A (404)",
+              clB.get(f"/contratos/{ids['c']}").status_code == 404)
+        lista_a = cl.get("/personas/").data.decode("utf-8", "ignore")
+        check("A no ve el cliente de B", "Cliente Solo B" not in lista_a)
+        check("A sí ve sus propios datos", "Santamaria Guido" in lista_a)
 
     print("\n" + "=" * 44)
     print(f"RESULTADO QA:  {_pasa} PASA  /  {_falla} FALLA")

@@ -33,10 +33,10 @@ Leyenda de "Quién": **Claude** = lo hago yo en el código · **Ale** = acción 
 - [x] ✅ Crear tabla `Inmobiliaria` y vincular `Usuario` (paso 1)
 - [x] ✅ `inmobiliaria_id` en todas las entidades + migrar datos actuales a la inmobiliaria #1 (backfill probado)
 - [x] ✅ Asignación automática de inmobiliaria al crear registros (Capa 2)
-- [ ] ⬜ Filtro central de tenant en las consultas (Capa 1, aislamiento de lectura) — **Claude**
-- [ ] ⬜ Helper de acceso por ID con verificación de tenant (Capa 3) — **Claude**
-- [ ] ⬜ Pasar `inmobiliaria_id` a NOT NULL + FK con nombre — **Claude**
-- [ ] ⬜ Pruebas **negativas** de aislamiento (no leer/editar/descargar ajeno) — **Claude**
+- [x] ✅ Filtro central de tenant en las consultas (Capa 1: cubre listados, búsquedas y accesos por ID)
+- [x] ✅ Helper de acceso por ID con verificación de tenant (Capa 3, `get_or_404_tenant`)
+- [x] ✅ Pruebas **negativas** de aislamiento (A no ve/abre datos de B; 7 tests en la batería QA)
+- [ ] ⬜ Pasar `inmobiliaria_id` a NOT NULL + FK con nombre (cierra el hueco de NULL) — **Claude**
 - [ ] ⬜ Config por inmobiliaria: logo, datos fiscales, mora, comisión, numeración — **Claude**
 - [ ] ⬜ Rol **superadmin** de plataforma — **Claude**
 
