@@ -112,8 +112,10 @@ def index():
         if estado != "Pagado":
             tot_pendiente += saldo
         prox_nro = (max((p.numero or 0) for p in c.pagos) + 1) if c.pagos else 1
+        venc = vencimiento(anio, mes, c.dia_vencimiento or 10)
         filas.append(dict(c=c, pago=pago, esperado=esperado, estado=estado,
-                          cobrado=cobrado, saldo=saldo, prox_nro=prox_nro))
+                          cobrado=cobrado, saldo=saldo, prox_nro=prox_nro,
+                          venc=venc))
 
     if filtro == "pendiente":
         filas = [f for f in filas if f["estado"] not in ("Pagado",)]
@@ -136,7 +138,7 @@ def index():
                                   (f["c"].inquilino.nombre if f["c"].inquilino else "")))
 
     return render_template("cobros/index.html", filas=filas, mes=mes, anio=anio,
-                           filtro=filtro, meses=MESES_ES, formas=FORMAS_PAGO,
+                           filtro=filtro, meses=MESES_ES, formas=FORMAS_PAGO, hoy=hoy,
                            totales=dict(esperado=tot_esperado, cobrado=tot_cobrado,
                                         pendiente=tot_pendiente),
                            anios=list(range(hoy.year - 4, hoy.year + 2)))

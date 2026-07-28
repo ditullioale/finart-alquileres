@@ -83,7 +83,8 @@
       <p><b>Inmueble:</b> {% if c.inmueble.codigo %}({{ c.inmueble.codigo }}) {% endif %}{{ c.inmueble.direccion }}</p>
       <p><b>Propietario:</b> {{ c.locadores_texto }}</p>
       <p><b>Contrato:</b> {{ c.fecha_inicio.strftime('%d/%m/%Y') if c.fecha_inicio }} al {{ c.fecha_fin.strftime('%d/%m/%Y') if c.fecha_fin else '—' }}</p>
-      <p><b>Correspondiente al mes de:</b> {{ meses[pago.periodo_mes] if pago.periodo_mes }} de {{ pago.periodo_anio }} &nbsp;&nbsp; <b>Alquiler:</b> {{ c.moneda|simbolo }} {{ pago.precio_alquiler|money }}</p>
+      <p><b>Correspondiente al mes de:</b> {{ meses[pago.periodo_mes] if pago.periodo_mes }} de {{ pago.periodo_anio }} &nbsp;&nbsp; <b>Vencimiento:</b> {{ venc.strftime('%d/%m/%Y') if venc else '—' }}</p>
+      <p><b>Alquiler:</b> {{ c.moneda|simbolo }} {{ pago.precio_alquiler|money }}{% if pago.fecha_pago %} &nbsp;&nbsp; <b>Fecha de pago:</b> {{ pago.fecha_pago.strftime('%d/%m/%Y') }}{% endif %}</p>
       {% if conceptos %}
       <p><b>Otros conceptos:</b></p>
       {% for desc, monto in conceptos %}

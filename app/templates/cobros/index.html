@@ -49,7 +49,7 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
 <table class="grid">
   <thead>
     <tr>{{ th('Inquilino','inquilino') }}{{ th('Inmueble','inmueble') }}{{ th('A cobrar','esperado','r') }}
-        {{ th('Cobrado','cobrado','r') }}{{ th('Estado','estado') }}<th></th><th class="wa-col"></th></tr>
+        <th>Vence</th>{{ th('Cobrado','cobrado','r') }}{{ th('Estado','estado') }}<th></th><th class="wa-col"></th></tr>
   </thead>
   <tbody id="cobros-body">
     {% for f in filas %}
@@ -58,6 +58,9 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
       <td>{{ f.c.inmueble.direccion }}
         {% if f.c.inmueble.localidad %}<div class="hint" style="margin:0">{{ f.c.inmueble.localidad }}</div>{% endif %}</td>
       <td class="r">{{ f.c.moneda|simbolo }} {{ f.esperado|money }}</td>
+      <td>{% if f.venc %}<span class="{{ 'txt-danger' if (f.estado != 'Pagado' and f.venc < hoy) }}">{{ f.venc.strftime('%d/%m/%Y') }}</span>
+        {% if f.estado != 'Pagado' and f.venc < hoy %}<div class="hint" style="margin:0;color:var(--err)">vencido</div>{% endif %}
+        {% else %}—{% endif %}</td>
       <td class="r js-cobrado">{{ f.cobrado|money if f.pago else '—' }}</td>
       <td class="js-estado">
         {% if f.estado=='Pagado' %}<span class="badge pagado">✓ Pagado</span>
@@ -82,6 +85,8 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
             data-monto="{{ f.esperado|round(2) }}"
             data-nro="{{ f.prox_nro }}"
             data-periodo="{{ meses[mes] }} de {{ anio }}"
+            data-venc="{{ f.venc.isoformat() if f.venc else '' }}"
+            data-morapct="{{ f.c.mora_diaria_pct or 0 }}"
             data-detalle="{{ url_for('cobros.nuevo', cid=f.c.id, mes=mes, anio=anio) }}">Cobrar</button>
         {% endif %}
       </td>
@@ -132,6 +137,7 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
         <div class="pd-row"><span class="pd-k">Inmueble</span><span class="pd-v" id="cm-inmueble"></span></div>
         <div class="pd-row"><span class="pd-k">Inquilino</span><span class="pd-v" id="cm-inq"></span></div>
         <div class="pd-row"><span class="pd-k">Propietario</span><span class="pd-v" id="cm-prop"></span></div>
+        <div class="pd-row"><span class="pd-k">Vencimiento</span><span class="pd-v" id="cm-venc">—</span></div>
       </div>
 
       <div class="grid2" style="margin-top:12px">
@@ -149,8 +155,10 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
       <div class="grid2">
         <div><label>Forma de pago</label>
           <select id="cm-forma">{% for fp in formas %}<option value="{{ fp }}">{{ fp }}</option>{% endfor %}</select></div>
-        <div><label>Mora</label>
-          <input type="number" step="0.01" id="cm-mora" value="0" oninput="cmTotal()"></div>
+        <div><label>Mora
+            <button type="button" class="btn sec sm" style="float:right;padding:1px 9px" onclick="cmCalcMora()">↻ Calcular</button></label>
+          <input type="number" step="0.01" id="cm-mora" value="0" oninput="cmMoraTocada=true;cmTotal()">
+          <span class="hint" id="cm-mora-hint" style="margin:2px 0 0"></span></div>
       </div>
 
       <label style="margin-top:12px">Gastos extras</label>
@@ -210,6 +218,23 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
     else { h.textContent = ''; h.style.display='none'; }
     ov._total = total;
   };
+  var cmMoraTocada = false;
+  function fmtFecha(iso){ if(!iso) return '—'; var p=iso.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+  window.cmCalcMora = function(){
+    var venc = ov._venc, pct = ov._morapct || 0;
+    var precio = num('cm-precio');
+    var fp = document.getElementById('cm-fecha').value;
+    var hint = document.getElementById('cm-mora-hint');
+    if(!venc || !fp || !precio){ hint.textContent=''; return; }
+    var dv = new Date(venc + 'T00:00:00'), dp = new Date(fp + 'T00:00:00');
+    var dias = Math.floor((dp - dv) / 86400000);
+    var mora = dias > 0 ? Math.round(precio * (pct/100) * dias * 100) / 100 : 0;
+    document.getElementById('cm-mora').value = mora;
+    cmMoraTocada = false;
+    if(dias > 0){ hint.textContent = dias + ' día(s) de atraso × ' + pct + '%/día'; hint.style.color='var(--err)'; }
+    else { hint.textContent = 'Al día (sin mora)'; hint.style.color='var(--muted)'; }
+    cmTotal();
+  };
   window.abrirCobro = function(btn){
     document.getElementById('cm-cid').value = btn.dataset.cid;
     document.getElementById('cm-inmueble').textContent = btn.dataset.inmueble;
@@ -224,14 +249,24 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
     document.getElementById('cm-nro').value = btn.dataset.nro || '';
     document.getElementById('cm-periodo').value = btn.dataset.periodo || '';
     document.getElementById('cm-fecha').value = new Date().toISOString().slice(0,10);
+    ov._venc = btn.dataset.venc || '';
+    ov._morapct = parseFloat(btn.dataset.morapct) || 0;
+    var vencEl = document.getElementById('cm-venc');
+    if(ov._venc){
+      var atrasado = new Date(ov._venc+'T00:00:00') < new Date(new Date().toISOString().slice(0,10)+'T00:00:00');
+      vencEl.innerHTML = fmtFecha(ov._venc) + (atrasado ? ' <span style="color:var(--err)">(vencido)</span>' : '');
+    } else { vencEl.textContent = '—'; }
     var pag = document.getElementById('cm-pagado'); delete pag.dataset.touched;
     document.getElementById('cm-detalle').href = btn.dataset.detalle;
     ov._row = btn.closest('tr');
     ov.removeAttribute('hidden');
+    cmMoraTocada = false;
+    cmCalcMora();   // prellena la mora según hoy vs. vencimiento
     cmTotal();
     setTimeout(function(){ document.getElementById('cm-precio').focus(); }, 50);
   };
   document.getElementById('cm-pagado').addEventListener('input', function(){ this.dataset.touched = '1'; cmTotal(); });
+  document.getElementById('cm-fecha').addEventListener('change', function(){ if(!cmMoraTocada) cmCalcMora(); });
   window.cerrarCobro = function(){ ov.setAttribute('hidden',''); };
   ov.addEventListener('click', function(e){ if(e.target === ov) cerrarCobro(); });
   document.addEventListener('keydown', function(e){ if(e.key==='Escape' && !ov.hasAttribute('hidden')) cerrarCobro(); });

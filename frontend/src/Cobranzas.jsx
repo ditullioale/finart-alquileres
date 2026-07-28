@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { getJSON, postJSON, money, sym, toast } from './api'
 
+const fmtF = (iso) => { if (!iso) return '—'; const p = iso.split('-'); return `${p[2]}/${p[1]}/${p[0]}` }
+function calcMora(venc, fecha, precio, pct) {
+  if (!venc || !fecha || !precio) return { mora: 0, dias: 0 }
+  const dias = Math.floor((new Date(fecha + 'T00:00:00') - new Date(venc + 'T00:00:00')) / 86400000)
+  const mora = dias > 0 ? Math.round(precio * ((pct || 0) / 100) * dias * 100) / 100 : 0
+  return { mora, dias }
+}
+const hoyISO = () => new Date().toISOString().slice(0, 10)
+
 const WA_PATH = 'M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.372-.025-.521-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.71.306 1.263.489 1.694.625.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884'
 
 function WaIcon({ href }) {
@@ -24,12 +33,21 @@ function Badge({ estado, saldo }) {
 function ModalCobro({ fila, mes, anio, formas, onClose, onListo }) {
   const [precio, setPrecio] = useState(fila.esperado)
   const [mora, setMora] = useState(0)
+  const [moraTocada, setMoraTocada] = useState(false)
   const [forma, setForma] = useState(formas[0] || 'Efectivo')
   const [obs, setObs] = useState('')
-  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10))
+  const [fecha, setFecha] = useState(hoyISO())
   const [pagado, setPagado] = useState(fila.esperado)
   const [pagadoTocado, setPagadoTocado] = useState(false)
   const [guardando, setGuardando] = useState(false)
+
+  const { dias } = calcMora(fila.venc, fecha, +precio, fila.mora_pct)
+  // Autocalcular la mora según fecha de pago vs. vencimiento (si no se editó a mano).
+  useEffect(() => {
+    if (moraTocada) return
+    setMora(calcMora(fila.venc, fecha, +precio, fila.mora_pct).mora)
+  }, [fecha, precio, fila, moraTocada])
+  const vencido = fila.venc && fila.venc < hoyISO()
 
   const total = Math.round(((+precio || 0) + (+mora || 0)) * 100) / 100
   useEffect(() => { if (!pagadoTocado) setPagado(total) }, [total, pagadoTocado])
@@ -60,6 +78,8 @@ function ModalCobro({ fila, mes, anio, formas, onClose, onListo }) {
           <div className="pd-row"><span className="pd-k">Inmueble</span><span className="pd-v">{fila.codigo ? `(${fila.codigo}) ` : ''}{fila.inmueble}</span></div>
           <div className="pd-row"><span className="pd-k">Inquilino</span><span className="pd-v">{fila.inquilino || '—'}</span></div>
           <div className="pd-row"><span className="pd-k">Propietario</span><span className="pd-v">{fila.propietario || '—'}</span></div>
+          <div className="pd-row"><span className="pd-k">Vencimiento</span>
+            <span className="pd-v">{fmtF(fila.venc)}{vencido && <span style={{ color: 'var(--err)' }}> (vencido)</span>}</span></div>
         </div>
         <form onSubmit={guardar} data-no-busy>
           <div className="grid2" style={{ marginTop: 12 }}>
@@ -77,8 +97,13 @@ function ModalCobro({ fila, mes, anio, formas, onClose, onListo }) {
               <select value={forma} onChange={(e) => setForma(e.target.value)}>
                 {formas.map((f) => <option key={f} value={f}>{f}</option>)}
               </select></div>
-            <div><label>Mora</label>
-              <input type="number" step="0.01" value={mora} onChange={(e) => setMora(e.target.value)} /></div>
+            <div><label>Mora
+                <button type="button" className="btn sec sm" style={{ float: 'right', padding: '1px 9px' }}
+                  onClick={() => { setMoraTocada(false); setMora(calcMora(fila.venc, fecha, +precio, fila.mora_pct).mora) }}>↻ Calcular</button></label>
+              <input type="number" step="0.01" value={mora}
+                onChange={(e) => { setMoraTocada(true); setMora(e.target.value) }} />
+              <span className="hint" style={{ margin: '2px 0 0', color: dias > 0 ? 'var(--err)' : 'var(--muted)' }}>
+                {dias > 0 ? `${dias} día(s) de atraso × ${fila.mora_pct}%/día` : 'Al día (sin mora)'}</span></div>
           </div>
           <label style={{ marginTop: 12 }}>Observaciones</label>
           <input type="text" value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Referencia, nota, etc." />
@@ -164,13 +189,14 @@ export default function Cobranzas({ mesIni, anioIni }) {
       ) : (
         <div className="table-wrap">
           <table className="grid">
-            <thead><tr><th>Inquilino</th><th>Inmueble</th><th className="r">A cobrar</th><th className="r">Cobrado</th><th>Estado</th><th></th><th className="wa-col"></th></tr></thead>
+            <thead><tr><th>Inquilino</th><th>Inmueble</th><th className="r">A cobrar</th><th>Vence</th><th className="r">Cobrado</th><th>Estado</th><th></th><th className="wa-col"></th></tr></thead>
             <tbody>
               {filas.map((f) => (
                 <tr key={f.cid}>
                   <td><b>{f.inquilino || '—'}</b></td>
                   <td>{f.inmueble}{f.localidad && <div className="hint" style={{ margin: 0 }}>{f.localidad}</div>}</td>
                   <td className="r">{sym(f.moneda)} {money(f.esperado)}</td>
+                  <td>{f.venc ? <span className={f.estado !== 'Pagado' && f.venc < hoyISO() ? 'txt-danger' : ''}>{fmtF(f.venc)}</span> : '—'}</td>
                   <td className="r">{f.pago_id ? money(f.cobrado) : '—'}</td>
                   <td><Badge estado={f.estado} saldo={f.saldo} /></td>
                   <td className="actions cob-actions">

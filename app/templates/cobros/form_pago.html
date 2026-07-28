@@ -25,6 +25,7 @@
           <input type="date" id="fecha_pago" name="fecha_pago" value="{{ pago.fecha_pago.isoformat() if pago.fecha_pago }}" required></div>
         <div><label>Nro de pago</label><input name="numero" value="{{ pago.numero or '' }}"></div>
       </div>
+      <p class="hint" id="venc_info" style="margin-top:8px"></p>
     </div>
 
     <div class="cardform">
@@ -35,8 +36,9 @@
         <div><label>Mora</label>
           <div style="display:flex;gap:8px">
             <input id="mora" name="mora" value="{{ pago.mora if pago.mora is not none else '0' }}" oninput="recalc()">
-            <button type="button" class="btn sec" onclick="calcularMora()">Calcular</button>
+            <button type="button" class="btn sec" onclick="calcularMora()">↻ Calcular</button>
           </div>
+          <span class="hint" id="mora_hint" style="margin:4px 0 0"></span>
           <label class="chk" style="margin-top:6px"><input type="checkbox" name="mora_auto"> Recalcular al guardar</label></div>
       </div>
 
@@ -135,20 +137,50 @@ function recalc(){
   se.textContent = fmt(saldo);
   se.parentNode.classList.toggle('rojo', saldo > 0.005);
 }
-function calcularMora(){
-  const precio = num(document.getElementById('precio_alquiler').value);
+function vencDelPeriodo(){
   const mes = parseInt(document.getElementById('periodo_mes').value);
   const anio = parseInt(document.getElementById('periodo_anio').value);
-  const fp = document.getElementById('fecha_pago').value;
-  if(!precio||!mes||!anio||!fp){ alert('Completá alquiler, mes, año y fecha de pago.'); return; }
+  if(!mes || !anio) return null;
   const ultimo = new Date(anio, mes, 0).getDate();
-  const venc = new Date(anio, mes-1, Math.min(DIA_VENC, ultimo));
-  const pago = new Date(fp);
-  const dias = Math.floor((pago - venc)/86400000);
-  const mora = dias>0 ? Math.round(precio*(MORA_PCT/100)*dias*100)/100 : 0;
-  document.getElementById('mora').value = mora;
-  recalc();
+  return new Date(anio, mes-1, Math.min(DIA_VENC, ultimo));
 }
+function diasAtraso(){
+  const venc = vencDelPeriodo();
+  const fp = document.getElementById('fecha_pago').value;
+  if(!venc || !fp) return null;
+  return { venc: venc, dias: Math.floor((new Date(fp) - venc)/86400000) };
+}
+function fmtF(d){ return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+d.getFullYear(); }
+function actualizarVenc(){
+  const info = document.getElementById('venc_info');
+  const d = diasAtraso();
+  const venc = vencDelPeriodo();
+  if(!venc){ info.textContent=''; return; }
+  let txt = '📅 Vence el ' + fmtF(venc);
+  if(d){
+    if(d.dias > 0) txt += ' · ⚠️ ' + d.dias + ' día(s) de atraso';
+    else txt += ' · ✅ al día';
+  }
+  info.textContent = txt;
+}
+function calcularMora(){
+  const precio = num(document.getElementById('precio_alquiler').value);
+  const d = diasAtraso();
+  const hint = document.getElementById('mora_hint');
+  if(!precio || !d){ alert('Completá alquiler, mes, año y fecha de pago.'); return; }
+  const mora = d.dias>0 ? Math.round(precio*(MORA_PCT/100)*d.dias*100)/100 : 0;
+  document.getElementById('mora').value = mora;
+  hint.textContent = d.dias>0 ? (d.dias + ' día(s) × ' + MORA_PCT + '%/día sobre el alquiler')
+                              : 'Sin atraso: mora 0';
+  hint.style.color = d.dias>0 ? 'var(--err)' : 'var(--muted)';
+  recalc();
+  actualizarVenc();
+}
+['periodo_mes','periodo_anio','fecha_pago'].forEach(function(id){
+  var el = document.getElementById(id);
+  if(el) el.addEventListener('change', actualizarVenc);
+});
+actualizarVenc();
 {% for g in pago.gastos %}
 addGasto({desc:{{ g.descripcion|tojson }}, monto:{{ (g.monto|float) }}});
 {% endfor %}

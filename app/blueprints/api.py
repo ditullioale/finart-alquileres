@@ -13,7 +13,7 @@ from flask_login import login_required
 from .. import db
 from ..models import Contrato, Persona, Inmueble, Pago, GasEstado
 from ..utils import (MESES_ES, link_whatsapp, whatsapp_valido, normalizar_whatsapp,
-                     proximo_ajuste)
+                     proximo_ajuste, vencimiento)
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -62,6 +62,7 @@ def cobranzas():
                + ". ¿Podés confirmarme cuándo lo abonás? ¡Gracias!")
         wa = link_whatsapp(inq.telefono, msj) if inq else None
 
+        venc = vencimiento(anio, mes, c.dia_vencimiento or 10)
         filas.append(dict(
             cid=c.id, inquilino=nombre,
             inmueble=c.inmueble.direccion if c.inmueble else "",
@@ -70,6 +71,7 @@ def cobranzas():
             propietario=c.propietario.nombre if c.propietario else "",
             moneda=c.moneda or "Pesos", esperado=esperado, cobrado=cobrado,
             saldo=saldo, estado=estado, prox_nro=prox_nro,
+            venc=venc.isoformat(), mora_pct=float(c.mora_diaria_pct or 0),
             pago_id=pago.id if pago else None,
             recibo_url=url_for("recibos.recibo", pid=pago.id) if pago else None,
             wa=wa, gas=(c.inmueble.cuenta_gas if c.inmueble else None),

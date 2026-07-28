@@ -10,7 +10,16 @@ from datetime import timedelta
 
 from .. import db
 from ..models import Pago, Contrato, Ajustes, ReciboManual, PagareManual
-from ..utils import pesos_letras, numero_letras, MESES_ES, parse_num, parse_fecha
+from ..utils import (pesos_letras, numero_letras, MESES_ES, parse_num,
+                     parse_fecha, vencimiento)
+
+
+def _venc_pago(pago):
+    """Fecha de vencimiento del período del pago (o None)."""
+    c = pago.contrato
+    if not (c and pago.periodo_mes and pago.periodo_anio):
+        return None
+    return vencimiento(pago.periodo_anio, pago.periodo_mes, c.dia_vencimiento or 10)
 
 recibos_bp = Blueprint("recibos", __name__, url_prefix="/recibos")
 
@@ -35,7 +44,7 @@ def recibo(pid):
     pago = db.session.get(Pago, pid) or abort(404)
     a, conceptos = _datos_recibo(pago)
     return render_template("recibos/recibo.html", pago=pago, c=pago.contrato, a=a,
-                           conceptos=conceptos, meses=MESES_ES,
+                           conceptos=conceptos, meses=MESES_ES, venc=_venc_pago(pago),
                            total_letras=pesos_letras(pago.total or 0),
                            hoy=date.today())
 
@@ -49,7 +58,7 @@ def recibo_pdf(pid):
     pago = db.session.get(Pago, pid) or abort(404)
     a, conceptos = _datos_recibo(pago)
     html = render_template("recibos/recibo_pdf.html", pago=pago, c=pago.contrato, a=a,
-                           conceptos=conceptos, meses=MESES_ES,
+                           conceptos=conceptos, meses=MESES_ES, venc=_venc_pago(pago),
                            total_letras=pesos_letras(pago.total or 0),
                            hoy=date.today())
     buf = BytesIO()
