@@ -6,6 +6,7 @@ conexión. No hace falta editar este archivo.
 """
 import os
 import secrets
+import sys
 from pathlib import Path
 from urllib.parse import quote_plus
 
@@ -55,6 +56,12 @@ def _default_sqlite_path():
     return _carpeta_datos() / "alquileres.db"
 
 
+def _aviso(texto):
+    """Aviso de configuración por la salida de error (la que queda en los logs
+    del servidor, sin quedar retenida en el buffer de stdout)."""
+    print(f"AVISO: {texto}", file=sys.stderr, flush=True)
+
+
 def _clave_secreta():
     """Clave de firma de sesiones y tokens CSRF.
 
@@ -80,12 +87,12 @@ def _clave_secreta():
     try:
         archivo.write_text(nueva)
         os.chmod(archivo, 0o600)
-        print(f"AVISO: SECRET_KEY no está definida; generé una y la guardé en "
-              f"{archivo}. Definí SECRET_KEY en las variables de entorno.")
+        _aviso(f"SECRET_KEY no está definida; generé una y la guardé en "
+               f"{archivo}. Definí SECRET_KEY en las variables de entorno.")
     except OSError:
-        print("AVISO: SECRET_KEY no está definida y no pude guardar una clave "
-              "persistente. Las sesiones se van a cortar en cada reinicio y "
-              "entre workers. Definí SECRET_KEY en las variables de entorno.")
+        _aviso("SECRET_KEY no está definida y no pude guardar una clave "
+               "persistente. Las sesiones se van a cortar en cada reinicio y "
+               "entre workers. Definí SECRET_KEY en las variables de entorno.")
     return nueva
 
 

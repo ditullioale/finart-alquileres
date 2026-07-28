@@ -224,8 +224,9 @@ def _iniciar_base(app):
     existentes a esa inmobiliaria (backfill de multiempresa).
 
     Si el esquema no se puede preparar, la app **no arranca**: seguir con un
-    esquema viejo o a medias rompe todo más adelante y de forma confusa. Para
-    arrancar igual (diagnóstico), definir IGNORAR_ERROR_ESQUEMA=1."""
+    esquema viejo o a medias rompe todo más adelante y de forma confusa. Con
+    IGNORAR_ERROR_ESQUEMA=1 el arranque continúa igual (solo para diagnosticar:
+    lo que dependa del esquema que faltó va a seguir fallando)."""
     from sqlalchemy import text, inspect
     if os.environ.get("TESTING") or not os.path.isdir(_MIGRATIONS_DIR):
         # En pruebas se usa create_all() directo (más simple y sin Alembic).
@@ -286,10 +287,13 @@ def _iniciar_base(app):
 
 
 def _preparar_esquema(app, preparar):
-    """Corre la preparación del esquema y corta el arranque si falla."""
+    """Corre la preparación del esquema y corta el arranque si falla.
+
+    Se atrapa también SystemExit porque flask_migrate no propaga los errores de
+    Alembic: los loguea y termina el proceso con sys.exit(1)."""
     try:
         preparar()
-    except Exception:
+    except (Exception, SystemExit):
         db.session.rollback()
         app.logger.critical("No pude preparar el esquema de la base", exc_info=True)
         if not os.environ.get("IGNORAR_ERROR_ESQUEMA"):
