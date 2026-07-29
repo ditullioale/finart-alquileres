@@ -125,32 +125,40 @@ def procesar_cuenta_litoral(p, usuario, clave, headless):
 
 
 def _obtener_credenciales(app_url, token):
-    """Trae las credenciales de Litoral Gas de cada inmobiliaria desde la app
-    (SaaS multiempresa). Si la app no responde o no hay ninguna configurada, cae
-    a las variables del .env (una sola inmobiliaria, sin inmobiliaria_id)."""
+    """Junta TODAS las credenciales de Litoral Gas a consultar:
+      1) las que cada inmobiliaria cargó en la app (con su inmobiliaria_id), y
+      2) las del .env (tus cuentas históricas), que van a la inmobiliaria principal.
+    Se combinan ambas fuentes (no una u otra), sin duplicar por usuario. Así, aunque
+    otras inmobiliarias configuren sus credenciales, tus dos cuentas del .env siguen
+    consultándose igual que siempre."""
     import json
     import urllib.request
+    creds = []
+    vistos = set()
+
+    # 1) Credenciales cargadas en la app (multiempresa).
     if app_url and token:
         url = app_url.rstrip("/") + "/gas/robot/credenciales"
         req = urllib.request.Request(url, headers={"X-Gas-Token": token})
         try:
             with urllib.request.urlopen(req, timeout=60) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
-            inmos = data.get("inmobiliarias", []) if data.get("ok") else []
-            if inmos:
-                return [(i.get("inmobiliaria_id"), i["usuario"], i["clave"])
-                        for i in inmos if i.get("usuario") and i.get("clave")]
-            print("La app no tiene inmobiliarias con credenciales de gas cargadas.")
+            for i in (data.get("inmobiliarias", []) if data.get("ok") else []):
+                usuario, clave = i.get("usuario"), i.get("clave")
+                if usuario and clave and usuario.lower() not in vistos:
+                    creds.append((i.get("inmobiliaria_id"), usuario, clave))
+                    vistos.add(usuario.lower())
         except Exception as e:  # noqa: BLE001
             print(f"No se pudieron traer las credenciales desde la app ({e}). "
-                  "Uso las del .env si están.")
-    # Fallback: .env (compatibilidad con el uso de una sola cuenta).
-    creds = []
+                  "Sigo con las del .env si están.")
+
+    # 2) Credenciales del .env (van a la inmobiliaria principal).
     for u, c in [("LITORALGAS_USER", "LITORALGAS_PASS"),
                  ("LITORALGAS_USER2", "LITORALGAS_PASS2")]:
         usuario = os.environ.get(u); clave = os.environ.get(c)
-        if usuario and clave:
+        if usuario and clave and usuario.lower() not in vistos:
             creds.append((None, usuario, clave))
+            vistos.add(usuario.lower())
     return creds
 
 

@@ -368,6 +368,16 @@ def run():
         check("A NO ve la cuenta de gas de B (aislado)", ea.get("ok") is False)
         check("B sí ve su cuenta de gas importada", eb.get("ok") is True)
 
+        seccion("Robot de gas: credenciales combinadas")
+        import litoralgas_bot as _bot
+        _os.environ["LITORALGAS_USER"] = "uno@x.com"; _os.environ["LITORALGAS_PASS"] = "p1"
+        _os.environ["LITORALGAS_USER2"] = "dos@x.com"; _os.environ["LITORALGAS_PASS2"] = "p2"
+        _creds = _bot._obtener_credenciales(None, None)   # sin app: solo .env
+        _us = [c[1] for c in _creds]
+        check("el robot toma las 2 cuentas del .env", "uno@x.com" in _us and "dos@x.com" in _us)
+        check("las cuentas del .env van a la inmobiliaria principal (id None)",
+              all(c[0] is None for c in _creds))
+
         seccion("Auditoría")
 
         def _audit():
