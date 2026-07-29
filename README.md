@@ -16,11 +16,12 @@ algunas pantallas.
 - **Personas** — propietarios e inquilinos (DNI, CUIT, contacto, condición IVA).
 - **Inmuebles** — datos, estado (disponible/alquilado/reservado), comisión, N° de
   cuenta de Litoral Gas.
-- **Contratos** — alta directa (para alquileres en curso) y un **generador de
-  contratos tipo asistente (wizard) de 5 pasos** que da de alta el contrato en el
-  sistema. Soporta **varios locadores/locatarios**, **CUIT** (con cálculo desde el
-  DNI) y **consulta al BCRA** (situación crediticia) integrada. Editable, con
-  rescindir / renovar / eliminar.
+- **Contratos** — una entrada única, **Nuevo contrato**, permite elegir entre
+  **crear y redactar un contrato nuevo** con un asistente de 5 pasos, o **registrar
+  un contrato existente** para administrar un alquiler ya firmado o en curso.
+  Soporta **varios locadores/locatarios**, **CUIT** (con cálculo desde el DNI) y
+  **consulta al BCRA** (situación crediticia) integrada. Editable, con rescindir /
+  renovar / eliminar.
 - **Documentación de contratos** — subir y ver DNI, recibos de sueldo, etc.
   (PDF/imagen), guardados en la base junto al contrato.
 - **Cobranzas** — panel mensual tipo checklist con **vencimiento visible**;

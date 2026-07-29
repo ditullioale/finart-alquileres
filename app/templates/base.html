@@ -58,7 +58,7 @@
       <button type="button" class="nav-search" onclick="abrirBuscar()">
         <span class="i">{{ icon('search') }}</span> <span>Buscar…</span> <kbd>Ctrl&nbsp;K</kbd></button>
       <a class="nav-item {{ 'active' if bp=='main' }}" href="{{ url_for('main.index') }}"><span class="i">{{ icon('home') }}</span> Inicio</a>
-      <a class="nav-item {{ 'active' if bp=='contratos' and ep!='contratos.generador' }}" href="{{ url_for('contratos.listar') }}"><span class="i">{{ icon('file-text') }}</span> Contratos</a>
+      <a class="nav-item {{ 'active' if bp=='contratos' and ep not in ('contratos.generador','contratos.crear') }}" href="{{ url_for('contratos.listar') }}"><span class="i">{{ icon('file-text') }}</span> Contratos</a>
       <a class="nav-item {{ 'active' if bp=='cobros' }}" href="{{ url_for('cobros.index') }}"><span class="i">{{ icon('banknote') }}</span> Cobranzas</a>
       <a class="nav-item {{ 'active' if bp=='liquidaciones' }}" href="{{ url_for('liquidaciones.index') }}"><span class="i">{{ icon('receipt') }}</span> Liquidaciones</a>
       <a class="nav-item {{ 'active' if bp=='aumentos' and 'indice' not in ep }}" href="{{ url_for('aumentos.index') }}"><span class="i">{{ icon('trending-up') }}</span> Aumentos
@@ -68,7 +68,7 @@
       <a class="nav-item {{ 'active' if bp=='personas' }}" href="{{ url_for('personas.listar') }}"><span class="i">{{ icon('users') }}</span> Personas</a>
 
       <div class="nav-sec">Herramientas</div>
-      <a class="nav-item {{ 'active' if ep=='contratos.generador' }}" href="{{ url_for('contratos.generador') }}"><span class="i">{{ icon('file-pen') }}</span> Generar contrato</a>
+      <a class="nav-item {{ 'active' if ep in ('contratos.crear','contratos.generador') }}" href="{{ url_for('contratos.crear') }}"><span class="i">{{ icon('file-pen') }}</span> Nuevo contrato</a>
       <a class="nav-item {{ 'active' if ep in ('recibos.manuales','recibos.manual_nuevo','recibos.manual_ver') }}" href="{{ url_for('recibos.manuales') }}"><span class="i">{{ icon('receipt') }}</span> Recibos manuales</a>
       <a class="nav-item {{ 'active' if 'pagare_manual' in ep or ep=='recibos.pagares_manuales' }}" href="{{ url_for('recibos.pagares_manuales') }}"><span class="i">{{ icon('scroll') }}</span> Pagarés manuales</a>
       <a class="nav-item {{ 'active' if bp=='aumentos' and 'indice' in ep }}" href="{{ url_for('aumentos.indices') }}"><span class="i">{{ icon('bar-chart') }}</span> Índices</a>

@@ -39,13 +39,9 @@ En la barra lateral están las secciones. En el **Inicio** ves de un vistazo:
 
 ## 5. Contratos
 
-Dos formas de dar de alta:
-
-- **Alta directa** (Contratos → + Alta directa): para un alquiler **ya en curso**.
-  Cargás fecha de inicio real (aunque sea pasada), precio actual, día de
-  vencimiento, mora, **comisión** y método de aumento.
-- **Generar contrato** (menú Generador): un **asistente por pasos (wizard)** te
-  va guiando:
+Entrá en **Nuevo contrato** y elegí según lo que necesitás:
+- **Crear un contrato nuevo:** para un alquiler que todavía vas a iniciar. Un
+  **asistente por pasos** redacta el documento y lo registra en el sistema:
   1. **Partes** — locador/es y locatario/es (podés cargar varios). Incluye
      **CUIT** y un botón para calcularlo desde el DNI, y la **consulta al BCRA**
      (situación crediticia) directo en la app.
@@ -55,6 +51,10 @@ Dos formas de dar de alta:
      (DNI y recibos de sueldo del locatario y los fiadores).
   5. **Revisión** — generás el documento y luego **Guardar contrato en el
      sistema**. Queda guardado para reimprimir (opción "Ver contrato").
+- **Registrar un contrato existente:** para un contrato ya firmado o un alquiler
+  **ya en curso**. Cargás la fecha de inicio real (aunque sea pasada), precio
+  actual, día de vencimiento, mora, **comisión** y método de aumento. Esta opción
+  no redacta un documento legal nuevo.
 
 En la lista, cada fila tiene **💵 Cobrar** y un menú **⋯ Más** (Ver, Ver contrato,
 Rescindir, Renovar, Eliminar). **Rescindir** conserva el historial y libera el

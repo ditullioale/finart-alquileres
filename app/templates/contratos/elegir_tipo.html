@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Nuevo contrato{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>¿Qué necesitás hacer?</h1>
+    <p class="sub">Elegí la opción según el estado real del contrato.</p>
+  </div>
+  <a class="btn sec" href="{{ url_for('contratos.listar') }}">Volver a contratos</a>
+</div>
+
+<div class="contract-choice-grid">
+  <a class="contract-choice" href="{{ url_for('contratos.generador') }}">
+    <span class="choice-icon">{{ icon('file-pen', 28) }}</span>
+    <span class="choice-kicker">PARA UN ALQUILER NUEVO</span>
+    <h2>Crear un contrato nuevo</h2>
+    <p>El asistente redacta el documento legal y también registra el alquiler en el sistema.</p>
+    <ul>
+      <li>Cargás partes, inmueble, condiciones y garantías.</li>
+      <li>FINART genera el documento para revisar, imprimir o guardar.</li>
+    </ul>
+    <span class="choice-action">Abrir asistente <span aria-hidden="true">→</span></span>
+  </a>
+
+  <a class="contract-choice" href="{{ url_for('contratos.nuevo') }}">
+    <span class="choice-icon">{{ icon('file-text', 28) }}</span>
+    <span class="choice-kicker">PARA UN CONTRATO YA EXISTENTE</span>
+    <h2>Registrar un contrato existente</h2>
+    <p>Usá esta opción cuando el contrato ya está firmado o el alquiler ya se encuentra en curso.</p>
+    <ul>
+      <li>Cargás los datos necesarios para administrarlo y cobrar.</li>
+      <li>No se redacta un documento legal nuevo.</li>
+    </ul>
+    <span class="choice-action">Registrar datos <span aria-hidden="true">→</span></span>
+  </a>
+</div>
+
+<div class="choice-help">
+  <b>Regla rápida:</b> si necesitás que FINART redacte el documento, elegí la primera opción.
+  Si ya tenés el contrato y solo querés administrarlo, elegí la segunda.
+</div>
+
+<style>
+.contract-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;max-width:980px}
+.contract-choice{display:flex;flex-direction:column;min-height:310px;padding:24px;border:1px solid var(--line,#d8e0ea);border-radius:14px;background:var(--card,#fff);color:var(--txt,#172033);text-decoration:none;box-shadow:0 4px 14px rgba(20,42,74,.06);transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease}
+.contract-choice:hover{transform:translateY(-2px);border-color:#86a9df;box-shadow:0 9px 24px rgba(20,42,74,.11)}
+.contract-choice:focus-visible{outline:3px solid #8ab4f8;outline-offset:3px}
+.choice-icon{display:grid;place-items:center;width:50px;height:50px;margin-bottom:16px;border-radius:12px;background:#eaf0fb;color:#274b8f}
+.choice-kicker{font-size:11px;font-weight:800;letter-spacing:.08em;color:#557093}
+.contract-choice h2{margin:7px 0 8px;font-size:22px}
+.contract-choice p{margin:0 0 12px;color:var(--muted,#627087);line-height:1.5}
+.contract-choice ul{margin:0 0 20px;padding-left:19px;color:var(--muted,#627087);line-height:1.55}
+.choice-action{margin-top:auto;font-weight:750;color:#2f6fed}
+.choice-help{max-width:980px;margin-top:18px;padding:13px 16px;border:1px solid #b9cdf0;border-radius:10px;background:#eaf0fb;color:#274b8f}
+@media(max-width:760px){.contract-choice-grid{grid-template-columns:1fr}.contract-choice{min-height:0}.pagehead{align-items:flex-start}}
+</style>
+{% endblock %}
