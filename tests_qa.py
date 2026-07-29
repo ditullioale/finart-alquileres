@@ -385,6 +385,18 @@ def run():
         check("onboarding crea su admin (aislado y con cambio de clave forzado)",
               q(_admin_c_ok))
 
+        # El superadmin queda ENCERRADO en Plataforma: no ve datos operativos.
+        check("superadmin NO entra a personas (redirige, no 200)",
+              clS.get("/personas/").status_code == 302)
+        check("superadmin NO entra a cobros (redirige, no 200)",
+              clS.get("/cobros/").status_code == 302)
+        check("superadmin NO entra a contratos (redirige, no 200)",
+              clS.get("/contratos/").status_code == 302)
+        check("superadmin bloqueado en la API (403)",
+              clS.get("/api/cobranzas").status_code == 403)
+        check("un admin normal SÍ ve sus datos (no lo afecta el guardia)",
+              cl.get("/personas/").status_code == 200)
+
         seccion("Alta autogestionada (registro con aprobación)")
         from app.models import SolicitudAlta
 

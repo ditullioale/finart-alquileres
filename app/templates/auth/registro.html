@@ -1,54 +1,103 @@
 {% extends "base.html" %}
 {% block title %}Solicitar acceso{% endblock %}
 {% block content %}
-<div class="login-box" style="max-width:520px">
-  <h1>🏠 Solicitar acceso</h1>
-  <p class="sub">Completá los datos de tu inmobiliaria. Revisamos la solicitud y te habilitamos el ingreso.</p>
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% for cat, msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
-  {% endwith %}
-  <form method="post">
-    <label>Nombre de la inmobiliaria *</label>
-    <input name="nombre_inmobiliaria" value="{{ datos.nombre_inmobiliaria or '' }}" autofocus required>
-
-    <label>Tu nombre (contacto)</label>
-    <input name="nombre_contacto" value="{{ datos.nombre_contacto or '' }}">
-
-    <div class="grid2">
-      <div>
-        <label>Email</label>
-        <input name="email" type="email" value="{{ datos.email or '' }}">
-      </div>
-      <div>
-        <label>Teléfono</label>
-        <input name="telefono" value="{{ datos.telefono or '' }}">
-      </div>
+<div class="reg-wrap">
+  <div class="reg-card">
+    <div class="reg-head">
+      <div class="reg-logo">🏠</div>
+      <h1>Probá Gestión de Alquileres</h1>
+      <p class="sub">Dejanos los datos de tu inmobiliaria y te habilitamos el acceso. Sin instalar nada: entrás desde el navegador o el celular.</p>
     </div>
 
-    <label>Localidad</label>
-    <input name="localidad" value="{{ datos.localidad or '' }}" placeholder="Ej: Rosario, Santa Fe">
+    <ul class="reg-benes">
+      <li>✅ Contratos, cobranzas y liquidaciones en un solo lugar</li>
+      <li>✅ Recordatorios de pago y recibos por WhatsApp</li>
+      <li>🔒 Tus datos quedan aislados y privados de tu inmobiliaria</li>
+    </ul>
 
-    <hr style="margin:16px 0;border:none;border-top:1px solid #e5e9f0">
-    <p class="hint" style="margin-top:0">Con estos datos vas a ingresar una vez aprobada la solicitud.</p>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
+    {% endwith %}
 
-    <label>Usuario para ingresar *</label>
-    <input name="username" value="{{ datos.username or '' }}" required>
+    <form method="post" class="reg-form">
+      <div class="reg-sec">Datos de la inmobiliaria</div>
 
-    <div class="grid2">
-      <div>
-        <label>Contraseña *</label>
-        <input name="password" type="password" required>
+      <label>Nombre de la inmobiliaria <span class="req">*</span></label>
+      <input name="nombre_inmobiliaria" value="{{ datos.nombre_inmobiliaria or '' }}" placeholder="Ej: Inmobiliaria del Sur" autofocus required>
+
+      <div class="grid2">
+        <div>
+          <label>Tu nombre (contacto)</label>
+          <input name="nombre_contacto" value="{{ datos.nombre_contacto or '' }}" placeholder="Nombre y apellido">
+        </div>
+        <div>
+          <label>Localidad</label>
+          <input name="localidad" value="{{ datos.localidad or '' }}" placeholder="Ej: Rosario, Santa Fe">
+        </div>
       </div>
-      <div>
-        <label>Repetir contraseña *</label>
-        <input name="password2" type="password" required>
-      </div>
-    </div>
 
-    <button class="btn" type="submit" style="margin-top:14px">Enviar solicitud</button>
-  </form>
-  <p style="text-align:center;margin-top:12px">
-    <a href="{{ url_for('auth.login') }}" style="color:#6f86a6;font-size:13px">Ya tengo cuenta · Ingresar</a>
-  </p>
+      <div class="grid2">
+        <div>
+          <label>Email</label>
+          <input name="email" type="email" value="{{ datos.email or '' }}" placeholder="tu@correo.com">
+        </div>
+        <div>
+          <label>Teléfono</label>
+          <input name="telefono" value="{{ datos.telefono or '' }}" placeholder="Ej: 341 555-5555">
+        </div>
+      </div>
+
+      <div class="reg-sec">Tu acceso</div>
+      <p class="hint" style="margin-top:0">Con estos datos vas a ingresar una vez que aprobemos la solicitud.</p>
+
+      <label>Usuario <span class="req">*</span></label>
+      <input name="username" value="{{ datos.username or '' }}" placeholder="Elegí un usuario" autocomplete="username" required>
+
+      <div class="grid2">
+        <div>
+          <label>Contraseña <span class="req">*</span></label>
+          <input name="password" type="password" autocomplete="new-password" placeholder="Mínimo 6 caracteres" required>
+        </div>
+        <div>
+          <label>Repetir contraseña <span class="req">*</span></label>
+          <input name="password2" type="password" autocomplete="new-password" placeholder="Repetila" required>
+        </div>
+      </div>
+
+      <button class="btn reg-cta" type="submit">Enviar solicitud</button>
+
+      <div class="reg-note">
+        📩 Al enviar, tu solicitud queda <b>pendiente de aprobación</b>. Te avisamos y ahí ya podés ingresar con tu usuario y contraseña.
+      </div>
+    </form>
+
+    <p class="reg-foot">
+      ¿Ya tenés cuenta? <a href="{{ url_for('auth.login') }}">Ingresá acá</a>
+    </p>
+  </div>
 </div>
+
+<style>
+  .reg-wrap{display:flex;justify-content:center;padding:24px 14px}
+  .reg-card{width:100%;max-width:560px;background:#fff;border:1px solid #e5e9f0;
+    border-radius:16px;box-shadow:0 10px 30px rgba(20,40,80,.08);padding:28px 30px}
+  .reg-head{text-align:center;margin-bottom:14px}
+  .reg-logo{font-size:38px;line-height:1}
+  .reg-card h1{margin:8px 0 4px;font-size:23px}
+  .reg-card .sub{color:#6b7a90;font-size:14px;margin:0 auto;max-width:420px}
+  .reg-benes{list-style:none;padding:14px 16px;margin:16px 0;background:#f6f9ff;
+    border:1px solid #e3ecff;border-radius:12px;font-size:14px;color:#37485f}
+  .reg-benes li{padding:3px 0}
+  .reg-sec{font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.4px;
+    color:#8a97a8;margin:18px 0 8px;border-bottom:1px solid #eef1f6;padding-bottom:6px}
+  .reg-form label{display:block;margin:10px 0 4px;font-size:13px;font-weight:600;color:#3a4658}
+  .reg-form input{width:100%}
+  .reg-form .req{color:#e0533d}
+  .reg-cta{width:100%;margin-top:18px;font-size:15px;padding:12px}
+  .reg-note{margin-top:14px;background:#fffdf5;border:1px solid #f0dca0;border-radius:10px;
+    padding:11px 13px;font-size:13px;color:#6a5b2e}
+  .reg-foot{text-align:center;margin-top:16px;font-size:14px;color:#6b7a90}
+  .reg-foot a{color:#2f6fed;font-weight:600}
+  @media (max-width:560px){ .reg-card{padding:22px 18px} }
+</style>
 {% endblock %}

@@ -117,6 +117,35 @@ def create_app(config_class=Config):
         flash("Tu usuario es de solo lectura: no podés hacer cambios.", "error")
         return redirect(request.referrer or url_for("main.index"))
 
+    # Aislamiento del superadmin de PLATAFORMA. El dueño de la plataforma solo
+    # administra cuentas (crear/aprobar/suspender inmobiliarias): NO puede entrar
+    # a los datos operativos de ninguna inmobiliaria (cobros, contratos, personas,
+    # documentación, API...). Así, aunque el operador también tenga su propia
+    # inmobiliaria, con la cuenta de plataforma no puede leer datos ajenos.
+    @app.before_request
+    def _guardia_superadmin():
+        from flask_login import current_user
+        if not getattr(current_user, "is_authenticated", False):
+            return
+        if getattr(current_user, "rol", None) != "superadmin":
+            return
+        ep = request.endpoint or ""
+        if ep.startswith("plataforma."):
+            return
+        permitidos = {"auth.logout", "auth.login", "auth.recuperar",
+                      "auth.restablecer", "usuarios.cambiar_clave", "static",
+                      "manifest", "service_worker", "assetlinks"}
+        if ep in permitidos:
+            return
+        if request.path.startswith("/api") or request.is_json:
+            from flask import jsonify
+            return jsonify(ok=False, error="El administrador de plataforma no "
+                           "accede a datos de las inmobiliarias."), 403
+        flash("Como administrador de la plataforma no accedés a los datos de las "
+              "inmobiliarias. Para trabajar tu propia inmobiliaria, ingresá con tu "
+              "usuario administrador.", "error")
+        return redirect(url_for("plataforma.index"))
+
     # Aviso global: cantidad de aumentos vencidos (badge en el menú).
     @app.context_processor
     def _aumentos_pendientes():
