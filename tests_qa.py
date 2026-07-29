@@ -368,6 +368,26 @@ def run():
         check("A NO ve la cuenta de gas de B (aislado)", ea.get("ok") is False)
         check("B sí ve su cuenta de gas importada", eb.get("ok") is True)
 
+        # Botón "Actualizar ahora" (server-side, HTTP): se simula la respuesta de
+        # Litoral Gas para no depender de la red.
+        import app.litoralgas as _lg
+        from datetime import date as _date
+        _orig_cd = _lg.consultar_deuda
+        _lg.consultar_deuda = lambda u, c: [dict(
+            cuenta="555000/01", titular="Serv Prueba", direccion="Calle 1",
+            contrato_vigente=True, tiene_deuda=True, deuda_total=999.5,
+            ultimo_vencimiento=_date(2026, 7, 10), detalle="[]")]
+        try:
+            ract = cl.post("/gas/actualizar")
+        finally:
+            _lg.consultar_deuda = _orig_cd
+        check("actualizar gas (server-side) responde ok",
+              ract.status_code == 200 and _json.loads(ract.data.decode()).get("ok"))
+        check("actualizar gas crea el suministro en la inmobiliaria correcta",
+              q(lambda: GasEstado.query.filter_by(cuenta="555000/01").first().inmobiliaria_id) == 1)
+        check("sin credenciales, actualizar gas pide configurarlas (400)",
+              clB.post("/gas/actualizar").status_code == 400)
+
         seccion("Robot de gas: credenciales combinadas")
         import litoralgas_bot as _bot
         _os.environ["LITORALGAS_USER"] = "uno@x.com"; _os.environ["LITORALGAS_PASS"] = "p1"

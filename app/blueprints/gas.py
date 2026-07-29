@@ -112,6 +112,45 @@ def importar():
     return jsonify(ok=True, guardadas=guardadas)
 
 
+@gas_bp.route("/actualizar", methods=["POST"])
+@login_required
+def actualizar():
+    """Actualiza el estado de gas AHORA, desde el servidor, usando las
+    credenciales de Litoral Gas cargadas por esta inmobiliaria (sin robot)."""
+    from datetime import date
+    from flask_login import current_user
+    from ..litoralgas import consultar_deuda, CredencialesError, GasError
+
+    a = Ajustes.get()
+    if not a.gas_configurado:
+        return jsonify(ok=False, error="Primero configurá tu usuario y contraseña "
+                       "de Litoral Gas en Ajustes."), 400
+
+    try:
+        resultados = consultar_deuda(a.gas_usuario, a.get_gas_clave())
+    except CredencialesError as e:
+        return jsonify(ok=False, error=str(e)), 400
+    except GasError as e:
+        return jsonify(ok=False, error=str(e)), 502
+
+    tid = getattr(current_user, "inmobiliaria_id", None)
+    guardadas = con_deuda = 0
+    for r in resultados:
+        venc = r["ultimo_vencimiento"]
+        if venc and not isinstance(venc, date):
+            venc = None
+        g = GasEstado.upsert(r["cuenta"], titular=r["titular"], direccion=r["direccion"],
+                             contrato_vigente=r["contrato_vigente"],
+                             tiene_deuda=r["tiene_deuda"], deuda_total=r["deuda_total"],
+                             ultimo_vencimiento=venc, detalle=r["detalle"])
+        if tid:
+            g.inmobiliaria_id = tid
+        guardadas += 1
+        con_deuda += 1 if r["tiene_deuda"] else 0
+    db.session.commit()
+    return jsonify(ok=True, guardadas=guardadas, con_deuda=con_deuda)
+
+
 @gas_bp.route("/robot/credenciales", methods=["GET"])
 def robot_credenciales():
     """Le da al robot la lista de inmobiliarias con credenciales de Litoral Gas

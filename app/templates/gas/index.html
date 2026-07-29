@@ -120,14 +120,50 @@
       <h3>Actualizar el gas</h3>
       <button type="button" class="modal-x" aria-label="Cerrar" onclick="document.getElementById('actModal').setAttribute('hidden','')">✕</button>
     </div>
-    <p class="modal-sub">Los datos de gas los trae el robot desde Litoral Gas. Se actualizan solos cada 15 días, pero si querés hacerlo ahora:</p>
-    <p style="font-size:14px;margin:0 0 6px"><b>La forma fácil:</b> hacé doble clic en el ícono <b>"Actualizar Gas"</b> de tu escritorio. Tarda unos segundos y listo.</p>
-    <p style="font-size:13px;color:var(--muted);margin:0">(El robot corre en tu PC porque necesita entrar a Litoral Gas con tu usuario; por eso la actualización se dispara desde ahí y no desde este botón.)</p>
+    {% if gas_configurado %}
+    <p class="modal-sub">Consultamos ahora mismo tu deuda en Litoral Gas con tus credenciales y actualizamos el panel. Puede tardar unos segundos.</p>
     <div class="modal-btns">
-      <button type="button" class="btn sec" onclick="document.getElementById('actModal').setAttribute('hidden','')">Entendido</button>
+      <button type="button" class="btn ok" id="btnActGas" onclick="actualizarGas()">⟳ Actualizar ahora</button>
+      <button type="button" class="btn sec" onclick="document.getElementById('actModal').setAttribute('hidden','')">Cancelar</button>
     </div>
+    <p class="hint" id="actGasMsg" style="margin:12px 0 0"></p>
+    {% else %}
+    <p class="modal-sub">Para actualizar necesitás cargar tu usuario y contraseña de Litoral Gas.</p>
+    <div class="modal-btns">
+      <a class="btn" href="{{ url_for('ajustes.index') }}#gas">Configurar credenciales</a>
+      <button type="button" class="btn sec" onclick="document.getElementById('actModal').setAttribute('hidden','')">Cerrar</button>
+    </div>
+    {% endif %}
   </div>
 </div>
+
+<script>
+function actualizarGas(){
+  var b = document.getElementById('btnActGas');
+  var msg = document.getElementById('actGasMsg');
+  b.disabled = true; b.innerHTML = '<span class="spin"></span> Consultando Litoral Gas…';
+  msg.textContent = 'Esto puede demorar unos segundos, no cierres la ventana.';
+  msg.style.color = 'var(--muted)';
+  fetch('{{ url_for("gas.actualizar") }}', { method:'POST' })
+    .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+    .then(function(res){
+      if(res.ok && res.j.ok){
+        msg.style.color = 'var(--ok)';
+        msg.textContent = '¡Listo! ' + res.j.guardadas + ' suministro(s), ' + res.j.con_deuda + ' con deuda. Actualizando…';
+        setTimeout(function(){ location.reload(); }, 900);
+      } else {
+        b.disabled = false; b.innerHTML = '⟳ Reintentar';
+        msg.style.color = 'var(--err)';
+        msg.textContent = res.j.error || 'No se pudo actualizar. Probá de nuevo en un rato.';
+      }
+    })
+    .catch(function(){
+      b.disabled = false; b.innerHTML = '⟳ Reintentar';
+      msg.style.color = 'var(--err)';
+      msg.textContent = 'Error de conexión. Probá de nuevo.';
+    });
+}
+</script>
 
 <script>
 // Menú de puntos por fila (posición y abrir/cerrar).
