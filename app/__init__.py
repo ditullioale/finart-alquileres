@@ -221,16 +221,18 @@ def _iniciar_base(app):
     - Base al día: `upgrade()` aplica lo que falte (no-op si no hay nada).
 
     Después siembra el admin y la inmobiliaria inicial y asigna los datos
-    existentes a esa inmobiliaria (backfill de multiempresa)."""
+    existentes a esa inmobiliaria (backfill de multiempresa).
+
+    Si el esquema no se puede preparar, la app **no arranca**: seguir con un
+    esquema viejo o a medias rompe todo más adelante y de forma confusa. Con
+    IGNORAR_ERROR_ESQUEMA=1 el arranque continúa igual (solo para diagnosticar:
+    lo que dependa del esquema que faltó va a seguir fallando)."""
     from sqlalchemy import text, inspect
     if os.environ.get("TESTING") or not os.path.isdir(_MIGRATIONS_DIR):
         # En pruebas se usa create_all() directo (más simple y sin Alembic).
-        try:
-            db.create_all()
-        except Exception:
-            pass
+        _preparar_esquema(app, db.create_all)
     else:
-        try:
+        def _migrar():
             from flask_migrate import stamp as _stamp, upgrade as _upgrade
             tablas = inspect(db.engine).get_table_names()
             if not tablas:
@@ -247,12 +249,13 @@ def _iniciar_base(app):
                         db.session.execute(text(_sql)); db.session.commit()
                     except Exception:
                         db.session.rollback()
+                        app.logger.warning("No pude aplicar %s", _sql, exc_info=True)
                 _stamp(directory=_MIGRATIONS_DIR, revision=BASELINE_REVISION)
                 _upgrade(directory=_MIGRATIONS_DIR)                 # aplica multiempresa, etc.
             else:
                 _upgrade(directory=_MIGRATIONS_DIR)                 # al día / pendientes
-        except Exception:
-            db.session.rollback()
+
+        _preparar_esquema(app, _migrar)
 
     # Siembra: inmobiliaria #1 primero (para que el admin pueda asignarse a ella
     # cuando inmobiliaria_id es obligatorio), luego admin + backfill.
@@ -264,6 +267,7 @@ def _iniciar_base(app):
         _asegurar_superadmin()
     except Exception:
         db.session.rollback()
+        app.logger.exception("Falló la siembra inicial de la base")
 
     # Limpieza única: teléfonos importados como decimales ("3402539090.0").
     try:
@@ -279,6 +283,21 @@ def _iniciar_base(app):
             db.session.commit()
     except Exception:
         db.session.rollback()
+        app.logger.exception("Falló la limpieza de teléfonos importados")
+
+
+def _preparar_esquema(app, preparar):
+    """Corre la preparación del esquema y corta el arranque si falla.
+
+    Se atrapa también SystemExit porque flask_migrate no propaga los errores de
+    Alembic: los loguea y termina el proceso con sys.exit(1)."""
+    try:
+        preparar()
+    except (Exception, SystemExit):
+        db.session.rollback()
+        app.logger.critical("No pude preparar el esquema de la base", exc_info=True)
+        if not os.environ.get("IGNORAR_ERROR_ESQUEMA"):
+            raise
 
 
 def _asegurar_superadmin():

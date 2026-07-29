@@ -132,6 +132,22 @@ class SolicitudAlta(db.Model):
 
 
 # --------------------------------------------------------------------------- #
+#  Intentos de login (freno a la fuerza bruta)
+# --------------------------------------------------------------------------- #
+class IntentoLogin(db.Model):
+    """Fallos de login recientes por IP + usuario.
+
+    Viven en la base y no en memoria para que el límite valga para todos los
+    workers del servidor y no se borre en cada reinicio o despliegue."""
+    __tablename__ = "intentos_login"
+
+    id = db.Column(db.Integer, primary_key=True)
+    clave = db.Column(db.String(160), unique=True, nullable=False, index=True)
+    fallos = db.Column(db.Integer, nullable=False, default=0)
+    ultimo = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
+# --------------------------------------------------------------------------- #
 #  Auditoría (quién hizo qué y cuándo)
 # --------------------------------------------------------------------------- #
 class RegistroAuditoria(db.Model):
