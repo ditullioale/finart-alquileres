@@ -8,7 +8,7 @@ from flask import (Blueprint, render_template, request, jsonify, abort,
 from flask_login import login_required
 
 from .. import db
-from ..models import Inmueble, GasEstado, Contrato
+from ..models import Inmueble, GasEstado, Contrato, Ajustes
 
 gas_bp = Blueprint("gas", __name__, url_prefix="/gas")
 
@@ -54,7 +54,8 @@ def index():
     return render_template("gas/index.html", filas=filas, con_deuda=con_deuda,
                            deuda_total=deuda_total, total=len(inmuebles),
                            sin_asignar=sin_asignar, disponibles=disponibles,
-                           ultima_actualizacion=ultima_actualizacion)
+                           ultima_actualizacion=ultima_actualizacion,
+                           gas_configurado=Ajustes.get().gas_configurado)
 
 
 @gas_bp.route("/react")
@@ -75,6 +76,17 @@ def importar():
         return jsonify(ok=False, error="Token inválido o no configurado."), 403
 
     datos = request.get_json(silent=True) or {}
+    # El robot indica a qué inmobiliaria pertenece esta tanda de cuentas. Si no
+    # lo manda (robot viejo), cae a la inmobiliaria principal (compatibilidad).
+    from ..models import Inmobiliaria
+    inmo_id = datos.get("inmobiliaria_id")
+    try:
+        inmo_id = int(inmo_id) if inmo_id is not None else None
+    except (TypeError, ValueError):
+        inmo_id = None
+    if inmo_id is None:
+        inmo = Inmobiliaria.principal()
+        inmo_id = inmo.id if inmo else None
     guardadas = 0
     for c in datos.get("cuentas", []):
         cuenta = (c.get("cuenta") or "").strip()
@@ -92,16 +104,32 @@ def importar():
                              tiene_deuda=bool(c.get("tiene_deuda", False)),
                              deuda_total=c.get("deuda_total") or 0,
                              ultimo_vencimiento=venc, detalle=c.get("detalle"))
-        # El robot corre sin usuario: asignar el suministro a la inmobiliaria
-        # principal (paso 1 de multiempresa; se hará por tenant al escalar).
-        if getattr(g, "inmobiliaria_id", None) is None:
-            from ..models import Inmobiliaria
-            inmo = Inmobiliaria.principal()
-            if inmo:
-                g.inmobiliaria_id = inmo.id
+        # Asignar el suministro a la inmobiliaria de esta tanda.
+        if inmo_id:
+            g.inmobiliaria_id = inmo_id
         guardadas += 1
     db.session.commit()
     return jsonify(ok=True, guardadas=guardadas)
+
+
+@gas_bp.route("/robot/credenciales", methods=["GET"])
+def robot_credenciales():
+    """Le da al robot la lista de inmobiliarias con credenciales de Litoral Gas
+    (usuario + clave descifrada) para que consulte la deuda de cada una.
+    Protegido por el mismo token del robot. Sin usuario => ve todos los Ajustes."""
+    import os
+    esperado = os.environ.get("GAS_IMPORT_TOKEN")
+    recibido = request.headers.get("X-Gas-Token") or request.args.get("token")
+    if not esperado or recibido != esperado:
+        return jsonify(ok=False, error="Token inválido o no configurado."), 403
+    cuentas = []
+    for a in Ajustes.query.all():
+        if a.gas_usuario and a.gas_clave_enc:
+            clave = a.get_gas_clave()
+            if clave:
+                cuentas.append({"inmobiliaria_id": a.inmobiliaria_id,
+                                "usuario": a.gas_usuario, "clave": clave})
+    return jsonify(ok=True, inmobiliarias=cuentas)
 
 
 @gas_bp.route("/asignar", methods=["POST"])

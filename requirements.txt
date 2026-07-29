@@ -17,3 +17,4 @@ waitress>=3.0.0
 gunicorn>=22.0.0
 # Para generar recibos en PDF (Python puro, sin librerías del sistema):
 xhtml2pdf>=0.2.17
+cryptography>=42

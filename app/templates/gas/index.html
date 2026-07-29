@@ -14,6 +14,14 @@
   </div>
 </div>
 
+{% if not gas_configurado %}
+<div class="panel" style="border:1px solid #f0c36d;background:#fffdf5;margin-bottom:16px">
+  <h2 style="margin-top:0">🔑 Configurá tu cuenta de Litoral Gas</h2>
+  <p class="hint" style="margin:0 0 12px">Para que la app traiga el estado de deuda de tus inmuebles, primero cargá el usuario y la contraseña de tu Oficina Virtual de Litoral Gas. Se guardan de forma cifrada y solo se usan para consultar tu deuda.</p>
+  <a class="btn" href="{{ url_for('ajustes.index') }}#gas">Configurar credenciales de Litoral Gas</a>
+</div>
+{% endif %}
+
 <div class="cards" style="grid-template-columns:repeat(3,1fr)">
   <div class="card"><div class="num" style="font-size:22px">{{ total }}</div><div class="lbl">Propiedades con cuenta</div></div>
   <div class="card"><div class="num" style="font-size:22px;color:var(--err)">{{ con_deuda }}</div><div class="lbl">Con deuda de gas</div></div>

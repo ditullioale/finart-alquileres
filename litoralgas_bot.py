@@ -124,52 +124,37 @@ def procesar_cuenta_litoral(p, usuario, clave, headless):
     return resultados
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--ver", action="store_true", help="Navegador visible")
-    ap.add_argument("--prueba", action="store_true", help="No guardar, solo mostrar")
-    args = ap.parse_args()
-
-    credenciales = []
+def _obtener_credenciales(app_url, token):
+    """Trae las credenciales de Litoral Gas de cada inmobiliaria desde la app
+    (SaaS multiempresa). Si la app no responde o no hay ninguna configurada, cae
+    a las variables del .env (una sola inmobiliaria, sin inmobiliaria_id)."""
+    import json
+    import urllib.request
+    if app_url and token:
+        url = app_url.rstrip("/") + "/gas/robot/credenciales"
+        req = urllib.request.Request(url, headers={"X-Gas-Token": token})
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            inmos = data.get("inmobiliarias", []) if data.get("ok") else []
+            if inmos:
+                return [(i.get("inmobiliaria_id"), i["usuario"], i["clave"])
+                        for i in inmos if i.get("usuario") and i.get("clave")]
+            print("La app no tiene inmobiliarias con credenciales de gas cargadas.")
+        except Exception as e:  # noqa: BLE001
+            print(f"No se pudieron traer las credenciales desde la app ({e}). "
+                  "Uso las del .env si están.")
+    # Fallback: .env (compatibilidad con el uso de una sola cuenta).
+    creds = []
     for u, c in [("LITORALGAS_USER", "LITORALGAS_PASS"),
                  ("LITORALGAS_USER2", "LITORALGAS_PASS2")]:
         usuario = os.environ.get(u); clave = os.environ.get(c)
         if usuario and clave:
-            credenciales.append((usuario, clave))
-    if not credenciales:
-        print("ERROR: falta LITORALGAS_USER / LITORALGAS_PASS en el archivo .env.")
-        sys.exit(1)
+            creds.append((None, usuario, clave))
+    return creds
 
-    from playwright.sync_api import sync_playwright
 
-    todos = []
-    with sync_playwright() as p:
-        for usuario, clave in credenciales:
-            print(f"\nEntrando a Litoral Gas: {usuario} …")
-            todos += procesar_cuenta_litoral(p, usuario, clave, headless=not args.ver)
-
-    # Combinar y quitar duplicados por número de cuenta.
-    por_cuenta = {}
-    for r in todos:
-        por_cuenta[r["cuenta"]] = r
-    resultados = list(por_cuenta.values())
-
-    con_deuda = sum(1 for r in resultados if r["tiene_deuda"])
-    total_deuda = sum(r["deuda_total"] for r in resultados)
-    print(f"\nResumen total: {len(resultados)} cuentas | {con_deuda} con deuda | "
-          f"total $ {ar(total_deuda)}")
-
-    if args.prueba:
-        print("\n(modo prueba: no se guardó nada en la app)")
-        return
-
-    app_url = os.environ.get("GAS_APP_URL")
-    token = os.environ.get("GAS_IMPORT_TOKEN")
-    if not app_url or not token:
-        print("\nPara guardar en la app configurá GAS_APP_URL y GAS_IMPORT_TOKEN en el .env.")
-        print("(La lectura salió bien igual; solo falta ese paso para que aparezca en la app.)")
-        return
-
+def _enviar(app_url, token, inmobiliaria_id, resultados):
     import json
     import urllib.request
     cuentas = []
@@ -180,18 +165,62 @@ def main():
             deuda_total=r["deuda_total"],
             ultimo_vencimiento=(r["ultimo_vencimiento"].isoformat() if r["ultimo_vencimiento"] else None),
             detalle=r["detalle"]))
-    payload = json.dumps({"cuentas": cuentas}).encode("utf-8")
+    payload = json.dumps({"inmobiliaria_id": inmobiliaria_id,
+                          "cuentas": cuentas}).encode("utf-8")
     url = app_url.rstrip("/") + "/gas/importar"
     req = urllib.request.Request(url, data=payload, method="POST",
                                  headers={"Content-Type": "application/json",
                                           "X-Gas-Token": token})
-    try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            print("\n¡Listo! Datos enviados a la app:", resp.read().decode("utf-8"))
-            print("Miralo en la sección 'Control de gas' de tu app.")
-    except Exception as e:  # noqa: BLE001
-        print(f"\nNo se pudo enviar a la app: {e}")
-        print("Revisá GAS_APP_URL y que GAS_IMPORT_TOKEN coincida con el de Railway.")
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        return resp.read().decode("utf-8")
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--ver", action="store_true", help="Navegador visible")
+    ap.add_argument("--prueba", action="store_true", help="No guardar, solo mostrar")
+    args = ap.parse_args()
+
+    app_url = os.environ.get("GAS_APP_URL")
+    token = os.environ.get("GAS_IMPORT_TOKEN")
+
+    # Una entrada por inmobiliaria: (inmobiliaria_id, usuario, clave).
+    credenciales = _obtener_credenciales(app_url, token)
+    if not credenciales:
+        print("ERROR: no hay credenciales de Litoral Gas. Configuralas en la app "
+              "(Ajustes → Litoral Gas) o en el .env (LITORALGAS_USER / LITORALGAS_PASS).")
+        sys.exit(1)
+
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as p:
+        for inmo_id, usuario, clave in credenciales:
+            etiqueta = f"inmobiliaria #{inmo_id}" if inmo_id else "(.env)"
+            print(f"\nEntrando a Litoral Gas: {usuario}  [{etiqueta}] …")
+            resultados = procesar_cuenta_litoral(p, usuario, clave, headless=not args.ver)
+
+            # Quitar duplicados por número de cuenta dentro de esta inmobiliaria.
+            por_cuenta = {r["cuenta"]: r for r in resultados}
+            resultados = list(por_cuenta.values())
+            con_deuda = sum(1 for r in resultados if r["tiene_deuda"])
+            total_deuda = sum(r["deuda_total"] for r in resultados)
+            print(f"  {len(resultados)} cuentas | {con_deuda} con deuda | "
+                  f"total $ {ar(total_deuda)}")
+
+            if args.prueba:
+                continue
+            if not app_url or not token:
+                print("  (para guardar en la app configurá GAS_APP_URL y "
+                      "GAS_IMPORT_TOKEN en el .env)")
+                continue
+            try:
+                r = _enviar(app_url, token, inmo_id, resultados)
+                print("  Enviado a la app:", r)
+            except Exception as e:  # noqa: BLE001
+                print(f"  No se pudo enviar a la app: {e}")
+
+    if args.prueba:
+        print("\n(modo prueba: no se guardó nada en la app)")
 
 
 if __name__ == "__main__":

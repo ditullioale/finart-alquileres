@@ -318,6 +318,56 @@ def run():
         check("A no ve el cliente de B", "Cliente Solo B" not in lista_a)
         check("A sí ve sus propios datos", "Santamaria Guido" in lista_a)
 
+        seccion("Ajustes por inmobiliaria + credenciales de gas")
+        import os as _os
+        import json as _json
+        _os.environ["GAS_IMPORT_TOKEN"] = "tok-test-123"
+        from app.models import Ajustes, GasEstado
+
+        # A configura su nombre y sus credenciales de Litoral Gas.
+        cl.post("/ajustes/", data={"nombre": "AA Rentas SRL",
+                "gas_usuario": "aa@correo.com", "gas_clave": "claveGasAA"})
+        pagA = cl.get("/ajustes/").data.decode("utf-8", "ignore")
+        pagB = clB.get("/ajustes/").data.decode("utf-8", "ignore")
+        check("Ajustes de A guarda su propio nombre", "AA Rentas SRL" in pagA)
+        check("B NO ve el nombre de A en sus Ajustes (aislado)", "AA Rentas SRL" not in pagB)
+
+        check("la clave de gas se guarda cifrada y se recupera",
+              q(lambda: Ajustes.query.filter_by(inmobiliaria_id=1).first().get_gas_clave()) == "claveGasAA")
+        check("la clave de gas NO se guarda en texto plano",
+              q(lambda: Ajustes.query.filter_by(inmobiliaria_id=1).first().gas_clave_enc) != "claveGasAA")
+
+        gasA = cl.get("/gas/").data.decode("utf-8", "ignore")
+        gasB = clB.get("/gas/").data.decode("utf-8", "ignore")
+        check("A (configurado) NO muestra el banner de credenciales",
+              "Configurá tu cuenta de Litoral Gas" not in gasA)
+        check("B (sin configurar) muestra el banner de credenciales",
+              "Configurá tu cuenta de Litoral Gas" in gasB)
+
+        # Endpoint para el robot: con token trae la credencial descifrada de A.
+        jc = _json.loads(app.test_client().get(
+            "/gas/robot/credenciales?token=tok-test-123").data.decode())
+        usuarios = [i["usuario"] for i in jc.get("inmobiliarias", [])]
+        claves = [i["clave"] for i in jc.get("inmobiliarias", [])]
+        check("robot/credenciales (con token) trae el usuario de A", "aa@correo.com" in usuarios)
+        check("robot/credenciales devuelve la clave descifrada", "claveGasAA" in claves)
+        check("robot/credenciales sin token: 403",
+              app.test_client().get("/gas/robot/credenciales").status_code == 403)
+
+        # Importar por inmobiliaria: una cuenta para B, aislada de A.
+        imp = app.test_client().post("/gas/importar",
+              json={"inmobiliaria_id": b["b"], "cuentas": [
+                    {"cuenta": "999999/01", "titular": "Gas B",
+                     "tiene_deuda": True, "deuda_total": 1234}]},
+              headers={"X-Gas-Token": "tok-test-123"})
+        check("importar por inmobiliaria responde ok", imp.status_code == 200)
+        check("la cuenta importada quedó asignada a B",
+              q(lambda: GasEstado.query.filter_by(cuenta="999999/01").first().inmobiliaria_id) == b["b"])
+        ea = _json.loads(cl.get("/gas/estado?cuenta=999999/01").data.decode())
+        eb = _json.loads(clB.get("/gas/estado?cuenta=999999/01").data.decode())
+        check("A NO ve la cuenta de gas de B (aislado)", ea.get("ok") is False)
+        check("B sí ve su cuenta de gas importada", eb.get("ok") is True)
+
         seccion("Auditoría")
 
         def _audit():

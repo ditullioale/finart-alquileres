@@ -26,6 +26,26 @@
     <div><label>Lugar de pago del pagaré</label><input name="pagare_lugar" value="{{ a.pagare_lugar or '' }}"></div>
   </div>
 
+  <h2 style="margin-top:18px">🔥 Litoral Gas (Control de gas)</h2>
+  <p class="hint" style="margin:0 0 8px">
+    {% if a.gas_configurado %}
+      Estado: <b style="color:var(--ok)">configurado</b> como <b>{{ a.gas_usuario }}</b>.
+      La contraseña queda guardada de forma cifrada; solo se usa para traer el estado de deuda.
+    {% else %}
+      Cargá el usuario y la contraseña de tu cuenta de <b>Oficina Virtual de Litoral Gas</b>
+      para que la app pueda traer el estado de deuda de tus inmuebles.
+    {% endif %}
+  </p>
+  <div class="grid2">
+    <div><label>Usuario (email de Litoral Gas)</label>
+      <input name="gas_usuario" value="{{ a.gas_usuario or '' }}" placeholder="tucorreo@ejemplo.com" autocomplete="off"></div>
+    <div><label>Contraseña de Litoral Gas</label>
+      <input type="password" name="gas_clave" placeholder="{{ '•••••• (dejar vacío para no cambiar)' if a.gas_configurado else 'contraseña' }}" autocomplete="new-password"></div>
+  </div>
+  {% if a.gas_configurado %}
+  <label class="chk" style="margin-top:10px"><input type="checkbox" name="gas_borrar"> Borrar las credenciales de Litoral Gas guardadas</label>
+  {% endif %}
+
   <div class="formbtns"><button class="btn" type="submit">Guardar ajustes</button></div>
 </form>
 

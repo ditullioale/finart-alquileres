@@ -479,6 +479,7 @@ class Ajustes(db.Model):
     __tablename__ = "ajustes"
 
     id = db.Column(db.Integer, primary_key=True)
+    inmobiliaria_id = db.Column(db.Integer, index=True)   # cada inmobiliaria tiene sus ajustes
     nombre = db.Column(db.String(160), default="Mi Inmobiliaria")
     cuit = db.Column(db.String(20))
     ing_brutos = db.Column(db.String(30))
@@ -495,15 +496,33 @@ class Ajustes(db.Model):
     liquidacion_proximo = db.Column(db.Integer, default=1)
     pagare_meses = db.Column(db.Integer, default=10)
     pagare_lugar = db.Column(db.String(120))
+    # Credenciales de Litoral Gas (por inmobiliaria). La clave se guarda cifrada.
+    gas_usuario = db.Column(db.String(160))
+    gas_clave_enc = db.Column(db.Text)
 
     @staticmethod
     def get():
+        # Con el filtro multiempresa activo, .first() ya devuelve los ajustes de
+        # la inmobiliaria del usuario logueado. Si no existen todavía, se crean
+        # (el before_flush les asigna la inmobiliaria correcta).
         a = Ajustes.query.first()
         if a is None:
             a = Ajustes()
             db.session.add(a)
             db.session.commit()
         return a
+
+    def set_gas_clave(self, clave):
+        from .cripto import cifrar
+        self.gas_clave_enc = cifrar(clave)
+
+    def get_gas_clave(self):
+        from .cripto import descifrar
+        return descifrar(self.gas_clave_enc)
+
+    @property
+    def gas_configurado(self):
+        return bool(self.gas_usuario and self.gas_clave_enc)
 
     def siguiente_recibo(self):
         num = self.recibo_proximo or 1

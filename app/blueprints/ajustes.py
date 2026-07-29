@@ -42,6 +42,16 @@ def index():
         a.recibo_proximo = parse_num(request.form.get("recibo_proximo"), entero=True) or 1
         a.pagare_meses = parse_num(request.form.get("pagare_meses"), entero=True) or 10
         a.pagare_lugar = request.form.get("pagare_lugar", "").strip()
+        # Credenciales de Litoral Gas (por inmobiliaria). La clave solo se toca si
+        # se escribió una nueva; el checkbox "borrar" limpia ambas.
+        if request.form.get("gas_borrar"):
+            a.gas_usuario = None
+            a.gas_clave_enc = None
+        else:
+            a.gas_usuario = request.form.get("gas_usuario", "").strip() or None
+            nueva_clave = request.form.get("gas_clave", "")
+            if nueva_clave:
+                a.set_gas_clave(nueva_clave)
         db.session.commit()
         flash("Ajustes guardados.", "ok")
         return redirect(url_for("ajustes.index"))

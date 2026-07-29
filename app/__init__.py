@@ -354,7 +354,8 @@ def _backfill_inmobiliaria(inmo):
     from sqlalchemy import text
     tid = inmo.id
     tablas = ["usuarios", "personas", "inmuebles", "contratos", "aumentos",
-              "pagos", "gas_estado", "recibos_manuales", "liquidaciones"]
+              "pagos", "gas_estado", "recibos_manuales", "liquidaciones",
+              "ajustes"]
     for t in tablas:
         try:
             db.session.execute(
