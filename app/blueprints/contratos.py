@@ -69,6 +69,13 @@ def react():
     return redirect(url_for("contratos.listar"))
 
 
+@contratos_bp.route("/crear")
+@login_required
+def crear():
+    """Permite elegir el flujo correcto antes de iniciar un contrato."""
+    return render_template("contratos/elegir_tipo.html")
+
+
 @contratos_bp.route("/<int:cid>/documento")
 @login_required
 def documento(cid):
@@ -184,7 +191,7 @@ def eliminar_documento(doc_id):
 
 
 # --------------------------------------------------------------------------- #
-#  Alta directa / edición (formulario manual)
+#  Registro de contrato existente / edición (formulario manual)
 # --------------------------------------------------------------------------- #
 def _opciones():
     return dict(
@@ -288,21 +295,24 @@ def nuevo():
         _leer_form(c)
         _leer_fiadores(c)   # cargar fiadores antes de validar, para no perderlos si falla
         _leer_copartes(c)
+        renovar_de = parse_num(request.form.get("renovar_de"), entero=True)
         error = _validar(c)
         if error:
             flash(error, "error")
-            return render_template("contratos/form.html", c=c, **_opciones())
+            return render_template("contratos/form.html", c=c, renovar_de=renovar_de,
+                                   **_opciones())
         db.session.add(c)
         _marcar_alquilado(c)
         # Si es una renovación, finalizar el contrato anterior.
-        renovar_de = parse_num(request.form.get("renovar_de"), entero=True)
         if renovar_de:
             old = db.session.get(Contrato, renovar_de)
             if old:
                 old.estado = "Finalizado"
         db.session.commit()
-        flash("Contrato dado de alta correctamente." +
-              (" El contrato anterior quedó finalizado." if renovar_de else ""), "ok")
+        if renovar_de:
+            flash("Renovación registrada correctamente. El contrato anterior quedó finalizado.", "ok")
+        else:
+            flash("Contrato existente registrado correctamente.", "ok")
         return redirect(url_for("contratos.ver", cid=c.id))
     c = Contrato(fecha_inicio=date.today(), metodo_ajuste="porcentaje",
                  moneda="Pesos", estado="Vigente", dia_vencimiento=10)

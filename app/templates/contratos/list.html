@@ -13,8 +13,7 @@
     <p class="sub">Alquileres cargados. Desde acá registrás cobros y aumentos.</p>
   </div>
   <div class="quick">
-    <a class="btn" href="{{ url_for('contratos.nuevo') }}">+ Alta directa</a>
-    <a class="btn sec" href="{{ url_for('contratos.generador') }}">📝 Generar contrato</a>
+    <a class="btn" href="{{ url_for('contratos.crear') }}">+ Nuevo contrato</a>
   </div>
 </div>
 
@@ -82,8 +81,8 @@
 <div class="empty-state">
   <div class="em">📄</div>
   <h3>No hay contratos {{ 'con ese filtro' if q or estado else 'todavía' }}</h3>
-  <p>Cargá un alquiler en curso con “Alta directa”, o generá un contrato nuevo con el asistente.</p>
-  <a class="btn" href="{{ url_for('contratos.nuevo') }}">+ Alta directa</a>
+  <p>Empezá indicando si necesitás crear un documento nuevo o registrar un contrato existente.</p>
+  <a class="btn" href="{{ url_for('contratos.crear') }}">+ Nuevo contrato</a>
 </div>
 {% endif %}
 

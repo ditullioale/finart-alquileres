@@ -54,7 +54,7 @@
   <div class="grid2">
     <div><span class="k">Inmueble</span><br>{{ (c.inmueble.codigo ~ ' · ' if c.inmueble.codigo else '') }}{{ c.inmueble.direccion }}</div>
     <div><span class="k">Estado</span><br><span class="badge {{ c.estado|lower }}">{{ c.estado }}</span>
-         {% if c.origen=='generador' %}<span class="badge reservado">Desde generador</span>{% endif %}</div>
+         {% if c.origen=='generador' %}<span class="badge reservado">Documento creado en FINART</span>{% endif %}</div>
     <div><span class="k">{{ 'Locatarios' if c.colocatarios else 'Inquilino' }}</span><br>
       <span style="display:inline-flex;align-items:center;gap:8px">{{ c.inquilino.nombre if c.inquilino else '—' }}
         {% if c.inquilino %}{{ wa_icon(c.inquilino.telefono, "Hola " ~ c.inquilino.nombre ~ "! Te escribo por el alquiler de " ~ c.inmueble.direccion ~ ".") }}{% endif %}

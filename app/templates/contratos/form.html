@@ -1,15 +1,16 @@
 {% extends "base.html" %}
-{% block title %}{{ 'Editar' if c.id else 'Alta directa de' }} contrato{% endblock %}
+{% set es_renovacion = renovar_de|default(None) %}
+{% block title %}{{ 'Editar contrato' if c.id else ('Renovar contrato' if es_renovacion else 'Registrar contrato existente') }}{% endblock %}
 {% block content %}
-<div class="pagehead"><h1>{{ 'Editar contrato' if c.id else 'Alta directa de contrato' }}</h1></div>
-
-{% if not c.id %}
+<div class="pagehead"><h1>{{ 'Editar contrato' if c.id else ('Renovar contrato' if es_renovacion else 'Registrar contrato existente') }}</h1></div>
+{% if not c.id and not es_renovacion %}
 <div class="flash ok" style="background:#eaf0fb;border-color:#b9cdf0;color:#274b8f">
-  Usá esta alta para cargar un alquiler <b>ya en curso</b>: podés poner la fecha de inicio real
-  (aunque sea pasada) y el precio actual ya aumentado. El historial de pagos se carga luego en Cobros.
+  <b>Esta opción no redacta un documento legal nuevo.</b> Usala para registrar un contrato
+  ya firmado o un alquiler en curso. Podés cargar la fecha de inicio real, aunque sea pasada,
+  y el precio actual ya aumentado. Si necesitás redactar el contrato desde cero,
+  <a href="{{ url_for('contratos.generador') }}"><b>abrí el asistente de contrato nuevo</b></a>.
 </div>
 {% endif %}
-
 <form method="post" action="{{ url_for('contratos.nuevo') if renovar_de else '' }}" class="cardform">
   {% if renovar_de %}<input type="hidden" name="renovar_de" value="{{ renovar_de }}">{% endif %}
   <h2>Partes e inmueble</h2>
