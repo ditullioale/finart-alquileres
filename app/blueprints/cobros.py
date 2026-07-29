@@ -4,12 +4,15 @@ from datetime import date
 from flask import (Blueprint, render_template, redirect, url_for, request,
                    flash, abort, jsonify, make_response)
 from flask_login import login_required
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 
 from .. import db
+from ..idempotencia import nueva_clave, purgar, reservar
 from ..models import Contrato, Pago, GastoExtra
-from ..utils import (parse_fecha, parse_num, vencimiento, calcular_mora,
-                     periodo_siguiente, MESES_ES, link_whatsapp, whatsapp_valido, q2)
+from ..utils import (parse_fecha, parse_num, vencimiento, mora_del_periodo,
+                     estado_y_saldo, total_pago, periodo_siguiente, MESES_ES,
+                     link_whatsapp, whatsapp_valido, q2)
 
 cobros_bp = Blueprint("cobros", __name__, url_prefix="/cobros")
 
@@ -48,21 +51,30 @@ def _leer_gastos(pago):
 
 
 def _estado_saldo(pago):
-    """Recalcula saldo y estado a partir del total y lo pagado (decimal exacto)."""
-    total = q2(pago.total)
-    pagado = q2(pago.pagado)
-    pago.saldo = total - pagado
-    if pagado <= 0:
-        pago.estado = "Pendiente"
-    elif pago.saldo > 0:
-        pago.estado = "Parcial"
-    else:
-        pago.estado = "Pagado"
+    """Recalcula saldo y estado con la función única de app/utils.py."""
+    pago.estado, pago.saldo = estado_y_saldo(pago.total, pago.pagado)
 
 
 def _recalcular(pago, gastos_total):
-    pago.total = q2(pago.precio_alquiler) + q2(pago.mora) + q2(gastos_total)
+    pago.total = total_pago(pago.precio_alquiler, pago.mora, gastos_total)
     _estado_saldo(pago)
+
+
+def _pago_del_periodo(contrato, mes, anio):
+    """Pago ya registrado para ese período del contrato, o None."""
+    return next((p for p in contrato.pagos
+                 if p.periodo_mes == mes and p.periodo_anio == anio), None)
+
+
+def _ya_cobrado(pago):
+    """Mensaje concreto para cuando el período ya tiene un pago registrado."""
+    periodo = f"{MESES_ES[pago.periodo_mes]} {pago.periodo_anio}"
+    fecha = pago.fecha_pago.strftime("%d/%m/%Y") if pago.fecha_pago else "fecha sin registrar"
+    detalle = f"{periodo} ya se cobró el {fecha} ({pago.estado.lower()}"
+    if float(pago.saldo or 0) > 0:
+        detalle += f", falta {pago.moneda} {float(pago.saldo):,.2f}"
+    return (detalle + "). Si falta plata de ese período, usá \u201cPago a cuenta\u201d "
+            "sobre el pago existente en vez de cargarlo de nuevo.")
 
 
 def _deuda_previa(contrato, excluir_id=None):
@@ -267,13 +279,13 @@ def _leer_pago(pago, contrato):
     pago.moneda = contrato.moneda or "Pesos"
     pago.forma_pago = request.form.get("forma_pago", "")
     pago.observaciones = request.form.get("observaciones", "").strip()
-    pago.recibo_numero = request.form.get("recibo_numero", "").strip()
+    # Sin número de recibo va NULL (no ""): así no choca con el único de la base.
+    pago.recibo_numero = request.form.get("recibo_numero", "").strip() or None
 
     # Mora: usa la ingresada, o si se pide, la calcula automáticamente.
     if request.form.get("mora_auto"):
-        venc = vencimiento(pago.periodo_anio, pago.periodo_mes, contrato.dia_vencimiento or 10)
-        pago.mora = calcular_mora(pago.precio_alquiler, contrato.mora_diaria_pct,
-                                  venc, pago.fecha_pago)
+        pago.mora = mora_del_periodo(contrato, pago.periodo_mes, pago.periodo_anio,
+                                     pago.fecha_pago, pago.precio_alquiler)
     else:
         pago.mora = parse_num(request.form.get("mora")) or 0
 
@@ -304,12 +316,28 @@ def rapido():
         return jsonify(ok=False, error="El precio del alquiler debe ser mayor a 0."), 400
 
     # Evitar duplicar: si ya hay un pago de ese período, no crear otro.
-    ya = next((p for p in contrato.pagos
-               if p.periodo_mes == mes and p.periodo_anio == anio), None)
+    ya = _pago_del_periodo(contrato, mes, anio)
     if ya:
-        return jsonify(ok=False, error="Ya existe un pago para ese período."), 409
+        return jsonify(ok=False, error=_ya_cobrado(ya), pago_id=ya.id,
+                       recibo_url=url_for("recibos.recibo", pid=ya.id),
+                       detalle_url=url_for("cobros.detalle", cid=contrato.id)), 409
 
-    mora = parse_num(d.get("mora")) or 0
+    # El mismo pedido puede llegar dos veces (doble clic, reintento del
+    # navegador): la clave de idempotencia hace que cobre una sola.
+    if not reservar("cobro-rapido", d.get("idem")):
+        ya = _pago_del_periodo(contrato, mes, anio)
+        return jsonify(ok=False, error="Ese cobro ya se había registrado.",
+                       pago_id=ya.id if ya else None,
+                       detalle_url=url_for("cobros.detalle", cid=contrato.id)), 409
+
+    # La mora la calcula el servidor con la función única. La pantalla solo
+    # muestra una vista previa; manda el valor únicamente si el usuario lo
+    # escribió a mano (ahí manda lo que decidió la inmobiliaria).
+    if d.get("mora") is None:
+        mora = mora_del_periodo(contrato, mes, anio,
+                                parse_fecha(d.get("fecha")) or date.today(), precio)
+    else:
+        mora = parse_num(d.get("mora")) or 0
     # Gastos extras: lista de {desc, monto} (suma con decimales exactos)
     gastos = []
     gastos_total = q2(0)
@@ -320,19 +348,12 @@ def rapido():
             gastos.append((desc, monto))
             gastos_total += q2(monto)
 
-    total = q2(precio) + q2(mora) + gastos_total
+    total = total_pago(precio, mora, gastos_total)
     pagado = parse_num(d.get("pagado"))
     if pagado is None:
         pagado = total
+    estado, saldo = estado_y_saldo(total, pagado)
     pagado = q2(pagado)
-    saldo = total - pagado
-    if pagado <= 0:
-        estado = "Pendiente"
-    elif saldo > 0:
-        estado = "Parcial"
-    else:
-        estado = "Pagado"
-        saldo = q2(0)
 
     fecha = parse_fecha(d.get("fecha")) or date.today()
     nro = (max((p.numero or 0) for p in contrato.pagos) + 1) if contrato.pagos else 1
@@ -346,7 +367,18 @@ def rapido():
     for desc, monto in gastos:
         pago.gastos.append(GastoExtra(descripcion=desc, monto=monto))
     db.session.add(pago)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        # Dos cobros del mismo período entraron a la vez: el constraint único de
+        # la base atajó al segundo.
+        db.session.rollback()
+        otro = _pago_del_periodo(contrato, mes, anio)
+        return jsonify(ok=False, error="Ese período se cobró en otra pantalla o "
+                       "pestaña justo ahora. Actualizá para ver el pago.",
+                       pago_id=otro.id if otro else None,
+                       detalle_url=url_for("cobros.detalle", cid=contrato.id)), 409
+    purgar()
     return jsonify(ok=True, pago_id=pago.id, estado=estado,
                    pagado=float(pagado), saldo=float(saldo), total=float(total),
                    moneda=pago.moneda,
@@ -364,10 +396,19 @@ def nuevo(cid):
         pago = Pago(contrato_id=contrato.id)
         _leer_pago(pago, contrato)
         error = _validar(pago)
+        if not error:
+            repetido = _pago_del_periodo(contrato, pago.periodo_mes, pago.periodo_anio)
+            if repetido:
+                error = _ya_cobrado(repetido)
+            elif not reservar("cobro", request.form.get("idem")):
+                # El navegador reenvió el mismo formulario (F5 / doble clic).
+                flash("Ese cobro ya se había registrado: no lo dupliqué.", "ok")
+                return redirect(url_for("cobros.detalle", cid=contrato.id))
         if error:
             flash(error, "error")
             return render_template("cobros/form_pago.html", c=contrato, pago=pago,
-                                   formas=FORMAS_PAGO, meses=MESES_ES, nuevo=True)
+                                   formas=FORMAS_PAGO, meses=MESES_ES, nuevo=True,
+                                   idem=nueva_clave())
         gastos_total = _leer_gastos(pago)
 
         # Arrastrar saldo pendiente de meses anteriores a este pago.
@@ -391,7 +432,14 @@ def nuevo(cid):
                                 + gastos_total - arrastrado, 2)
         _recalcular(pago, gastos_total)
         db.session.add(pago)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash("Ese período se cobró en otra pantalla justo ahora, así que no "
+                  "lo dupliqué. Revisá el historial del contrato.", "error")
+            return redirect(url_for("cobros.detalle", cid=contrato.id))
+        purgar()
         msg = f"Pago del período {MESES_ES[pago.periodo_mes]} {pago.periodo_anio} registrado."
         if arrastrado > 0:
             msg += f" Se arrastró {contrato.moneda} {arrastrado:,.2f} de saldo anterior."
@@ -410,7 +458,8 @@ def nuevo(cid):
                 precio_alquiler=contrato.precio_actual or contrato.precio_inicial)
     return render_template("cobros/form_pago.html", c=contrato, pago=pago,
                            formas=FORMAS_PAGO, meses=MESES_ES, nuevo=True,
-                           deuda_previa=_deuda_previa(contrato))
+                           deuda_previa=_deuda_previa(contrato),
+                           idem=nueva_clave())
 
 
 @cobros_bp.route("/pago/<int:pid>/editar", methods=["GET", "POST"])
@@ -456,9 +505,22 @@ def abonar(pid):
     if request.method == "POST":
         monto = parse_num(request.form.get("monto"))
         if not monto or monto <= 0:
-            flash("Ingresá un monto mayor a 0.", "error")
+            flash("Ingresá un monto mayor a 0: es la plata que estás recibiendo "
+                  f"a cuenta (saldo pendiente {pago.moneda} {saldo:,.2f}).", "error")
             return render_template("cobros/abonar.html", pago=pago, saldo=saldo,
-                                   formas=FORMAS_PAGO, meses=MESES_ES)
+                                   formas=FORMAS_PAGO, meses=MESES_ES,
+                                   idem=nueva_clave())
+        if monto > saldo + 0.005:
+            flash(f"El monto ({pago.moneda} {monto:,.2f}) supera el saldo pendiente "
+                  f"({pago.moneda} {saldo:,.2f}). Corregilo o editá el pago si "
+                  "cambió el importe del período.", "error")
+            return render_template("cobros/abonar.html", pago=pago, saldo=saldo,
+                                   formas=FORMAS_PAGO, meses=MESES_ES,
+                                   idem=nueva_clave())
+        # Un pago a cuenta suma plata: sin esto, un doble clic la sumaría dos veces.
+        if not reservar("abono", request.form.get("idem")):
+            flash("Ese pago a cuenta ya estaba registrado: no lo dupliqué.", "ok")
+            return redirect(url_for("cobros.detalle", cid=pago.contrato_id))
         pago.pagado = q2(pago.pagado) + q2(monto)
         if request.form.get("fecha_pago"):
             pago.fecha_pago = parse_fecha(request.form.get("fecha_pago")) or pago.fecha_pago
@@ -469,10 +531,11 @@ def abonar(pid):
             pago.observaciones = ((pago.observaciones or "") + " " + nota).strip()
         _estado_saldo(pago)
         db.session.commit()
+        purgar()
         flash(f"Cobro a cuenta registrado. Saldo restante: {pago.moneda} {float(pago.saldo):,.2f}.", "ok")
         return redirect(url_for("cobros.detalle", cid=pago.contrato_id))
     return render_template("cobros/abonar.html", pago=pago, saldo=saldo,
-                           formas=FORMAS_PAGO, meses=MESES_ES)
+                           formas=FORMAS_PAGO, meses=MESES_ES, idem=nueva_clave())
 
 
 def _validar(pago):

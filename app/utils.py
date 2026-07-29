@@ -98,6 +98,39 @@ def calcular_mora(precio, mora_diaria_pct, venc, fecha_pago):
     return q2(q2(precio) * (q2(mora_diaria_pct) / Decimal(100)) * dias)
 
 
+def mora_del_periodo(contrato, mes, anio, fecha_pago, precio=None):
+    """Mora que le corresponde a un período de un contrato.
+
+    Punto único de cálculo: el panel de cobranzas, el formulario de pago y la
+    API tienen que dar exactamente el mismo número, porque es plata."""
+    if not (contrato and mes and anio and fecha_pago):
+        return q2(0)
+    if precio is None:
+        precio = contrato.precio_actual or contrato.precio_inicial
+    venc = vencimiento(int(anio), int(mes), contrato.dia_vencimiento or 10)
+    return q2(calcular_mora(precio, contrato.mora_diaria_pct, venc, fecha_pago))
+
+
+def total_pago(precio, mora, gastos_total=0):
+    """Total a cobrar de un pago = alquiler + mora + gastos extras."""
+    return q2(precio) + q2(mora) + q2(gastos_total)
+
+
+def estado_y_saldo(total, pagado):
+    """Estado y saldo de un pago a partir del total y lo abonado.
+
+    Devuelve (estado, saldo) con estado en Pendiente/Parcial/Pagado. Un pago de
+    más no deja saldo negativo: queda Pagado con saldo 0."""
+    total = q2(total)
+    pagado = q2(pagado)
+    saldo = total - pagado
+    if pagado <= 0:
+        return "Pendiente", total
+    if saldo > 0:
+        return "Parcial", saldo
+    return "Pagado", q2(0)
+
+
 def periodo_siguiente(mes, anio):
     """Devuelve (mes, anio) del mes siguiente."""
     if mes >= 12:

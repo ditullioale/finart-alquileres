@@ -255,6 +255,71 @@ def run():
         check("cobro con centavos: saldo exacto 50000.00",
               parc2 and parc2["saldo"] == 50000.00)
 
+        seccion("Confiabilidad - funciones unicas de plata")
+        from app.utils import (total_pago as _total, estado_y_saldo as _est,
+                              mora_del_periodo as _mora_periodo)
+        check("total = alquiler + mora + gastos (decimal exacto)",
+              str(_total("100000.005", "1000.004", "500.001")) == "101500.01")
+        check("estado Pendiente cuando no se pago nada",
+              _est(100, 0) == ("Pendiente", _q2(100)))
+        check("estado Parcial deja el saldo que falta",
+              _est(100, 30) == ("Parcial", _q2(70)))
+        check("estado Pagado no deja saldo negativo si pagan de mas",
+              _est(100, 130) == ("Pagado", _q2(0)))
+        def _mora_contrato():
+            c = db.session.get(Contrato, ids["c"])
+            # 0.5 %/día del precio del período, 5 días después del vencimiento.
+            c.mora_diaria_pct = 0.5
+            c.dia_vencimiento = 10
+            db.session.commit()
+            return _mora_periodo(c, 3, 2026, date(2026, 3, 15), 100000)
+        check("mora del periodo: 5 dias x 0.5% s/100000 = 2500.00",
+              float(q(_mora_contrato)) == 2500.00)
+
+        seccion("Anti doble cobro (idempotencia y unico por periodo)")
+        idem = "prueba-doble-clic"
+        uno = cl.post("/cobros/rapido", json={
+            "cid": ids["c2"], "mes": 11, "anio": 2026, "precio": 150000,
+            "pagado": 150000, "idem": idem})
+        dos = cl.post("/cobros/rapido", json={
+            "cid": ids["c2"], "mes": 11, "anio": 2026, "precio": 150000,
+            "pagado": 150000, "idem": idem})
+        check("el mismo cobro enviado dos veces se registra una sola",
+              uno.status_code == 200 and dos.status_code == 409)
+        check("queda un unico pago del periodo 11/2026",
+              q(lambda: Pago.query.filter_by(contrato_id=ids["c2"], periodo_mes=11,
+                                             periodo_anio=2026).count()) == 1)
+
+        def _pago_duplicado():
+            """Inserta a mano un segundo pago del mismo período: la base lo frena."""
+            from sqlalchemy.exc import IntegrityError
+            db.session.add(Pago(contrato_id=ids["c2"], periodo_mes=11, periodo_anio=2026,
+                                precio_alquiler=150000, total=150000, pagado=0,
+                                saldo=150000, estado="Pendiente"))
+            try:
+                db.session.commit()
+                return False
+            except IntegrityError:
+                db.session.rollback()
+                return True
+        check("la base rechaza dos pagos del mismo contrato y periodo",
+              q(_pago_duplicado))
+
+        # El pago a cuenta suma plata: reenviarlo no puede duplicar el importe.
+        parcial_id = q(lambda: Pago.query.filter_by(
+            contrato_id=ids["c2"], periodo_mes=7, periodo_anio=2026).first().id)
+        for _ in range(2):
+            cl.post(f"/cobros/pago/{parcial_id}/abonar",
+                    data={"monto": 20000, "idem": "abono-doble-clic"})
+        check("pago a cuenta reenviado no suma dos veces",
+              q(lambda: float(db.session.get(Pago, parcial_id).pagado)) == 140000.0)
+
+        seccion("Recibos - numeracion sin repetidos")
+        nums = q(lambda: [p.recibo_numero for p in Pago.query
+                          .filter(Pago.recibo_numero.isnot(None)).all()])
+        check("no hay dos pagos con el mismo numero de recibo",
+              len(nums) == len(set(nums)))
+
         seccion("Seguridad - cambio de clave forzado y login")
         # Usuario nuevo obligado a cambiar la clave.
         def _mk_forzado():

@@ -137,7 +137,19 @@ python importar_inmosoft.py --reset    # recrea las tablas antes de importar
    - `SUPERADMIN_USER` / `SUPERADMIN_PASS` = credenciales del administrador de
      plataforma (para el onboarding de inmobiliarias).
    - *(Opcional)* variables SMTP para recuperación de contraseña.
-5. El arranque usa `Procfile` (`gunicorn run:app`) y aplica las migraciones solo.
+5. El arranque usa `Procfile` (`gunicorn run:app`). Las migraciones **no** se
+   aplican al arrancar la app: con 2 workers los dos migrarían a la vez sobre la
+   misma base. Las corre el comando de despliegue, que en Railway se configura en
+   Settings → Deploy → **Pre-deploy Command**:
+
+   ```bash
+   SKIP_STARTUP_DB=1 python -m flask --app run:app preparar-esquema
+   ```
+
+   Si la base quedó atrasada, la app no arranca y el log dice exactamente qué
+   comando falta correr. En la instalación de escritorio (SQLite) se sigue
+   migrando en el arranque, sin configurar nada; se puede forzar en cualquier
+   entorno con `MIGRAR_AL_ARRANCAR=1` o `=0`.
 6. **Dominio propio** (opcional): Settings → Networking → Custom Domain, y cargar
    el CNAME en el registrador.
 

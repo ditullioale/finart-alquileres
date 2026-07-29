@@ -226,6 +226,15 @@ def create_app(config_class=Config):
         resp.headers["Content-Type"] = "application/json"
         return resp
 
+    # Comando de despliegue: aplica las migraciones ANTES de levantar los
+    # workers (ver Procfile). Se corre con SKIP_STARTUP_DB=1 para que el proceso
+    # que migra no toque la base al importar la app.
+    @app.cli.command("preparar-esquema")
+    def preparar_esquema_cmd():
+        """Aplica las migraciones pendientes (comando de release)."""
+        migrar_esquema(app)
+        print("Esquema al día.")
+
     # Arranque de la base. Se puede saltear con SKIP_STARTUP_DB=1 (se usa al
     # generar migraciones con Alembic, para no crear tablas antes de comparar).
     if not os.environ.get("SKIP_STARTUP_DB"):
@@ -256,35 +265,15 @@ def _iniciar_base(app):
     esquema viejo o a medias rompe todo más adelante y de forma confusa. Con
     IGNORAR_ERROR_ESQUEMA=1 el arranque continúa igual (solo para diagnosticar:
     lo que dependa del esquema que faltó va a seguir fallando)."""
-    from sqlalchemy import text, inspect
     if os.environ.get("TESTING") or not os.path.isdir(_MIGRATIONS_DIR):
         # En pruebas se usa create_all() directo (más simple y sin Alembic).
         _preparar_esquema(app, db.create_all)
+    elif not _migrar_al_arrancar(app):
+        # En el servidor las migraciones las corre el comando de despliegue
+        # (ver Procfile). Acá solo se verifica que el esquema esté al día.
+        _preparar_esquema(app, lambda: _verificar_esquema(app))
     else:
-        def _migrar():
-            from flask_migrate import stamp as _stamp, upgrade as _upgrade
-            tablas = inspect(db.engine).get_table_names()
-            if not tablas:
-                _upgrade(directory=_MIGRATIONS_DIR)                 # base nueva
-            elif "alembic_version" not in tablas:
-                # Base pre-Alembic: garantizar columnas base antes de estampar.
-                for _sql in [
-                    "ALTER TABLE fiadores ADD COLUMN IF NOT EXISTS solvencia VARCHAR(250)",
-                    "ALTER TABLE inmuebles ADD COLUMN IF NOT EXISTS cuenta_gas VARCHAR(30)",
-                    "ALTER TABLE contratos ADD COLUMN IF NOT EXISTS aumento_pospuesto DATE",
-                    "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT FALSE",
-                ]:
-                    try:
-                        db.session.execute(text(_sql)); db.session.commit()
-                    except Exception:
-                        db.session.rollback()
-                        app.logger.warning("No pude aplicar %s", _sql, exc_info=True)
-                _stamp(directory=_MIGRATIONS_DIR, revision=BASELINE_REVISION)
-                _upgrade(directory=_MIGRATIONS_DIR)                 # aplica multiempresa, etc.
-            else:
-                _upgrade(directory=_MIGRATIONS_DIR)                 # al día / pendientes
-
-        _preparar_esquema(app, _migrar)
+        _preparar_esquema(app, lambda: migrar_esquema(app))
 
     # Siembra: inmobiliaria #1 primero (para que el admin pueda asignarse a ella
     # cuando inmobiliaria_id es obligatorio), luego admin + backfill.
@@ -314,6 +303,84 @@ def _iniciar_base(app):
     except Exception:
         db.session.rollback()
         app.logger.exception("Falló la limpieza de teléfonos importados")
+
+
+def migrar_esquema(app):
+    """Lleva la base a la última migración, venga del estado que venga.
+
+    - Base vacía (instalación nueva): `upgrade()` crea todo.
+    - Base pre-Alembic (con datos): asegura las columnas base, la estampa en la
+      revisión inicial y después aplica las migraciones nuevas.
+    - Base al día o atrasada: `upgrade()` aplica lo que falte.
+
+    La usan el arranque de escritorio y el comando de despliegue
+    (`flask preparar-esquema`)."""
+    from sqlalchemy import text, inspect
+    from flask_migrate import stamp as _stamp, upgrade as _upgrade
+
+    tablas = inspect(db.engine).get_table_names()
+    if not tablas:
+        _upgrade(directory=_MIGRATIONS_DIR)                 # base nueva
+    elif "alembic_version" not in tablas:
+        # Base pre-Alembic: garantizar columnas base antes de estampar.
+        for _sql in [
+            "ALTER TABLE fiadores ADD COLUMN IF NOT EXISTS solvencia VARCHAR(250)",
+            "ALTER TABLE inmuebles ADD COLUMN IF NOT EXISTS cuenta_gas VARCHAR(30)",
+            "ALTER TABLE contratos ADD COLUMN IF NOT EXISTS aumento_pospuesto DATE",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT FALSE",
+        ]:
+            try:
+                db.session.execute(text(_sql)); db.session.commit()
+            except Exception:
+                db.session.rollback()
+                app.logger.warning("No pude aplicar %s", _sql, exc_info=True)
+        _stamp(directory=_MIGRATIONS_DIR, revision=BASELINE_REVISION)
+        _upgrade(directory=_MIGRATIONS_DIR)                 # aplica multiempresa, etc.
+    else:
+        _upgrade(directory=_MIGRATIONS_DIR)                 # al día / pendientes
+
+
+def _migrar_al_arrancar(app):
+    """¿La app aplica las migraciones al arrancar?
+
+    - Sí en la instalación de escritorio (SQLite, un solo proceso): es lo que
+      hace que "Iniciar Gestion Alquileres.bat" funcione sin tocar nada.
+    - No en el servidor: con 2 workers de gunicorn arrancando juntos, los dos
+      correrían Alembic a la vez sobre la misma base. Ahí migra el comando de
+      despliegue (`release` del Procfile / Pre-deploy de Railway) antes de
+      levantar los workers.
+
+    Se puede forzar con MIGRAR_AL_ARRANCAR=1 / =0.
+    """
+    forzado = os.environ.get("MIGRAR_AL_ARRANCAR")
+    if forzado is not None:
+        return forzado.strip().lower() not in ("0", "no", "false", "")
+    return str(app.config.get("SQLALCHEMY_DATABASE_URI", "")).startswith("sqlite")
+
+
+def _verificar_esquema(app):
+    """Corta el arranque si la base no está en la última migración.
+
+    Servir con un esquema viejo termina en errores raros a mitad de una pantalla
+    (y, si falta una columna de plata, en números mal). Mejor no arrancar y
+    decir qué comando falta."""
+    from alembic.runtime.migration import MigrationContext
+    from alembic.script import ScriptDirectory
+
+    script = ScriptDirectory(_MIGRATIONS_DIR)
+    esperadas = set(script.get_heads())
+    with db.engine.connect() as conn:
+        actuales = set(MigrationContext.configure(conn).get_current_heads())
+    if actuales == esperadas:
+        return
+    raise RuntimeError(
+        "La base no está migrada: tiene "
+        + (", ".join(sorted(actuales)) or "ninguna revisión")
+        + " y el código espera " + ", ".join(sorted(esperadas))
+        + ". Corré las migraciones antes de levantar la app:\n"
+        "    SKIP_STARTUP_DB=1 python -m flask --app run:app preparar-esquema\n"
+        "(en Railway va como Pre-deploy Command; ver README). Para migrar en el "
+        "arranque igual que en la instalación de escritorio: MIGRAR_AL_ARRANCAR=1.")
 
 
 def _preparar_esquema(app, preparar):

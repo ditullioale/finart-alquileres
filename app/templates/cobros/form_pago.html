@@ -11,6 +11,8 @@
 
 <form method="post" class="pago-layout"
       data-mora-pct="{{ c.mora_diaria_pct or 0 }}" data-dia-venc="{{ c.dia_vencimiento or 10 }}">
+  {# Clave de idempotencia: si el navegador reenvía este POST, no se cobra dos veces. #}
+  <input type="hidden" name="idem" value="{{ idem }}">
 
   <div class="pago-main">
     <div class="cardform">

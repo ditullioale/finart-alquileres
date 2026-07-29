@@ -435,6 +435,15 @@ class IndiceValor(db.Model):
 # --------------------------------------------------------------------------- #
 class Pago(db.Model):
     __tablename__ = "pagos"
+    # Un solo pago por contrato y período, y un número de recibo irrepetible
+    # dentro de la inmobiliaria: es la red que atrapa el doble cobro cuando dos
+    # pedidos entran a la vez (doble clic, dos pestañas, dos workers).
+    __table_args__ = (
+        db.UniqueConstraint("contrato_id", "periodo_mes", "periodo_anio",
+                            name="uq_pago_contrato_periodo"),
+        db.UniqueConstraint("inmobiliaria_id", "recibo_numero",
+                            name="uq_pago_recibo_numero"),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     inmobiliaria_id = db.Column(db.Integer, db.ForeignKey("inmobiliarias.id"), index=True, nullable=False)
@@ -524,12 +533,22 @@ class Ajustes(db.Model):
     def gas_configurado(self):
         return bool(self.gas_usuario and self.gas_clave_enc)
 
+    def _bloquear(self):
+        """Relee esta fila con bloqueo de escritura antes de tomar un número.
+
+        Sin el bloqueo, dos workers leen el mismo 'próximo número' y emiten dos
+        comprobantes con la misma numeración. En SQLite el FOR UPDATE se ignora
+        (un solo escritor por vez), en PostgreSQL serializa los dos pedidos."""
+        db.session.refresh(self, with_for_update=True)
+
     def siguiente_recibo(self):
+        self._bloquear()
         num = self.recibo_proximo or 1
         self.recibo_proximo = num + 1
         return f"{self.recibo_prefijo or '0001'}-{num:08d}"
 
     def siguiente_liquidacion(self):
+        self._bloquear()
         num = self.liquidacion_proximo or 1
         self.liquidacion_proximo = num + 1
         return f"{self.liquidacion_prefijo or '0001'}-{num:08d}"
@@ -641,3 +660,17 @@ class Liquidacion(db.Model):
     creado = db.Column(db.DateTime, default=datetime.utcnow)
 
     propietario = db.relationship("Persona")
+
+class OperacionIdem(db.Model):
+    """Huella de operaciones de plata ya ejecutadas (clave de idempotencia).
+
+    Cada formulario de cobro lleva una clave única; al guardar se inserta acá en
+    la misma transacción que el pago. Si el navegador reenvía el pedido (doble
+    clic, F5, conexión lenta, dos pestañas), la clave ya está tomada y la
+    operación no se repite: el usuario ve el resultado del primer intento.
+    """
+    __tablename__ = "operaciones_idem"
+
+    id = db.Column(db.Integer, primary_key=True)
+    clave = db.Column(db.String(120), unique=True, nullable=False, index=True)
+    creado = db.Column(db.DateTime, default=datetime.utcnow)
