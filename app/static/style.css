@@ -314,9 +314,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--a);box-s
 .btn.sec .spin{border-color:rgba(31,58,95,.3);border-top-color:var(--b)}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* ===== Densidad: la columna de acciones se pega a su contenido (no queda a la
-   deriva en tablas de pocas columnas) ===== */
-.grid td.actions{white-space:nowrap;width:1%}
+/* ===== Densidad: la columna de acciones no parte los botones en dos líneas ===== */
+.grid td.actions{white-space:nowrap}
 
 /* ===== Vista compacta (toggle) — más filas en pantalla ===== */
 body.compact .grid th,body.compact .grid td{padding:5px 12px;font-size:13.5px}
