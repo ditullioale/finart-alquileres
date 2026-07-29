@@ -1,5 +1,6 @@
 """Autenticación: login, logout y recuperación de contraseña."""
-import time
+import math
+from datetime import datetime, timedelta
 
 from flask import (Blueprint, render_template, redirect, url_for, request,
                    flash, current_app)
@@ -7,7 +8,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 from .. import db
-from ..models import Usuario
+from ..models import IntentoLogin, Usuario
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -31,30 +32,52 @@ def verificar_token_reset(token):
     return db.session.get(Usuario, uid)
 
 # Límite de intentos de login. Tras MAX_INTENTOS fallidos dentro de VENTANA
-# segundos, se bloquea ese usuario+IP por BLOQUEO segundos. Es en memoria
-# (suficiente para una instancia chica); se reinicia al reiniciar la app.
+# segundos, se bloquea ese usuario+IP por BLOQUEO segundos. El contador se
+# guarda en la base para que valga en todos los workers del servidor y no se
+# borre al reiniciar (en memoria, cada worker tenía su propio contador).
 MAX_INTENTOS = 5
 VENTANA = 300        # 5 minutos
 BLOQUEO = 300        # 5 minutos de espera
-_intentos = {}       # clave -> [timestamps de fallos recientes]
 
 
 def _clave_intento(username):
-    return f"{request.remote_addr or '?'}|{(username or '').lower()}"
+    return f"{request.remote_addr or '?'}|{(username or '').lower()}"[:160]
 
 
 def _bloqueado(clave):
-    ahora = time.time()
-    fallos = [t for t in _intentos.get(clave, []) if ahora - t < VENTANA]
-    _intentos[clave] = fallos
-    if len(fallos) >= MAX_INTENTOS:
-        espera = int((BLOQUEO - (ahora - fallos[-1])) / 60) + 1
-        return max(espera, 1)
-    return 0
+    """Minutos que faltan para poder reintentar (0 si no está bloqueado)."""
+    reg = IntentoLogin.query.filter_by(clave=clave).first()
+    if reg is None:
+        return 0
+    transcurrido = (datetime.utcnow() - reg.ultimo).total_seconds()
+    if transcurrido >= VENTANA:
+        db.session.delete(reg)      # los fallos viejos caducan
+        db.session.commit()
+        return 0
+    if reg.fallos < MAX_INTENTOS:
+        return 0
+    return max(math.ceil((BLOQUEO - transcurrido) / 60), 1)
 
 
 def _registrar_fallo(clave):
-    _intentos.setdefault(clave, []).append(time.time())
+    reg = IntentoLogin.query.filter_by(clave=clave).first()
+    if reg is None:
+        reg = IntentoLogin(clave=clave, fallos=0)
+        db.session.add(reg)
+    reg.fallos = (reg.fallos or 0) + 1
+    reg.ultimo = datetime.utcnow()
+    _purgar_intentos_viejos()
+    db.session.commit()
+
+
+def _olvidar_fallos(clave):
+    IntentoLogin.query.filter_by(clave=clave).delete()
+    db.session.commit()
+
+
+def _purgar_intentos_viejos():
+    limite = datetime.utcnow() - timedelta(seconds=VENTANA)
+    IntentoLogin.query.filter(IntentoLogin.ultimo < limite).delete()
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
@@ -73,7 +96,7 @@ def login():
             return render_template("auth/login.html")
         usuario = Usuario.query.filter_by(username=username).first()
         if usuario and usuario.activo and usuario.check_password(password):
-            _intentos.pop(clave, None)   # login exitoso: limpiar contador
+            _olvidar_fallos(clave)
             login_user(usuario)
             destino = request.args.get("next")
             if not destino and usuario.rol == "superadmin":

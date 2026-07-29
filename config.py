@@ -5,6 +5,8 @@ con PostgreSQL, completar el archivo .env (ver .env.ejemplo) con los datos de
 conexión. No hace falta editar este archivo.
 """
 import os
+import secrets
+import sys
 from pathlib import Path
 from urllib.parse import quote_plus
 
@@ -37,29 +39,67 @@ def _database_uri():
     return f"sqlite:///{_default_sqlite_path()}"
 
 
-def _default_sqlite_path():
-    """Ubica la base SQLite en una carpeta local, FUERA de OneDrive.
+def _carpeta_datos():
+    """Carpeta de datos local, FUERA de OneDrive.
 
     OneDrive puede bloquear o corromper archivos SQLite al sincronizarlos, por
-    eso la base se guarda por defecto en el directorio de datos local del
-    usuario (en Windows: %LOCALAPPDATA%\\GestionAlquileres).
+    eso los datos se guardan por defecto en el directorio local del usuario
+    (en Windows: %LOCALAPPDATA%\\GestionAlquileres).
     """
     base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~/.local/share")
     carpeta = Path(base) / "GestionAlquileres"
     carpeta.mkdir(parents=True, exist_ok=True)
-    return carpeta / "alquileres.db"
+    return carpeta
+
+
+def _default_sqlite_path():
+    return _carpeta_datos() / "alquileres.db"
+
+
+def _aviso(texto):
+    """Aviso de configuración por la salida de error (la que queda en los logs
+    del servidor, sin quedar retenida en el buffer de stdout)."""
+    print(f"AVISO: {texto}", file=sys.stderr, flush=True)
+
+
+def _clave_secreta():
+    """Clave de firma de sesiones y tokens CSRF.
+
+    Debe ser la misma en todos los procesos y entre reinicios: con varios
+    workers de gunicorn, una clave por proceso hace que las sesiones y los
+    tokens CSRF fallen de forma intermitente según qué worker atienda el
+    pedido. Si no está definida en el entorno se usa una clave generada una
+    sola vez y guardada en la carpeta de datos local.
+    """
+    clave = os.environ.get("SECRET_KEY")
+    if clave:
+        return clave
+
+    archivo = _carpeta_datos() / "secret_key"
+    try:
+        guardada = archivo.read_text().strip()
+        if guardada:
+            return guardada
+    except OSError:
+        pass
+
+    nueva = secrets.token_hex(32)
+    try:
+        archivo.write_text(nueva)
+        os.chmod(archivo, 0o600)
+        _aviso(f"SECRET_KEY no está definida; generé una y la guardé en "
+               f"{archivo}. Definí SECRET_KEY en las variables de entorno.")
+    except OSError:
+        _aviso("SECRET_KEY no está definida y no pude guardar una clave "
+               "persistente. Las sesiones se van a cortar en cada reinicio y "
+               "entre workers. Definí SECRET_KEY en las variables de entorno.")
+    return nueva
 
 
 class Config:
     # Clave secreta de sesión. Ideal: definir la variable SECRET_KEY en el entorno
-    # (Railway). Si no está, se genera una aleatoria fuerte para no dejar una débil
-    # por defecto (las sesiones se reinician en cada arranque hasta que la definas).
-    SECRET_KEY = os.environ.get("SECRET_KEY")
-    if not SECRET_KEY:
-        import secrets
-        SECRET_KEY = secrets.token_hex(32)
-        print("AVISO: SECRET_KEY no está definida; usé una aleatoria. "
-              "Definí SECRET_KEY en las variables de entorno para sesiones estables.")
+    # (Railway). Si no está, se usa una generada y guardada en la carpeta de datos.
+    SECRET_KEY = _clave_secreta()
 
     SQLALCHEMY_DATABASE_URI = _database_uri()
     SQLALCHEMY_TRACK_MODIFICATIONS = False

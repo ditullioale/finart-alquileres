@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app import create_app, db  # noqa: E402
 from app.models import (Usuario, Persona, Inmueble, Contrato, Pago, Fiador,  # noqa: E402
-                        Aumento, IndiceValor)
+                        Aumento, IndiceValor, IntentoLogin)
 from app.utils import (normalizar_whatsapp, whatsapp_valido, pesos_letras,  # noqa: E402
                        parse_num, add_months)
 
@@ -281,6 +281,11 @@ def run():
         blo = cb.post("/login", data={"username": "oper", "password": "clave123"},
                       follow_redirects=True).data.decode("utf-8", "ignore")
         check("bloquea login tras 5 intentos fallidos", "Demasiados intentos" in blo)
+        # El contador vive en la base: así vale para todos los workers del
+        # servidor y sobrevive a los reinicios.
+        check("el contador de intentos queda guardado en la base",
+              q(lambda: IntentoLogin.query.filter(IntentoLogin.clave.like("%|oper"),
+                                                  IntentoLogin.fallos >= 5).count()) == 1)
 
         seccion("Multiempresa - aislamiento entre inmobiliarias")
 
