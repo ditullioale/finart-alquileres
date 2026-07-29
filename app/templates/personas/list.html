@@ -12,7 +12,7 @@
   <h1>Personas</h1>
   <div class="quick">
     <a class="btn sec" href="{{ url_for('personas.telefonos') }}">Revisar teléfonos</a>
-    <a class="btn sec" href="{{ url_for('personas.react') }}" title="Versión nueva, más rápida">⚛ Probar versión nueva</a>
+    {% if current_user.rol == 'admin' %}<a class="btn sec" href="{{ url_for('personas.react') }}" title="Versión nueva, más rápida">⚛ Probar versión nueva</a>{% endif %}
     <a class="btn" href="{{ url_for('personas.nueva') }}">+ Nueva persona</a>
   </div>
 </div>

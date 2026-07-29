@@ -6,7 +6,7 @@ from flask_login import login_required
 
 from .. import db
 from ..models import Persona, Inmueble, Contrato, Pago
-from ..utils import proximo_ajuste
+from ..utils import proximo_ajuste, vencimiento, MESES_ES
 
 main_bp = Blueprint("main", __name__)
 
@@ -53,8 +53,43 @@ def index():
 
     pendientes = {"deuda": deuda, "aumentos": aumentos_pend,
                   "vencen": len(por_vencer)}
+
+    # Cobranzas del mes en curso: quién todavía no pagó (lo que la inmobiliaria
+    # mira todos los días). Compacto, para el panel de inicio.
+    contratos_vig = (Contrato.query.filter_by(estado="Vigente")
+                     .options(joinedload(Contrato.inquilino),
+                              joinedload(Contrato.inmueble),
+                              joinedload(Contrato.pagos))
+                     .all())
+    morosos, cobrados, monto_pend = [], 0, 0.0
+    for c in contratos_vig:
+        pago = next((p for p in c.pagos
+                     if p.periodo_mes == hoy.month and p.periodo_anio == hoy.year), None)
+        esperado = float(c.precio_actual or c.precio_inicial or 0)
+        if pago and pago.estado == "Pagado":
+            cobrados += 1
+            continue
+        saldo = float(pago.saldo or 0) if pago else esperado
+        vto = vencimiento(hoy.year, hoy.month, c.dia_vencimiento or 10)
+        monto_pend += saldo
+        morosos.append({
+            "cid": c.id,
+            "inquilino": c.inquilino.nombre if c.inquilino else "—",
+            "inmueble": (c.inmueble.direccion if c.inmueble else "—"),
+            "saldo": saldo,
+            "vto": vto,
+            "vencido": bool(vto and hoy > vto),
+        })
+    morosos.sort(key=lambda m: m["saldo"], reverse=True)
+    cobranzas = {
+        "mes_nombre": MESES_ES[hoy.month], "anio": hoy.year,
+        "mes": hoy.month, "total": len(contratos_vig), "cobrados": cobrados,
+        "pendientes_n": len(morosos), "monto_pend": monto_pend,
+        "morosos": morosos[:8], "hay_mas": max(0, len(morosos) - 8),
+    }
+
     return render_template("main/index.html", stats=stats, pendientes=pendientes,
-                           por_vencer=por_vencer, hoy=hoy)
+                           por_vencer=por_vencer, hoy=hoy, cobranzas=cobranzas)
 
 
 @main_bp.route("/acerca")

@@ -16,7 +16,7 @@
   <div class="quick">
     <a class="btn sec" href="{{ url_for('cobros.exportar', mes=mes, anio=anio) }}">⬇ Exportar a Excel</a>
     <a class="btn sec" href="{{ url_for('cobros.recordatorios', mes=mes, anio=anio) }}">Recordatorios de pago</a>
-    <a class="btn" href="{{ url_for('cobros.react', mes=mes, anio=anio) }}" title="Versión nueva del panel, más rápida">⚛ Probar versión nueva</a>
+    {% if current_user.rol == 'admin' %}<a class="btn" href="{{ url_for('cobros.react', mes=mes, anio=anio) }}" title="Versión nueva del panel, más rápida">⚛ Probar versión nueva</a>{% endif %}
   </div>
 </div>
 
@@ -46,7 +46,7 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
 </script>
 
 {% if filas %}
-<table class="grid">
+<table class="grid card-collapse">
   <thead>
     <tr>{{ th('Inquilino','inquilino') }}{{ th('Inmueble','inmueble') }}{{ th('A cobrar','esperado','r') }}
         <th>Vence</th>{{ th('Cobrado','cobrado','r') }}{{ th('Estado','estado') }}<th></th><th class="wa-col"></th></tr>
@@ -54,21 +54,21 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
   <tbody id="cobros-body">
     {% for f in filas %}
     <tr data-cid="{{ f.c.id }}">
-      <td><b>{{ f.c.inquilino.nombre if f.c.inquilino else '—' }}</b></td>
-      <td>{{ f.c.inmueble.direccion }}
+      <td data-l="Inquilino"><b>{{ f.c.inquilino.nombre if f.c.inquilino else '—' }}</b></td>
+      <td data-l="Inmueble">{{ f.c.inmueble.direccion }}
         {% if f.c.inmueble.localidad %}<div class="hint" style="margin:0">{{ f.c.inmueble.localidad }}</div>{% endif %}</td>
-      <td class="r">{{ f.c.moneda|simbolo }} {{ f.esperado|money }}</td>
-      <td>{% if f.venc %}<span class="{{ 'txt-danger' if (f.estado != 'Pagado' and f.venc < hoy) }}">{{ f.venc.strftime('%d/%m/%Y') }}</span>
+      <td data-l="A cobrar" class="r">{{ f.c.moneda|simbolo }} {{ f.esperado|money }}</td>
+      <td data-l="Vence">{% if f.venc %}<span class="{{ 'txt-danger' if (f.estado != 'Pagado' and f.venc < hoy) }}">{{ f.venc.strftime('%d/%m/%Y') }}</span>
         {% if f.estado != 'Pagado' and f.venc < hoy %}<div class="hint" style="margin:0;color:var(--err)">vencido</div>{% endif %}
         {% else %}—{% endif %}</td>
-      <td class="r js-cobrado">{{ f.cobrado|money if f.pago else '—' }}</td>
-      <td class="js-estado">
+      <td data-l="Cobrado" class="r js-cobrado">{{ f.cobrado|money if f.pago else '—' }}</td>
+      <td data-l="Estado" class="js-estado">
         {% if f.estado=='Pagado' %}<span class="badge pagado">✓ Pagado</span>
         {% elif f.estado=='Parcial' %}<span class="badge parcial">◐ Parcial · falta {{ f.saldo|money }}</span>
         {% elif f.estado=='Sin registrar' %}<span class="badge pendiente">● Sin cobrar</span>
         {% else %}<span class="badge pendiente">{{ f.estado }}</span>{% endif %}
       </td>
-      <td class="actions cob-actions js-acciones">
+      <td data-l="" class="actions cob-actions js-acciones">
         {% if f.estado=='Pagado' %}
           <a class="btn sec sm" href="{{ url_for('cobros.detalle', cid=f.c.id) }}">Ver</a>
           <a class="btn sec sm" href="{{ url_for('recibos.recibo', pid=f.pago.id) }}" target="_blank">Recibo</a>
@@ -90,7 +90,7 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
             data-detalle="{{ url_for('cobros.nuevo', cid=f.c.id, mes=mes, anio=anio) }}">Cobrar</button>
         {% endif %}
       </td>
-      <td class="wa-col">
+      <td data-l="" class="wa-col">
         {% if f.estado!='Pagado' and f.c.inquilino %}
           {% set msj = "Hola " ~ f.c.inquilino.nombre ~ "! Te escribo por el alquiler de " ~ f.c.inmueble.direccion ~ ". El período " ~ meses[mes] ~ " " ~ anio ~ " figura " ~ (f.estado|lower) ~ (" (falta $" ~ f.saldo|money ~ ")" if f.estado=='Parcial' else "") ~ ". ¿Podés confirmarme cuándo lo abonás? ¡Gracias!" %}
           {{ wa_icon(f.c.inquilino.telefono, msj, "Recordatorio de pago por WhatsApp") }}

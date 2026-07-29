@@ -9,7 +9,7 @@
   </div>
   <div class="quick">
     <button type="button" class="btn" onclick="document.getElementById('actModal').removeAttribute('hidden')">⟳ Actualizar</button>
-    <a class="btn sec" href="{{ url_for('gas.react') }}" title="Versión nueva, más rápida">⚛ Probar versión nueva</a>
+    {% if current_user.rol == 'admin' %}<a class="btn sec" href="{{ url_for('gas.react') }}" title="Versión nueva, más rápida">⚛ Probar versión nueva</a>{% endif %}
     <a class="btn sec" href="https://www.litoralgas.com.ar/ov/" target="_blank">Abrir Litoral Gas</a>
   </div>
 </div>

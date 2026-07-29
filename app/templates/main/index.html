@@ -4,7 +4,9 @@
 {% block content %}
 <div class="pagehead">
   <h1>Panel principal</h1>
+  {% if current_user.rol == 'admin' %}
   <a class="btn sec" href="{{ url_for('main.inicio_react') }}" title="Versión nueva, más rápida">⚛ Probar versión nueva</a>
+  {% endif %}
 </div>
 
 <div class="cards">
@@ -18,6 +20,42 @@
     <div class="ic">{{ icon('user', 24) }}</div><div class="num">{{ stats.propietarios }}</div><div class="lbl">Propietarios</div></a>
   <a class="card ci" href="{{ url_for('personas.listar', rol='inquilino') }}">
     <div class="ic">{{ icon('users', 24) }}</div><div class="num">{{ stats.inquilinos }}</div><div class="lbl">Inquilinos</div></a>
+</div>
+
+<div class="panel cobra-panel" style="margin-bottom:16px">
+  <div class="cobra-head">
+    <h2 style="display:flex;align-items:center;gap:7px">{{ icon('banknote', 18) }} Cobranzas de {{ cobranzas.mes_nombre }} {{ cobranzas.anio }}</h2>
+    <div class="cobra-meta">
+      <span class="cobra-chip ok">{{ cobranzas.cobrados }}/{{ cobranzas.total }} cobrados</span>
+      {% if cobranzas.pendientes_n %}<span class="cobra-chip pend">$ {{ cobranzas.monto_pend|money }} por cobrar</span>{% endif %}
+      <a class="btn sec sm" href="{{ url_for('cobros.index') }}">Ver cobranzas</a>
+    </div>
+  </div>
+
+  {% if cobranzas.morosos %}
+  <div class="table-wrap">
+  <table class="grid cobra-table card-collapse">
+    <thead><tr><th>Inquilino</th><th>Inmueble</th><th>Vence</th><th class="r">Debe</th><th></th></tr></thead>
+    <tbody>
+      {% for m in cobranzas.morosos %}
+      <tr>
+        <td data-l="Inquilino"><b>{{ m.inquilino }}</b></td>
+        <td data-l="Inmueble">{{ m.inmueble }}</td>
+        <td data-l="Vence">{% if m.vto %}<span class="{{ 'txt-danger' if m.vencido }}">{{ m.vto.strftime('%d/%m') }}</span>{% else %}—{% endif %}</td>
+        <td data-l="Debe" class="r"><b class="{{ 'txt-danger' if m.vencido }}">$ {{ m.saldo|money }}</b></td>
+        <td data-l="" class="actions"><a class="btn ok sm" href="{{ url_for('cobros.nuevo', cid=m.cid) }}">💵 Cobrar</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if cobranzas.hay_mas %}
+  <p class="hint" style="margin-top:10px">y {{ cobranzas.hay_mas }} más pendiente(s) —
+    <a href="{{ url_for('cobros.index') }}">ver todos</a></p>
+  {% endif %}
+  {% else %}
+  <p class="hint" style="margin:6px 0 0">🎉 ¡Todo cobrado este mes! No hay alquileres pendientes.</p>
+  {% endif %}
 </div>
 
 <div class="home-grid">
