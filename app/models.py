@@ -460,6 +460,14 @@ class Pago(db.Model):
     gastos = db.relationship("GastoExtra", back_populates="pago",
                              cascade="all, delete-orphan")
 
+    # Un solo pago por contrato y período: evita duplicar un cobro (doble clic /
+    # dos operaciones simultáneas). Los saldos se completan con "abonar", no con
+    # un pago nuevo del mismo período.
+    __table_args__ = (
+        db.UniqueConstraint("contrato_id", "periodo_mes", "periodo_anio",
+                            name="uq_pago_contrato_periodo"),
+    )
+
 
 class GastoExtra(db.Model):
     __tablename__ = "gastos_extra"
@@ -524,15 +532,30 @@ class Ajustes(db.Model):
     def gas_configurado(self):
         return bool(self.gas_usuario and self.gas_clave_enc)
 
+    def _bloquear(self):
+        """Devuelve esta fila de Ajustes con bloqueo de escritura, para que dos
+        cobros/liquidaciones simultáneos no tomen el mismo número. En PostgreSQL
+        usa SELECT ... FOR UPDATE; en SQLite es inocuo."""
+        try:
+            obj = (Ajustes.query.filter_by(id=self.id)
+                   .with_for_update().first())
+            return obj or self
+        except Exception:
+            return self
+
     def siguiente_recibo(self):
-        num = self.recibo_proximo or 1
-        self.recibo_proximo = num + 1
-        return f"{self.recibo_prefijo or '0001'}-{num:08d}"
+        obj = self._bloquear()
+        num = obj.recibo_proximo or 1
+        obj.recibo_proximo = num + 1
+        self.recibo_proximo = obj.recibo_proximo
+        return f"{obj.recibo_prefijo or '0001'}-{num:08d}"
 
     def siguiente_liquidacion(self):
-        num = self.liquidacion_proximo or 1
-        self.liquidacion_proximo = num + 1
-        return f"{self.liquidacion_prefijo or '0001'}-{num:08d}"
+        obj = self._bloquear()
+        num = obj.liquidacion_proximo or 1
+        obj.liquidacion_proximo = num + 1
+        self.liquidacion_proximo = obj.liquidacion_proximo
+        return f"{obj.liquidacion_prefijo or '0001'}-{num:08d}"
 
 
 class GasEstado(db.Model):

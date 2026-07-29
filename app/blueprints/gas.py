@@ -61,7 +61,8 @@ def index():
 @gas_bp.route("/react")
 @login_required
 def react():
-    return render_template("gas/react.html")
+    # Isla React desactivada: se conserva el código/plantilla. Redirige al panel.
+    return redirect(url_for("gas.index"))
 
 
 @gas_bp.route("/importar", methods=["POST"])

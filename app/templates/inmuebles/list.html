@@ -10,7 +10,6 @@
 <div class="pagehead">
   <h1>Inmuebles</h1>
   <div class="quick">
-    {% if current_user.rol == 'admin' %}<a class="btn sec" href="{{ url_for('inmuebles.react') }}" title="Versión nueva, más rápida">⚛ Probar versión nueva</a>{% endif %}
     <a class="btn" href="{{ url_for('inmuebles.nuevo') }}">+ Nuevo inmueble</a>
   </div>
 </div>

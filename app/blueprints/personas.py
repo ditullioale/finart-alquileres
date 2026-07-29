@@ -39,22 +39,24 @@ def listar():
     return render_template("personas/list.html", personas=personas, q=q, rol=rol)
 
 
+# Islas React desactivadas: se conserva el código y las plantillas por si se
+# retoman. Las rutas redirigen a la versión clásica.
 @personas_bp.route("/react")
 @login_required
 def react():
-    return render_template("personas/react.html")
+    return redirect(url_for("personas.listar"))
 
 
 @personas_bp.route("/react/nueva")
 @login_required
 def react_nueva():
-    return render_template("personas/form_react.html", pid=None)
+    return redirect(url_for("personas.nueva"))
 
 
 @personas_bp.route("/react/<int:pid>/editar")
 @login_required
 def react_editar(pid):
-    return render_template("personas/form_react.html", pid=pid)
+    return redirect(url_for("personas.editar", pid=pid))
 
 
 def _leer_form(persona):

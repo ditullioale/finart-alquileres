@@ -15,6 +15,28 @@
   </div>
 </div>
 
+<div class="resumen-contrato">
+  <div class="rc-item">
+    <div class="rc-lbl">Canon actual</div>
+    <div class="rc-val">{{ c.moneda|simbolo }} {{ c.precio_actual|money }}</div>
+  </div>
+  <div class="rc-item {{ 'rc-alert' if resumen.deuda > 0 }}">
+    <div class="rc-lbl">Deuda registrada</div>
+    <div class="rc-val">$ {{ resumen.deuda|money }}</div>
+  </div>
+  <div class="rc-item">
+    <div class="rc-lbl">Vence día</div>
+    <div class="rc-val">{{ c.dia_vencimiento or '—' }}</div>
+  </div>
+  <div class="rc-item {{ 'rc-alert' if resumen.aumento_vencido }}">
+    <div class="rc-lbl">Próximo aumento</div>
+    <div class="rc-val">{{ resumen.prox_aumento.strftime('%d/%m/%Y') if resumen.prox_aumento else '—' }}</div>
+  </div>
+  {% if resumen.wa %}
+  <a class="btn wa" href="{{ resumen.wa }}" target="_blank" style="margin-left:auto;align-self:center">✆ WhatsApp al inquilino</a>
+  {% endif %}
+</div>
+
 <div class="acciones-contrato">
   {% if c.estado == 'Vigente' %}
   <form method="post" action="{{ url_for('contratos.rescindir', cid=c.id) }}"

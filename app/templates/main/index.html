@@ -4,9 +4,6 @@
 {% block content %}
 <div class="pagehead">
   <h1>Panel principal</h1>
-  {% if current_user.rol == 'admin' %}
-  <a class="btn sec" href="{{ url_for('main.inicio_react') }}" title="Versión nueva, más rápida">⚛ Probar versión nueva</a>
-  {% endif %}
 </div>
 
 <div class="cards">
@@ -27,6 +24,7 @@
     <h2 style="display:flex;align-items:center;gap:7px">{{ icon('banknote', 18) }} Cobranzas de {{ cobranzas.mes_nombre }} {{ cobranzas.anio }}</h2>
     <div class="cobra-meta">
       <span class="cobra-chip ok">{{ cobranzas.cobrados }}/{{ cobranzas.total }} cobrados</span>
+      {% if cobranzas.vencen_hoy %}<span class="cobra-chip" style="background:#fdf0e3;color:#8a5a00">{{ cobranzas.vencen_hoy }} vencen hoy</span>{% endif %}
       {% if cobranzas.pendientes_n %}<span class="cobra-chip pend">$ {{ cobranzas.monto_pend|money }} por cobrar</span>{% endif %}
       <a class="btn sec sm" href="{{ url_for('cobros.index') }}">Ver cobranzas</a>
     </div>
@@ -35,15 +33,24 @@
   {% if cobranzas.morosos %}
   <div class="table-wrap">
   <table class="grid cobra-table card-collapse">
-    <thead><tr><th>Inquilino</th><th>Inmueble</th><th>Vence</th><th class="r">Debe</th><th></th></tr></thead>
+    <thead><tr><th>Inquilino</th><th>Inmueble</th><th>Estado</th><th>Vence</th><th class="r">Debe</th><th></th></tr></thead>
     <tbody>
       {% for m in cobranzas.morosos %}
       <tr>
         <td data-l="Inquilino"><b>{{ m.inquilino }}</b></td>
         <td data-l="Inmueble">{{ m.inmueble }}</td>
+        <td data-l="Estado">
+          {% if m.etiqueta == 'Vencido +5' %}<span class="badge pendiente">Vencido {{ m.dias }}d</span>
+          {% elif m.etiqueta == 'Vencido 1-5' %}<span class="badge" style="background:#fdf0e3;color:#8a5a00">Vencido {{ m.dias }}d</span>
+          {% elif m.etiqueta == 'Parcial' %}<span class="badge parcial">Parcial</span>
+          {% else %}<span class="badge">Sin cobrar</span>{% endif %}
+        </td>
         <td data-l="Vence">{% if m.vto %}<span class="{{ 'txt-danger' if m.vencido }}">{{ m.vto.strftime('%d/%m') }}</span>{% else %}—{% endif %}</td>
         <td data-l="Debe" class="r"><b class="{{ 'txt-danger' if m.vencido }}">$ {{ m.saldo|money }}</b></td>
-        <td data-l="" class="actions"><a class="btn ok sm" href="{{ url_for('cobros.nuevo', cid=m.cid) }}">💵 Cobrar</a></td>
+        <td data-l="" class="actions" style="gap:8px">
+          <a class="btn ok sm" href="{{ url_for('cobros.nuevo', cid=m.cid) }}">💵 Cobrar</a>
+          {% if m.wa %}<a class="wa-ico" style="background:#25d366;color:#fff" href="{{ m.wa }}" target="_blank" title="Recordatorio por WhatsApp">✆</a>{% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>
@@ -51,12 +58,37 @@
   </div>
   {% if cobranzas.hay_mas %}
   <p class="hint" style="margin-top:10px">y {{ cobranzas.hay_mas }} más pendiente(s) —
-    <a href="{{ url_for('cobros.index') }}">ver todos</a></p>
+    <a href="{{ url_for('cobros.index') }}">ver todos</a> ·
+    <a href="{{ url_for('cobros.recordatorios', mes=cobranzas.mes, anio=cobranzas.anio) }}">enviar recordatorios</a></p>
   {% endif %}
   {% else %}
   <p class="hint" style="margin:6px 0 0">🎉 ¡Todo cobrado este mes! No hay alquileres pendientes.</p>
   {% endif %}
 </div>
+
+{% if gas_deuda %}
+<div class="panel" style="margin-bottom:16px">
+  <div class="cobra-head">
+    <h2 style="display:flex;align-items:center;gap:7px">{{ icon('flame', 18) }} Gas con deuda</h2>
+    <a class="btn sec sm" href="{{ url_for('gas.index') }}">Ver control de gas</a>
+  </div>
+  <div class="table-wrap">
+  <table class="grid card-collapse">
+    <thead><tr><th>Suministro</th><th>Cuenta</th><th>Vencimiento</th><th class="r">Debe</th></tr></thead>
+    <tbody>
+      {% for g in gas_deuda %}
+      <tr>
+        <td data-l="Suministro"><b>{{ g.direccion or g.titular or '—' }}</b></td>
+        <td data-l="Cuenta">{{ g.cuenta }}</td>
+        <td data-l="Vencimiento">{{ g.ultimo_vencimiento.strftime('%d/%m/%Y') if g.ultimo_vencimiento else '—' }}</td>
+        <td data-l="Debe" class="r txt-danger"><b>$ {{ g.deuda_total|money }}</b></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
 
 <div class="home-grid">
   <div class="panel">

@@ -146,6 +146,31 @@ def create_app(config_class=Config):
               "usuario administrador.", "error")
         return redirect(url_for("plataforma.index"))
 
+    # Páginas de error amigables (en vez de la pantalla técnica por defecto).
+    from flask import render_template as _rt
+
+    @app.errorhandler(403)
+    def _e403(e):
+        return _rt("error.html", codigo=403, emoji="🔒",
+                   titulo="No tenés permiso para ver esto",
+                   mensaje="Tu usuario no puede acceder a esta sección. Si creés que "
+                           "es un error, pedile acceso a un administrador."), 403
+
+    @app.errorhandler(404)
+    def _e404(e):
+        return _rt("error.html", codigo=404, emoji="🔎",
+                   titulo="No encontramos lo que buscabas",
+                   mensaje="Puede que se haya eliminado o que el enlace esté mal. "
+                           "Volvé al inicio e intentá de nuevo."), 404
+
+    @app.errorhandler(500)
+    def _e500(e):
+        db.session.rollback()
+        return _rt("error.html", codigo=500, emoji="⚠️",
+                   titulo="Tuvimos un problema",
+                   mensaje="No pudimos completar tu pedido. Probá de nuevo en un "
+                           "momento; si sigue pasando, avisanos."), 500
+
     # Aviso global: cantidad de aumentos vencidos (badge en el menú).
     @app.context_processor
     def _aumentos_pendientes():
@@ -257,9 +282,13 @@ def _iniciar_base(app):
     IGNORAR_ERROR_ESQUEMA=1 el arranque continúa igual (solo para diagnosticar:
     lo que dependa del esquema que faltó va a seguir fallando)."""
     from sqlalchemy import text, inspect
+    migrar_on_boot = os.environ.get("MIGRATE_ON_BOOT", "1").lower() not in ("0", "false", "no")
     if os.environ.get("TESTING") or not os.path.isdir(_MIGRATIONS_DIR):
         # En pruebas se usa create_all() directo (más simple y sin Alembic).
         _preparar_esquema(app, db.create_all)
+    elif not migrar_on_boot:
+        # Las migraciones se corren aparte (release command: flask db upgrade).
+        app.logger.info("MIGRATE_ON_BOOT=0: no se migra en el arranque.")
     else:
         def _migrar():
             from flask_migrate import stamp as _stamp, upgrade as _upgrade
@@ -284,7 +313,7 @@ def _iniciar_base(app):
             else:
                 _upgrade(directory=_MIGRATIONS_DIR)                 # al día / pendientes
 
-        _preparar_esquema(app, _migrar)
+        _preparar_esquema(app, lambda: _con_lock_migracion(app, _migrar))
 
     # Siembra: inmobiliaria #1 primero (para que el admin pueda asignarse a ella
     # cuando inmobiliaria_id es obligatorio), luego admin + backfill.
@@ -314,6 +343,34 @@ def _iniciar_base(app):
     except Exception:
         db.session.rollback()
         app.logger.exception("Falló la limpieza de teléfonos importados")
+
+
+def _con_lock_migracion(app, fn):
+    """Corre las migraciones tomando un lock de aplicación en PostgreSQL, para
+    que con varios workers de gunicorn no intenten migrar a la vez (carrera).
+    En SQLite u otros motores, corre directo. El lock es un simple mutex: el
+    segundo worker espera y, cuando entra, upgrade() ya no tiene nada que hacer."""
+    try:
+        if db.engine.dialect.name != "postgresql":
+            return fn()
+    except Exception:
+        return fn()
+    from sqlalchemy import text
+    LOCK = 918273645
+    conn = db.engine.connect()
+    try:
+        conn.execute(text("SELECT pg_advisory_lock(:k)"), {"k": LOCK})
+        try:
+            conn.commit()
+        except Exception:
+            pass
+        return fn()
+    finally:
+        try:
+            conn.execute(text("SELECT pg_advisory_unlock(:k)"), {"k": LOCK})
+            conn.close()
+        except Exception:
+            pass
 
 
 def _preparar_esquema(app, preparar):

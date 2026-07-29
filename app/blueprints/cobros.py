@@ -5,11 +5,13 @@ from flask import (Blueprint, render_template, redirect, url_for, request,
                    flash, abort, jsonify, make_response)
 from flask_login import login_required
 from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.exc import IntegrityError
 
 from .. import db
 from ..models import Contrato, Pago, GastoExtra
 from ..utils import (parse_fecha, parse_num, vencimiento, calcular_mora,
                      periodo_siguiente, MESES_ES, link_whatsapp, whatsapp_valido, q2)
+from ..calculos import estado_periodo, canon_vigente
 
 cobros_bp = Blueprint("cobros", __name__, url_prefix="/cobros")
 
@@ -101,24 +103,15 @@ def index():
             ])).lower()
             if q not in campos:
                 continue
-        # ¿el contrato ya arrancó y no terminó en ese período?
-        pago = next((p for p in c.pagos
-                     if p.periodo_mes == mes and p.periodo_anio == anio), None)
-        esperado = float(c.precio_actual or c.precio_inicial or 0)
-        if pago:
-            estado = pago.estado
-            cobrado = float(pago.pagado or 0)
-            saldo = float(pago.saldo or 0)
-        else:
-            estado = "Sin registrar"
-            cobrado = 0.0
-            saldo = esperado
+        # Estado del período según la regla central (única fuente de verdad).
+        info = estado_periodo(c, mes, anio, hoy=hoy)
+        pago, esperado, estado = info["pago"], info["esperado"], info["estado"]
+        cobrado, saldo, venc = info["cobrado"], info["saldo"], info["venc"]
         tot_esperado += esperado
         tot_cobrado += cobrado
         if estado != "Pagado":
             tot_pendiente += saldo
         prox_nro = (max((p.numero or 0) for p in c.pagos) + 1) if c.pagos else 1
-        venc = vencimiento(anio, mes, c.dia_vencimiento or 10)
         filas.append(dict(c=c, pago=pago, esperado=esperado, estado=estado,
                           cobrado=cobrado, saldo=saldo, prox_nro=prox_nro,
                           venc=venc))
@@ -153,12 +146,10 @@ def index():
 @cobros_bp.route("/react")
 @login_required
 def react():
-    """Versión nueva del panel de cobranzas, renderizada con React (Sprint 1).
-    Convive con la versión clásica en '/' para poder validarla sin riesgo."""
-    hoy = date.today()
-    mes = parse_num(request.args.get("mes"), entero=True) or hoy.month
-    anio = parse_num(request.args.get("anio"), entero=True) or hoy.year
-    return render_template("cobros/react.html", mes=mes, anio=anio)
+    """Isla React desactivada: se usa la versión clásica. Se conserva el código
+    y la plantilla (cobros/react.html) por si se retoma más adelante."""
+    return redirect(url_for("cobros.index", mes=request.args.get("mes"),
+                            anio=request.args.get("anio")))
 
 
 # --------------------------------------------------------------------------- #
@@ -176,12 +167,10 @@ def exportar():
     filas = []
     tot_esp = tot_cob = tot_saldo = 0.0
     for c in Contrato.query.filter_by(estado="Vigente").all():
-        pago = next((p for p in c.pagos
-                     if p.periodo_mes == mes and p.periodo_anio == anio), None)
-        esperado = float(c.precio_actual or c.precio_inicial or 0)
-        estado = pago.estado if pago else "Sin cobrar"
-        cobrado = float(pago.pagado or 0) if pago else 0.0
-        saldo = float(pago.saldo or 0) if pago else esperado
+        info = estado_periodo(c, mes, anio)
+        pago, esperado = info["pago"], info["esperado"]
+        estado = "Sin cobrar" if info["estado"] == "Sin registrar" else info["estado"]
+        cobrado, saldo = info["cobrado"], info["saldo"]
         tot_esp += esperado; tot_cob += cobrado
         if estado != "Pagado":
             tot_saldo += saldo
@@ -223,13 +212,11 @@ def recordatorios():
     for c in Contrato.query.filter_by(estado="Vigente").all():
         if not c.inquilino:
             continue
-        pago = next((p for p in c.pagos
-                     if p.periodo_mes == mes and p.periodo_anio == anio), None)
-        esperado = float(c.precio_actual or c.precio_inicial or 0)
-        if pago and pago.estado == "Pagado":
+        info = estado_periodo(c, mes, anio)
+        if info["estado"] == "Pagado":
             continue
-        deuda = float(pago.saldo) if pago else esperado
-        estado = pago.estado if pago else "Sin cobrar"
+        deuda = info["saldo"]
+        estado = "Sin cobrar" if info["estado"] == "Sin registrar" else info["estado"]
         msj = (f"Hola {c.inquilino.nombre}! Te escribo por el alquiler de "
                f"{c.inmueble.direccion}. El período {MESES_ES[mes]} {anio} figura "
                f"{estado.lower()}" + (f" (falta ${deuda:,.2f})" if estado == "Parcial" else "") +
@@ -346,7 +333,13 @@ def rapido():
     for desc, monto in gastos:
         pago.gastos.append(GastoExtra(descripcion=desc, monto=monto))
     db.session.add(pago)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        # Otra operación creó el pago de este período al mismo tiempo (o doble clic).
+        db.session.rollback()
+        return jsonify(ok=False, error="Ya existe un pago para ese período. "
+                       "Actualizá la página para verlo."), 409
     return jsonify(ok=True, pago_id=pago.id, estado=estado,
                    pagado=float(pagado), saldo=float(saldo), total=float(total),
                    moneda=pago.moneda,
@@ -364,6 +357,14 @@ def nuevo(cid):
         pago = Pago(contrato_id=contrato.id)
         _leer_pago(pago, contrato)
         error = _validar(pago)
+        # Aviso claro si ya hay un pago de ese período (antes de tocar la base).
+        if not error:
+            dup = next((p for p in contrato.pagos
+                        if p.periodo_mes == pago.periodo_mes
+                        and p.periodo_anio == pago.periodo_anio), None)
+            if dup:
+                error = (f"Ya existe un pago para {MESES_ES[pago.periodo_mes]} "
+                         f"{pago.periodo_anio}. Abrí ese pago para completarlo o corregirlo.")
         if error:
             flash(error, "error")
             return render_template("cobros/form_pago.html", c=contrato, pago=pago,
@@ -391,7 +392,13 @@ def nuevo(cid):
                                 + gastos_total - arrastrado, 2)
         _recalcular(pago, gastos_total)
         db.session.add(pago)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash(f"Ya existe un pago para {MESES_ES[pago.periodo_mes]} "
+                  f"{pago.periodo_anio}. Abrí ese pago para completarlo o corregirlo.", "error")
+            return redirect(url_for("cobros.detalle", cid=contrato.id))
         msg = f"Pago del período {MESES_ES[pago.periodo_mes]} {pago.periodo_anio} registrado."
         if arrastrado > 0:
             msg += f" Se arrastró {contrato.moneda} {arrastrado:,.2f} de saldo anterior."

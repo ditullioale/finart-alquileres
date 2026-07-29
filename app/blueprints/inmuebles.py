@@ -46,22 +46,24 @@ def listar():
                            q=q, estado=estado, estados=ESTADOS)
 
 
+# Islas React desactivadas: se conserva el código y las plantillas por si se
+# retoman. Las rutas redirigen a la versión clásica.
 @inmuebles_bp.route("/react")
 @login_required
 def react():
-    return render_template("inmuebles/react.html")
+    return redirect(url_for("inmuebles.listar"))
 
 
 @inmuebles_bp.route("/react/nuevo")
 @login_required
 def react_nuevo():
-    return render_template("inmuebles/form_react.html", iid=None)
+    return redirect(url_for("inmuebles.nuevo"))
 
 
 @inmuebles_bp.route("/react/<int:iid>/editar")
 @login_required
 def react_editar(iid):
-    return render_template("inmuebles/form_react.html", iid=iid)
+    return redirect(url_for("inmuebles.editar", iid=iid))
 
 
 def _leer_form(inmueble):

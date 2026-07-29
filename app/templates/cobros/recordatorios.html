@@ -23,9 +23,27 @@
 
 {% if items %}
 <div class="panel" style="margin-bottom:14px">
-  <p style="margin:0">Deben <b>{{ items|length }}</b> inquilino(s). <b>{{ con_wa }}</b> tienen WhatsApp válido para enviarles el recordatorio.
-  Los que no, revisá el número en <a href="{{ url_for('personas.telefonos') }}">Revisar teléfonos</a>.</p>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+    <p style="margin:0">
+      Deben <b>{{ items|length }}</b> inquilino(s):
+      <span class="badge pagado">{{ con_wa }} con WhatsApp</span>
+      {% if items|length - con_wa > 0 %}<span class="badge pendiente">{{ items|length - con_wa }} sin WhatsApp válido</span>{% endif %}
+      <span class="hint" style="display:inline;margin:0">· los que faltan, revisá el número en <a href="{{ url_for('personas.telefonos') }}">Revisar teléfonos</a></span>
+    </p>
+    {% if con_wa %}
+    <button type="button" class="btn wa" onclick="abrirTodosWA()">✆ Abrir los {{ con_wa }} WhatsApp</button>
+    {% endif %}
+  </div>
+  <p class="hint" id="wa-aviso" style="margin:8px 0 0;display:none">Se abren en pestañas nuevas, una por una. Si el navegador bloquea las ventanas, permití los pop-ups de este sitio.</p>
 </div>
+<script>
+function abrirTodosWA(){
+  var links = Array.prototype.slice.call(document.querySelectorAll('#recor-body a.js-wa'))
+    .filter(function(a){ return a.closest('tr').style.display !== 'none'; });
+  document.getElementById('wa-aviso').style.display = 'block';
+  links.forEach(function(a, i){ setTimeout(function(){ window.open(a.href, '_blank'); }, i * 600); });
+}
+</script>
 
 <table class="grid">
   <thead>
@@ -44,7 +62,7 @@
       </td>
       <td class="actions" style="justify-content:flex-start;gap:10px">
         {% if it.wa %}
-          <a class="btn wa sm" href="{{ it.wa }}" target="_blank">WhatsApp</a>
+          <a class="btn wa sm js-wa" href="{{ it.wa }}" target="_blank">WhatsApp</a>
         {% else %}
           <span class="hint" style="margin:0">Sin WhatsApp válido</span>
         {% endif %}

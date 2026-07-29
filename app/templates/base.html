@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>{% block title %}Gestión de Alquileres{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=14">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=15">
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#12263f">
   <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
@@ -48,13 +48,15 @@
 <body>
 <script>/* Vista compacta: aplicar antes de pintar, para no parpadear. */
 (function(){try{if(localStorage.getItem('densidad')==='compact')document.body.classList.add('compact');}catch(e){}})();</script>
-{% set bp = request.blueprint %}
-{% set ep = request.endpoint %}
+{% set bp = request.blueprint or '' %}
+{% set ep = request.endpoint or '' %}
 <div class="app {{ 'no-auth' if not current_user.is_authenticated }}">
   {% if current_user.is_authenticated %}
   <aside class="sidebar" id="sidebar">
     <div class="brand"><a href="{{ url_for('main.index') }}"><span class="logo">🏠</span> <span>Gestión de<br>Alquileres</span></a></div>
     <nav class="nav">
+      <button type="button" class="nav-search" onclick="abrirBuscar()">
+        <span class="i">{{ icon('search') }}</span> <span>Buscar…</span> <kbd>Ctrl&nbsp;K</kbd></button>
       <a class="nav-item {{ 'active' if bp=='main' }}" href="{{ url_for('main.index') }}"><span class="i">{{ icon('home') }}</span> Inicio</a>
       <a class="nav-item {{ 'active' if bp=='contratos' and ep!='contratos.generador' }}" href="{{ url_for('contratos.listar') }}"><span class="i">{{ icon('file-text') }}</span> Contratos</a>
       <a class="nav-item {{ 'active' if bp=='cobros' }}" href="{{ url_for('cobros.index') }}"><span class="i">{{ icon('banknote') }}</span> Cobranzas</a>
@@ -120,6 +122,18 @@
 {% endif %}
 
 {% if current_user.is_authenticated %}
+<div class="modal-ov" id="buscarModal" hidden>
+  <div class="palette" role="dialog" aria-label="Búsqueda">
+    <div class="palette-in">
+      {{ icon('search', 18) }}
+      <input id="buscarInput" type="text" autocomplete="off" placeholder="Buscar persona, inmueble, contrato, recibo o cuenta de gas…">
+      <button type="button" class="modal-x" aria-label="Cerrar" onclick="cerrarBuscar()">✕</button>
+    </div>
+    <div id="buscarRes" class="palette-res"></div>
+    <div class="palette-foot">↑↓ moverse · Enter abrir · Esc cerrar</div>
+  </div>
+</div>
+
 <div class="modal-ov" id="gasModal" hidden>
   <div class="modal">
     <div class="modal-head">
@@ -137,6 +151,67 @@
 {% endif %}
 
 <script>
+// ===== Búsqueda global (Ctrl+K) =====
+(function(){
+  var ov = document.getElementById('buscarModal');
+  if(!ov) return;
+  var inp = document.getElementById('buscarInput');
+  var res = document.getElementById('buscarRes');
+  var items = [];          // enlaces navegables (para teclado)
+  var activo = -1;
+  var timer = null;
+
+  window.abrirBuscar = function(){
+    ov.removeAttribute('hidden');
+    inp.value = ''; res.innerHTML = ''; items = []; activo = -1;
+    setTimeout(function(){ inp.focus(); }, 30);
+  };
+  window.cerrarBuscar = function(){ ov.setAttribute('hidden',''); };
+
+  function marcar(){
+    items.forEach(function(a, i){ a.classList.toggle('activo', i === activo); });
+    if(activo >= 0 && items[activo]) items[activo].scrollIntoView({block:'nearest'});
+  }
+  function esc(s){ return (s||'').replace(/[&<>"]/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+  function render(grupos){
+    res.innerHTML = ''; items = []; activo = -1;
+    if(!grupos.length){ res.innerHTML = '<div class="palette-empty">Sin resultados.</div>'; return; }
+    grupos.forEach(function(g){
+      var h = document.createElement('div'); h.className = 'palette-grp'; h.textContent = g.titulo;
+      res.appendChild(h);
+      g.items.forEach(function(it){
+        var a = document.createElement('a'); a.className = 'palette-item'; a.href = it.url;
+        a.innerHTML = '<span class="pi-t">' + esc(it.texto) + '</span><span class="pi-s">' + esc(it.sub) + '</span>';
+        res.appendChild(a); items.push(a);
+      });
+    });
+  }
+
+  function buscar(){
+    var q = inp.value.trim();
+    if(q.length < 2){ res.innerHTML = '<div class="palette-empty">Escribí al menos 2 letras…</div>'; return; }
+    fetch('/api/buscar?q=' + encodeURIComponent(q))
+      .then(function(r){ return r.json(); })
+      .then(function(j){ render(j.grupos || []); })
+      .catch(function(){ res.innerHTML = '<div class="palette-empty">No se pudo buscar.</div>'; });
+  }
+
+  inp && inp.addEventListener('input', function(){ clearTimeout(timer); timer = setTimeout(buscar, 180); });
+  inp && inp.addEventListener('keydown', function(e){
+    if(e.key === 'ArrowDown'){ e.preventDefault(); activo = Math.min(activo + 1, items.length - 1); marcar(); }
+    else if(e.key === 'ArrowUp'){ e.preventDefault(); activo = Math.max(activo - 1, 0); marcar(); }
+    else if(e.key === 'Enter'){ if(activo >= 0 && items[activo]){ e.preventDefault(); items[activo].click(); }
+      else if(items.length){ e.preventDefault(); items[0].click(); } }
+  });
+  ov.addEventListener('click', function(e){ if(e.target === ov) cerrarBuscar(); });
+  document.addEventListener('keydown', function(e){
+    if((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')){ e.preventDefault(); abrirBuscar(); }
+    else if(e.key === 'Escape' && !ov.hasAttribute('hidden')){ cerrarBuscar(); }
+  });
+})();
+
 // Vista compacta / cómoda: alterna densidad de tablas y la recuerda.
 window.toggleDensidad = function(){
   var on = document.body.classList.toggle('compact');

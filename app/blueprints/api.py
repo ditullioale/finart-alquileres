@@ -18,6 +18,72 @@ from ..utils import (MESES_ES, link_whatsapp, whatsapp_valido, normalizar_whatsa
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
+
+@api_bp.route("/buscar")
+@login_required
+def buscar():
+    """Búsqueda global: personas, inmuebles, contratos, pagos/recibos y gas.
+    Resultados agrupados y ya filtrados por inmobiliaria (tenant)."""
+    q = (request.args.get("q") or "").strip()
+    if len(q) < 2:
+        return jsonify(ok=True, grupos=[])
+    like = f"%{q}%"
+    grupos = []
+
+    personas = (Persona.query.filter(db.or_(
+        Persona.nombre.ilike(like), Persona.dni.ilike(like), Persona.cuit.ilike(like)))
+        .order_by(Persona.nombre).limit(6).all())
+    if personas:
+        grupos.append({"titulo": "Personas", "items": [{
+            "texto": p.nombre,
+            "sub": " · ".join(filter(None, [("DNI " + p.dni) if p.dni else None,
+                                            p.telefono])) or "—",
+            "url": url_for("personas.editar", pid=p.id)} for p in personas]})
+
+    inmuebles = (Inmueble.query.filter(db.or_(
+        Inmueble.direccion.ilike(like), Inmueble.codigo.ilike(like),
+        Inmueble.localidad.ilike(like)))
+        .order_by(Inmueble.direccion).limit(6).all())
+    if inmuebles:
+        grupos.append({"titulo": "Inmuebles", "items": [{
+            "texto": i.direccion or "(sin dirección)",
+            "sub": " · ".join(filter(None, [i.codigo, i.localidad, i.estado])) or "—",
+            "url": url_for("inmuebles.editar", iid=i.id)} for i in inmuebles]})
+
+    cont_q = Contrato.query.options(joinedload(Contrato.inquilino),
+                                    joinedload(Contrato.inmueble))
+    contratos = (cont_q.filter(db.or_(
+        Contrato.numero.ilike(like),
+        Contrato.inmueble.has(Inmueble.direccion.ilike(like)),
+        Contrato.inquilino.has(Persona.nombre.ilike(like))))
+        .limit(6).all())
+    if contratos:
+        grupos.append({"titulo": "Contratos", "items": [{
+            "texto": ((c.numero + " · ") if c.numero else "") +
+                     (c.inmueble.direccion if c.inmueble else ""),
+            "sub": " · ".join(filter(None, [
+                (c.inquilino.nombre if c.inquilino else None), c.estado])) or "—",
+            "url": url_for("contratos.ver", cid=c.id)} for c in contratos]})
+
+    pagos = (Pago.query.options(joinedload(Pago.contrato))
+             .filter(Pago.recibo_numero.ilike(like))
+             .order_by(Pago.id.desc()).limit(6).all())
+    if pagos:
+        grupos.append({"titulo": "Recibos / pagos", "items": [{
+            "texto": "Recibo " + (p.recibo_numero or str(p.id)),
+            "sub": (f"{MESES_ES[p.periodo_mes]} {p.periodo_anio}"
+                    if p.periodo_mes else "") + f" · {p.estado}",
+            "url": url_for("cobros.detalle", cid=p.contrato_id)} for p in pagos]})
+
+    gas = (GasEstado.query.filter(GasEstado.cuenta.ilike(like))
+           .limit(6).all())
+    if gas:
+        grupos.append({"titulo": "Gas", "items": [{
+            "texto": g.cuenta, "sub": (g.direccion or g.titular or "—"),
+            "url": url_for("gas.index")} for g in gas]})
+
+    return jsonify(ok=True, grupos=grupos)
+
 _BCRA_SIT = {
     1: "Normal / al día", 2: "Riesgo bajo (seguimiento especial)",
     3: "Riesgo medio (con problemas)", 4: "Riesgo alto (alto riesgo de insolvencia)",

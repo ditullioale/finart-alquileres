@@ -318,6 +318,57 @@ def run():
         check("A no ve el cliente de B", "Cliente Solo B" not in lista_a)
         check("A sí ve sus propios datos", "Santamaria Guido" in lista_a)
 
+        seccion("Cálculos centralizados (mora / estado de período)")
+        from app.calculos import canon_vigente, estado_periodo
+        from app.utils import calcular_mora
+        from datetime import date as _d
+
+        class _Ct:
+            pass
+        _c = _Ct(); _c.precio_actual = 100000; _c.precio_inicial = 0
+        _c.dia_vencimiento = 10; _c.pagos = []
+        check("canon vigente = precio actual", canon_vigente(_c) == 100000)
+        _info = estado_periodo(_c, 1, 2020, hoy=_d(2026, 7, 29))
+        check("sin pago: saldo = canon y estado 'Sin registrar'",
+              _info["saldo"] == 100000 and _info["estado"] == "Sin registrar")
+        check("período viejo impago: vencido con días de atraso",
+              _info["vencido"] and _info["dias_atraso"] > 0)
+        check("mora = 10 días × 1% × 100000 = 10000",
+              float(calcular_mora(100000, 1, _d(2026, 7, 10), _d(2026, 7, 20))) == 10000.0)
+        check("mora 0 si paga en fecha o antes",
+              float(calcular_mora(100000, 1, _d(2026, 7, 10), _d(2026, 7, 5))) == 0.0)
+
+        seccion("Anti-doble-cobro (un pago por contrato/período)")
+
+        def _dup():
+            from app.models import Pago
+            p1 = Pago(contrato_id=ids["c"], periodo_mes=11, periodo_anio=2099,
+                      precio_alquiler=1000, total=1000, pagado=1000, saldo=0, estado="Pagado")
+            db.session.add(p1); db.session.commit()
+            p2 = Pago(contrato_id=ids["c"], periodo_mes=11, periodo_anio=2099,
+                      precio_alquiler=1000, total=1000, pagado=1000, saldo=0, estado="Pagado")
+            db.session.add(p2)
+            try:
+                db.session.commit(); return "sin_error"
+            except Exception:
+                db.session.rollback(); return "bloqueado"
+        check("la base impide dos pagos del mismo período (constraint único)",
+              q(_dup) == "bloqueado")
+        check("cobro rápido duplicado responde 'ya existe' (409)",
+              cl.post("/cobros/rapido", json={"cid": ids["c"], "mes": 11, "anio": 2099,
+                      "precio": 1000}).status_code == 409)
+
+        seccion("Búsqueda global")
+        rb = cl.get("/api/buscar?q=Santamaria")
+        jb = rb.get_json()
+        _txt = str(jb)
+        check("la búsqueda encuentra a la persona por nombre",
+              rb.status_code == 200 and "Santamaria Guido" in _txt)
+        check("la búsqueda con 1 letra no devuelve nada",
+              cl.get("/api/buscar?q=a").get_json().get("grupos") == [])
+        check("B no encuentra datos de A en la búsqueda global",
+              "Santamaria Guido" not in str(clB.get("/api/buscar?q=Santamaria").get_json()))
+
         seccion("Ajustes por inmobiliaria + credenciales de gas")
         import os as _os
         import json as _json

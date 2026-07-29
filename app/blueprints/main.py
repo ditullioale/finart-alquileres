@@ -1,12 +1,13 @@
 """Panel principal (dashboard)."""
 from datetime import date, timedelta
 
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, redirect, url_for
 from flask_login import login_required
 
 from .. import db
-from ..models import Persona, Inmueble, Contrato, Pago
-from ..utils import proximo_ajuste, vencimiento, MESES_ES
+from ..models import Persona, Inmueble, Contrato, Pago, GasEstado
+from ..utils import proximo_ajuste, MESES_ES, link_whatsapp
+from ..calculos import estado_periodo, etiqueta_operativa
 
 main_bp = Blueprint("main", __name__)
 
@@ -61,35 +62,47 @@ def index():
                               joinedload(Contrato.inmueble),
                               joinedload(Contrato.pagos))
                      .all())
-    morosos, cobrados, monto_pend = [], 0, 0.0
+    morosos, cobrados, monto_pend, vencen_hoy = [], 0, 0.0, 0
     for c in contratos_vig:
-        pago = next((p for p in c.pagos
-                     if p.periodo_mes == hoy.month and p.periodo_anio == hoy.year), None)
-        esperado = float(c.precio_actual or c.precio_inicial or 0)
-        if pago and pago.estado == "Pagado":
+        info = estado_periodo(c, hoy.month, hoy.year, hoy=hoy)
+        if info["estado"] == "Pagado":
             cobrados += 1
             continue
-        saldo = float(pago.saldo or 0) if pago else esperado
-        vto = vencimiento(hoy.year, hoy.month, c.dia_vencimiento or 10)
-        monto_pend += saldo
+        monto_pend += info["saldo"]
+        if info["venc"] == hoy:
+            vencen_hoy += 1
+        msj = None
+        if c.inquilino:
+            msj = link_whatsapp(c.inquilino.telefono,
+                                f"Hola {c.inquilino.nombre}! Te escribo por el alquiler de "
+                                f"{c.inmueble.direccion if c.inmueble else ''}. "
+                                f"¿Podés confirmarme cuándo abonás {MESES_ES[hoy.month]}? ¡Gracias!")
         morosos.append({
             "cid": c.id,
             "inquilino": c.inquilino.nombre if c.inquilino else "—",
             "inmueble": (c.inmueble.direccion if c.inmueble else "—"),
-            "saldo": saldo,
-            "vto": vto,
-            "vencido": bool(vto and hoy > vto),
+            "saldo": info["saldo"], "vto": info["venc"],
+            "vencido": info["vencido"], "dias": info["dias_atraso"],
+            "etiqueta": etiqueta_operativa(info), "wa": msj,
         })
-    morosos.sort(key=lambda m: m["saldo"], reverse=True)
+    # Orden por urgencia: primero lo vencido, más atrasado y más grande arriba.
+    morosos.sort(key=lambda m: (m["vencido"], m["dias"], m["saldo"]), reverse=True)
+
+    # Gas con deuda (para la bandeja).
+    gas_deuda = (GasEstado.query.filter_by(tiene_deuda=True)
+                 .order_by(GasEstado.deuda_total.desc()).limit(6).all())
+
     cobranzas = {
         "mes_nombre": MESES_ES[hoy.month], "anio": hoy.year,
         "mes": hoy.month, "total": len(contratos_vig), "cobrados": cobrados,
         "pendientes_n": len(morosos), "monto_pend": monto_pend,
+        "vencen_hoy": vencen_hoy,
         "morosos": morosos[:8], "hay_mas": max(0, len(morosos) - 8),
     }
 
     return render_template("main/index.html", stats=stats, pendientes=pendientes,
-                           por_vencer=por_vencer, hoy=hoy, cobranzas=cobranzas)
+                           por_vencer=por_vencer, hoy=hoy, cobranzas=cobranzas,
+                           gas_deuda=gas_deuda)
 
 
 @main_bp.route("/acerca")
@@ -108,5 +121,5 @@ def react_test():
 @main_bp.route("/inicio/react")
 @login_required
 def inicio_react():
-    """Panel principal en React (Sprint 3)."""
-    return render_template("main/react_home.html")
+    """Isla React desactivada: se conserva el código/plantilla. Redirige al panel."""
+    return redirect(url_for("main.index"))

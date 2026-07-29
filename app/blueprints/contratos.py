@@ -65,7 +65,8 @@ def listar():
 @contratos_bp.route("/react")
 @login_required
 def react():
-    return render_template("contratos/react.html")
+    # Isla React desactivada: se conserva el código/plantilla. Redirige a la lista.
+    return redirect(url_for("contratos.listar"))
 
 
 @contratos_bp.route("/<int:cid>/documento")
@@ -98,9 +99,24 @@ def documento(cid):
 @login_required
 def ver(cid):
     contrato = db.session.get(Contrato, cid) or abort(404)
+    from datetime import date
+    from ..calculos import deuda_total
+    from ..utils import proximo_ajuste, link_whatsapp
+    hoy = date.today()
+    prox_aumento = None
+    if contrato.metodo_ajuste != "sin_ajuste" and contrato.ajuste_cada_meses:
+        prox_aumento = proximo_ajuste(contrato.fecha_inicio, contrato.ajuste_cada_meses,
+                                      len(contrato.aumentos))
+    wa = None
+    if contrato.inquilino:
+        wa = link_whatsapp(contrato.inquilino.telefono,
+                           f"Hola {contrato.inquilino.nombre}! Te escribo por el "
+                           f"alquiler de {contrato.inmueble.direccion if contrato.inmueble else ''}.")
+    resumen = dict(deuda=deuda_total(contrato), prox_aumento=prox_aumento,
+                   aumento_vencido=bool(prox_aumento and prox_aumento <= hoy), wa=wa)
     return render_template("contratos/ver.html", c=contrato,
-                           indice_nombre=INDICE_NOMBRE,
-                           cat_docs=CATEGORIAS_DOC)
+                           indice_nombre=INDICE_NOMBRE, cat_docs=CATEGORIAS_DOC,
+                           resumen=resumen)
 
 
 # --------------------------------------------------------------------------- #
