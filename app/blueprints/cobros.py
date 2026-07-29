@@ -8,6 +8,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.exc import IntegrityError
 
 from .. import db
+from ..idempotencia import nueva_clave, reservar
 from ..models import Contrato, Pago, GastoExtra
 from ..utils import (parse_fecha, parse_num, vencimiento, calcular_mora,
                      periodo_siguiente, MESES_ES, link_whatsapp, whatsapp_valido, q2)
@@ -254,7 +255,8 @@ def _leer_pago(pago, contrato):
     pago.moneda = contrato.moneda or "Pesos"
     pago.forma_pago = request.form.get("forma_pago", "")
     pago.observaciones = request.form.get("observaciones", "").strip()
-    pago.recibo_numero = request.form.get("recibo_numero", "").strip()
+    # Sin número de recibo va NULL (no ""): así no choca con el único de la base.
+    pago.recibo_numero = request.form.get("recibo_numero", "").strip() or None
 
     # Mora: usa la ingresada, o si se pide, la calcula automáticamente.
     if request.form.get("mora_auto"):
@@ -296,7 +298,19 @@ def rapido():
     if ya:
         return jsonify(ok=False, error="Ya existe un pago para ese período."), 409
 
-    mora = parse_num(d.get("mora")) or 0
+    if not reservar("cobro-rapido", d.get("idem")):
+        return jsonify(ok=False, error="Ese cobro ya se había registrado. "
+                       "Actualizá la página para verlo."), 409
+
+    # La mora la calcula el servidor con la misma función que el resto del
+    # sistema; la pantalla solo muestra una vista previa. Solo se respeta el
+    # valor del formulario si el usuario lo escribió a mano.
+    if d.get("mora") is None:
+        mora = calcular_mora(precio, contrato.mora_diaria_pct,
+                             vencimiento(anio, mes, contrato.dia_vencimiento or 10),
+                             parse_fecha(d.get("fecha")) or date.today())
+    else:
+        mora = parse_num(d.get("mora")) or 0
     # Gastos extras: lista de {desc, monto} (suma con decimales exactos)
     gastos = []
     gastos_total = q2(0)
@@ -465,7 +479,21 @@ def abonar(pid):
         if not monto or monto <= 0:
             flash("Ingresá un monto mayor a 0.", "error")
             return render_template("cobros/abonar.html", pago=pago, saldo=saldo,
-                                   formas=FORMAS_PAGO, meses=MESES_ES)
+                                   formas=FORMAS_PAGO, meses=MESES_ES,
+                                   idem=nueva_clave())
+        if q2(monto) > q2(saldo):
+            flash(f"El saldo de ese período es {pago.moneda} {saldo:,.2f}: no se "
+                  f"puede cobrar más que eso. Si sobra plata, cargala como pago "
+                  f"del período siguiente.", "error")
+            return render_template("cobros/abonar.html", pago=pago, saldo=saldo,
+                                   formas=FORMAS_PAGO, meses=MESES_ES,
+                                   idem=nueva_clave())
+        # Antes de tocar la plata: este pago a cuenta no puede entrar dos veces
+        # (doble clic, F5 sobre el POST, dos pestañas). El único por período no
+        # cubre este caso porque acá se suma sobre un pago que ya existe.
+        if not reservar("abono", request.form.get("idem")):
+            flash("Ese pago a cuenta ya estaba registrado: no lo dupliqué.", "ok")
+            return redirect(url_for("cobros.detalle", cid=pago.contrato_id))
         pago.pagado = q2(pago.pagado) + q2(monto)
         if request.form.get("fecha_pago"):
             pago.fecha_pago = parse_fecha(request.form.get("fecha_pago")) or pago.fecha_pago
@@ -479,7 +507,7 @@ def abonar(pid):
         flash(f"Cobro a cuenta registrado. Saldo restante: {pago.moneda} {float(pago.saldo):,.2f}.", "ok")
         return redirect(url_for("cobros.detalle", cid=pago.contrato_id))
     return render_template("cobros/abonar.html", pago=pago, saldo=saldo,
-                           formas=FORMAS_PAGO, meses=MESES_ES)
+                           formas=FORMAS_PAGO, meses=MESES_ES, idem=nueva_clave())
 
 
 def _validar(pago):

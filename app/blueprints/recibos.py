@@ -5,6 +5,7 @@ from io import BytesIO
 from flask import (Blueprint, render_template, redirect, url_for, request, flash,
                    abort, make_response)
 from flask_login import login_required
+from sqlalchemy.exc import IntegrityError
 
 from datetime import timedelta
 
@@ -24,12 +25,27 @@ def _venc_pago(pago):
 recibos_bp = Blueprint("recibos", __name__, url_prefix="/recibos")
 
 
+def _numerar(pago):
+    """Le asigna el próximo número de recibo, sin repetir nunca uno.
+
+    La base tiene un único (inmobiliaria, número de recibo): si dos pedidos
+    simultáneos alcanzan a tomar el mismo número, el segundo commit falla y se
+    reintenta con el siguiente, en vez de emitir dos recibos iguales."""
+    a = Ajustes.get()
+    for _ in range(5):
+        try:
+            pago.recibo_numero = a.siguiente_recibo()
+            db.session.commit()
+            return a
+        except IntegrityError:
+            db.session.rollback()
+            a = Ajustes.get()
+    raise RuntimeError("No pude asignar un número de recibo libre")
+
+
 def _datos_recibo(pago):
     """Prepara el número de recibo y la lista de conceptos de un pago."""
-    a = Ajustes.get()
-    if not pago.recibo_numero:
-        pago.recibo_numero = a.siguiente_recibo()
-        db.session.commit()
+    a = Ajustes.get() if pago.recibo_numero else _numerar(pago)
     conceptos = []
     if pago.mora and float(pago.mora) > 0:
         conceptos.append(("Mora", float(pago.mora)))

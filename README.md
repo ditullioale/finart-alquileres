@@ -136,8 +136,13 @@ python importar_inmosoft.py --reset    # recrea las tablas antes de importar
    - `COOKIE_SECURE` = `1`.
    - `SUPERADMIN_USER` / `SUPERADMIN_PASS` = credenciales del administrador de
      plataforma (para el onboarding de inmobiliarias).
+   - `MIGRATE_ON_BOOT` = `0` para que **no** migre al arrancar: con 2 workers,
+     los dos correrían Alembic a la vez. Las migraciones las aplica el
+     `release: flask db upgrade` del `Procfile` (en Railway, Settings → Deploy →
+     Pre-deploy Command), una sola vez y antes de levantar los workers.
    - *(Opcional)* variables SMTP para recuperación de contraseña.
-5. El arranque usa `Procfile` (`gunicorn run:app`) y aplica las migraciones solo.
+5. El arranque usa `Procfile` (`gunicorn run:app`); las migraciones van en el
+   comando de release (ver `MIGRATE_ON_BOOT` arriba).
 6. **Dominio propio** (opcional): Settings → Networking → Custom Domain, y cargar
    el CNAME en el registrador.
 

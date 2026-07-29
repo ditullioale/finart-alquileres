@@ -358,6 +358,42 @@ def run():
               cl.post("/cobros/rapido", json={"cid": ids["c"], "mes": 11, "anio": 2099,
                       "precio": 1000}).status_code == 409)
 
+        # El mismo cobro enviado dos veces (doble clic / reintento del navegador)
+        # con la misma clave de idempotencia se registra una sola vez.
+        _r1 = cl.post("/cobros/rapido", json={"cid": ids["c2"], "mes": 12, "anio": 2099,
+                      "precio": 1000, "pagado": 1000, "idem": "doble-clic-1"})
+        _r2 = cl.post("/cobros/rapido", json={"cid": ids["c2"], "mes": 12, "anio": 2099,
+                      "precio": 1000, "pagado": 1000, "idem": "doble-clic-1"})
+        check("cobro rápido reenviado con la misma clave no se duplica",
+              _r1.status_code == 200 and _r2.status_code == 409)
+        check("queda un solo pago de ese período",
+              q(lambda: Pago.query.filter_by(contrato_id=ids["c2"], periodo_mes=12,
+                                             periodo_anio=2099).count()) == 1)
+
+        seccion("Anti-doble-cobro (pago a cuenta)")
+
+        def _pago_parcial():
+            p = Pago(contrato_id=ids["c"], periodo_mes=10, periodo_anio=2099,
+                     precio_alquiler=100000, total=100000, pagado=0, saldo=100000,
+                     estado="Pendiente", moneda="Pesos")
+            db.session.add(p); db.session.commit()
+            return p.id
+        abono_id = q(_pago_parcial)
+        for _ in range(3):
+            cl.post(f"/cobros/pago/{abono_id}/abonar",
+                    data={"monto": 40000, "idem": "abono-doble-clic"})
+        check("pago a cuenta reenviado no suma dos veces",
+              q(lambda: float(db.session.get(Pago, abono_id).pagado)) == 40000.0)
+        cl.post(f"/cobros/pago/{abono_id}/abonar", data={"monto": 999999})
+        check("no permite cobrar a cuenta más que el saldo (saldo nunca negativo)",
+              q(lambda: float(db.session.get(Pago, abono_id).saldo)) == 60000.0)
+
+        seccion("Recibos - numeración sin repetidos")
+        _nums = q(lambda: [p.recibo_numero for p in Pago.query
+                           .filter(Pago.recibo_numero.isnot(None)).all()])
+        check("no hay dos pagos con el mismo número de recibo",
+              len(_nums) == len(set(_nums)))
+
         seccion("Búsqueda global")
         rb = cl.get("/api/buscar?q=Santamaria")
         jb = rb.get_json()
