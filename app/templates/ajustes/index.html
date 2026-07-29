@@ -26,28 +26,48 @@
     <div><label>Lugar de pago del pagaré</label><input name="pagare_lugar" value="{{ a.pagare_lugar or '' }}"></div>
   </div>
 
-  <h2 style="margin-top:18px">🔥 Litoral Gas (Control de gas)</h2>
-  <p class="hint" style="margin:0 0 8px">
-    {% if a.gas_configurado %}
-      Estado: <b style="color:var(--ok)">configurado</b> como <b>{{ a.gas_usuario }}</b>.
-      La contraseña queda guardada de forma cifrada; solo se usa para traer el estado de deuda.
-    {% else %}
-      Cargá el usuario y la contraseña de tu cuenta de <b>Oficina Virtual de Litoral Gas</b>
-      para que la app pueda traer el estado de deuda de tus inmuebles.
-    {% endif %}
-  </p>
-  <div class="grid2">
-    <div><label>Usuario (email de Litoral Gas)</label>
-      <input name="gas_usuario" value="{{ a.gas_usuario or '' }}" placeholder="tucorreo@ejemplo.com" autocomplete="off"></div>
-    <div><label>Contraseña de Litoral Gas</label>
-      <input type="password" name="gas_clave" placeholder="{{ '•••••• (dejar vacío para no cambiar)' if a.gas_configurado else 'contraseña' }}" autocomplete="new-password"></div>
-  </div>
-  {% if a.gas_configurado %}
-  <label class="chk" style="margin-top:10px"><input type="checkbox" name="gas_borrar"> Borrar las credenciales de Litoral Gas guardadas</label>
-  {% endif %}
-
   <div class="formbtns"><button class="btn" type="submit">Guardar ajustes</button></div>
 </form>
+
+<div class="cardform" style="margin-top:16px" id="gas">
+  <h2>🔥 Litoral Gas (Control de gas)</h2>
+  <p class="hint" style="margin:0 0 12px">Cargá una o varias cuentas de la <b>Oficina Virtual de Litoral Gas</b>. La app las usa para traer el estado de deuda de tus inmuebles. La contraseña se guarda cifrada y nunca se muestra.</p>
+
+  {% if credenciales_gas %}
+  <div class="table-wrap">
+  <table class="grid">
+    <thead><tr><th>Alias</th><th>Usuario</th><th>Agregada</th><th></th></tr></thead>
+    <tbody>
+      {% for gc in credenciales_gas %}
+      <tr>
+        <td><b>{{ gc.alias or 'Cuenta' }}</b></td>
+        <td>{{ gc.usuario }}</td>
+        <td class="hint" style="margin:0">{{ gc.creada.strftime('%d/%m/%Y') if gc.creada }}</td>
+        <td class="actions">
+          <form method="post" action="{{ url_for('ajustes.gas_eliminar', cid=gc.id) }}"
+                onsubmit="return confirm('¿Eliminar la cuenta {{ gc.usuario }} de Litoral Gas?')">
+            <button class="link-danger" type="submit">Eliminar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="hint">Todavía no cargaste ninguna cuenta de Litoral Gas.</p>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('ajustes.gas_agregar') }}" style="margin-top:12px">
+    <h3 style="margin:0 0 8px;font-size:14px">Agregar una cuenta</h3>
+    <div class="grid2">
+      <div><label>Alias (opcional)</label><input name="gas_alias" placeholder="Ej: Cuenta principal"></div>
+      <div><label>Usuario (email de Litoral Gas)</label><input name="gas_usuario" placeholder="tucorreo@ejemplo.com" autocomplete="off"></div>
+      <div><label>Contraseña de Litoral Gas</label><input type="password" name="gas_clave" autocomplete="new-password"></div>
+    </div>
+    <div class="formbtns"><button class="btn" type="submit">+ Agregar cuenta</button></div>
+  </form>
+</div>
 
 {% if current_user.rol == 'admin' %}
 <div class="cardform" style="margin-top:16px">

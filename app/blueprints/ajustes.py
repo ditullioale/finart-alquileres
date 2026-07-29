@@ -42,20 +42,43 @@ def index():
         a.recibo_proximo = parse_num(request.form.get("recibo_proximo"), entero=True) or 1
         a.pagare_meses = parse_num(request.form.get("pagare_meses"), entero=True) or 10
         a.pagare_lugar = request.form.get("pagare_lugar", "").strip()
-        # Credenciales de Litoral Gas (por inmobiliaria). La clave solo se toca si
-        # se escribió una nueva; el checkbox "borrar" limpia ambas.
-        if request.form.get("gas_borrar"):
-            a.gas_usuario = None
-            a.gas_clave_enc = None
-        else:
-            a.gas_usuario = request.form.get("gas_usuario", "").strip() or None
-            nueva_clave = request.form.get("gas_clave", "")
-            if nueva_clave:
-                a.set_gas_clave(nueva_clave)
         db.session.commit()
         flash("Ajustes guardados.", "ok")
         return redirect(url_for("ajustes.index"))
-    return render_template("ajustes/index.html", a=a)
+    from ..models import GasCredencial
+    credenciales_gas = GasCredencial.query.order_by(GasCredencial.id).all()
+    return render_template("ajustes/index.html", a=a, credenciales_gas=credenciales_gas)
+
+
+@ajustes_bp.route("/gas/agregar", methods=["POST"])
+@login_required
+def gas_agregar():
+    """Agrega una cuenta de Litoral Gas a la inmobiliaria actual."""
+    from ..models import GasCredencial
+    usuario = request.form.get("gas_usuario", "").strip()
+    clave = request.form.get("gas_clave", "")
+    alias = request.form.get("gas_alias", "").strip() or "Cuenta"
+    if not usuario or not clave:
+        flash("Cargá el usuario y la contraseña de Litoral Gas.", "error")
+    else:
+        gc = GasCredencial(alias=alias, usuario=usuario)   # inmobiliaria_id: auto
+        gc.set_clave(clave)
+        db.session.add(gc)
+        db.session.commit()
+        flash("Cuenta de Litoral Gas agregada.", "ok")
+    return redirect(url_for("ajustes.index") + "#gas")
+
+
+@ajustes_bp.route("/gas/<int:cid>/eliminar", methods=["POST"])
+@login_required
+def gas_eliminar(cid):
+    from ..models import GasCredencial
+    from ..tenant import get_or_404_tenant
+    gc = get_or_404_tenant(GasCredencial, cid)
+    db.session.delete(gc)
+    db.session.commit()
+    flash("Cuenta de Litoral Gas eliminada.", "ok")
+    return redirect(url_for("ajustes.index") + "#gas")
 
 
 @ajustes_bp.route("/clave", methods=["POST"])

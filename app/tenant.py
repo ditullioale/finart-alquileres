@@ -37,7 +37,8 @@ def _usuario_cargado():
 # las pantallas de Usuarios (listar/editar/eliminar).
 _TENANT_MODEL_NAMES = ["Persona", "Inmueble", "Contrato", "Aumento", "Pago",
                        "GasEstado", "ReciboManual", "Liquidacion",
-                       "RegistroAuditoria", "DocumentoContrato", "Ajustes"]
+                       "RegistroAuditoria", "DocumentoContrato", "Ajustes",
+                       "GasCredencial"]
 
 
 _MODELOS_CACHE = None

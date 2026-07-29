@@ -8,7 +8,7 @@ from flask import (Blueprint, render_template, request, jsonify, abort,
 from flask_login import login_required
 
 from .. import db
-from ..models import Inmueble, GasEstado, Contrato, Ajustes
+from ..models import Inmueble, GasEstado, Contrato, Ajustes, GasCredencial
 
 gas_bp = Blueprint("gas", __name__, url_prefix="/gas")
 
@@ -55,7 +55,7 @@ def index():
                            deuda_total=deuda_total, total=len(inmuebles),
                            sin_asignar=sin_asignar, disponibles=disponibles,
                            ultima_actualizacion=ultima_actualizacion,
-                           gas_configurado=Ajustes.get().gas_configurado)
+                           gas_configurado=GasCredencial.query.count() > 0)
 
 
 @gas_bp.route("/react")
@@ -121,21 +121,28 @@ def actualizar():
     from flask_login import current_user
     from ..litoralgas import consultar_deuda, CredencialesError, GasError
 
-    a = Ajustes.get()
-    if not a.gas_configurado:
-        return jsonify(ok=False, error="Primero configurá tu usuario y contraseña "
+    credenciales = GasCredencial.query.order_by(GasCredencial.id).all()
+    if not credenciales:
+        return jsonify(ok=False, error="Primero cargá tu usuario y contraseña "
                        "de Litoral Gas en Ajustes."), 400
 
-    try:
-        resultados = consultar_deuda(a.gas_usuario, a.get_gas_clave())
-    except CredencialesError as e:
-        return jsonify(ok=False, error=str(e)), 400
-    except GasError as e:
-        return jsonify(ok=False, error=str(e)), 502
+    # Consultar todas las cuentas de la inmobiliaria y combinar (sin duplicar).
+    por_cuenta, errores = {}, []
+    for gc in credenciales:
+        try:
+            for r in consultar_deuda(gc.usuario, gc.get_clave()):
+                por_cuenta[r["cuenta"]] = r
+        except CredencialesError:
+            errores.append(f"{gc.alias or gc.usuario}: usuario o contraseña incorrectos")
+        except GasError as e:
+            errores.append(f"{gc.alias or gc.usuario}: {e}")
+
+    if not por_cuenta and errores:
+        return jsonify(ok=False, error="; ".join(errores)), 400
 
     tid = getattr(current_user, "inmobiliaria_id", None)
     guardadas = con_deuda = 0
-    for r in resultados:
+    for r in por_cuenta.values():
         venc = r["ultimo_vencimiento"]
         if venc and not isinstance(venc, date):
             venc = None
@@ -148,7 +155,7 @@ def actualizar():
         guardadas += 1
         con_deuda += 1 if r["tiene_deuda"] else 0
     db.session.commit()
-    return jsonify(ok=True, guardadas=guardadas, con_deuda=con_deuda)
+    return jsonify(ok=True, guardadas=guardadas, con_deuda=con_deuda, errores=errores)
 
 
 @gas_bp.route("/robot/credenciales", methods=["GET"])
@@ -162,12 +169,11 @@ def robot_credenciales():
     if not esperado or recibido != esperado:
         return jsonify(ok=False, error="Token inválido o no configurado."), 403
     cuentas = []
-    for a in Ajustes.query.all():
-        if a.gas_usuario and a.gas_clave_enc:
-            clave = a.get_gas_clave()
-            if clave:
-                cuentas.append({"inmobiliaria_id": a.inmobiliaria_id,
-                                "usuario": a.gas_usuario, "clave": clave})
+    for gc in GasCredencial.query.all():
+        clave = gc.get_clave()
+        if gc.usuario and clave:
+            cuentas.append({"inmobiliaria_id": gc.inmobiliaria_id,
+                            "usuario": gc.usuario, "clave": clave})
     return jsonify(ok=True, inmobiliarias=cuentas)
 
 

@@ -26,7 +26,7 @@ from flask import g
 from app import create_app, db
 from app.models import (Inmobiliaria, Usuario, Persona, Inmueble, Contrato, Pago,
                         Aumento, ReciboManual, Liquidacion, GasEstado,
-                        DocumentoContrato, Ajustes, RegistroAuditoria)
+                        DocumentoContrato, Ajustes, RegistroAuditoria, GasCredencial)
 
 TOTAL = {"ok": 0, "fail": 0}
 
@@ -80,7 +80,9 @@ def sembrar_inmobiliaria(nombre, sufijo):
                  liquidacion_prefijo="0001", liquidacion_proximo=1,
                  gas_usuario=f"gas_{sufijo}@correo.com", inmobiliaria_id=tid)
     aj.set_gas_clave(f"clave-{sufijo}")
-    db.session.add_all([pago, aum, rm, liq, gas, doc, aj]); db.session.flush()
+    gcred = GasCredencial(alias="Cuenta", usuario=f"gas_{sufijo}@correo.com", inmobiliaria_id=tid)
+    gcred.set_clave(f"clave-{sufijo}")
+    db.session.add_all([pago, aum, rm, liq, gas, doc, aj, gcred]); db.session.flush()
 
     u = Usuario(username=f"user_{sufijo}", nombre=f"Admin {sufijo}", rol="admin",
                 activo=True, must_change_password=False, inmobiliaria_id=tid)
@@ -89,7 +91,8 @@ def sembrar_inmobiliaria(nombre, sufijo):
 
     return dict(tid=tid, persona=[prop.id, inq.id], inmueble=[inm.id], contrato=[c.id],
                 pago=[pago.id], aumento=[aum.id], recibo=[rm.id], liquidacion=[liq.id],
-                gas=[gas.id], documento=[doc.id], ajustes=[aj.id], user=f"user_{sufijo}")
+                gas=[gas.id], documento=[doc.id], ajustes=[aj.id], gascred=[gcred.id],
+                user=f"user_{sufijo}")
 
 
 MODELOS = {
@@ -98,6 +101,7 @@ MODELOS = {
     "Aumento": (Aumento, "aumento"), "ReciboManual": (ReciboManual, "recibo"),
     "Liquidacion": (Liquidacion, "liquidacion"), "GasEstado": (GasEstado, "gas"),
     "DocumentoContrato": (DocumentoContrato, "documento"), "Ajustes": (Ajustes, "ajustes"),
+    "GasCredencial": (GasCredencial, "gascred"),
 }
 
 

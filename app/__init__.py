@@ -294,6 +294,7 @@ def _iniciar_base(app):
         Usuario.crear_admin_inicial()
         _backfill_inmobiliaria(inmo)
         _asegurar_superadmin()
+        _migrar_gas_credenciales()
     except Exception:
         db.session.rollback()
         app.logger.exception("Falló la siembra inicial de la base")
@@ -344,6 +345,25 @@ def _asegurar_superadmin():
     su.set_password(su_pass)
     db.session.add(su)
     db.session.commit()
+
+
+def _migrar_gas_credenciales():
+    """Mueve la credencial única de Litoral Gas que estaba en Ajustes a la tabla
+    gas_credenciales (que soporta varias por inmobiliaria). Idempotente."""
+    try:
+        from .models import Ajustes, GasCredencial
+        for a in Ajustes.query.all():
+            if a.gas_usuario and a.gas_clave_enc and a.inmobiliaria_id:
+                ya = GasCredencial.query.filter_by(
+                    inmobiliaria_id=a.inmobiliaria_id, usuario=a.gas_usuario).first()
+                if not ya:
+                    gc = GasCredencial(inmobiliaria_id=a.inmobiliaria_id,
+                                       alias="Cuenta 1", usuario=a.gas_usuario,
+                                       clave_enc=a.gas_clave_enc)
+                    db.session.add(gc)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
 
 
 def _backfill_inmobiliaria(inmo):

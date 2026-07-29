@@ -563,6 +563,28 @@ class GasEstado(db.Model):
         return g
 
 
+class GasCredencial(db.Model):
+    """Una cuenta de Litoral Gas por inmobiliaria (soporta varias). La clave se
+    guarda cifrada; se usa para consultar la deuda desde el servidor."""
+    __tablename__ = "gas_credenciales"
+
+    id = db.Column(db.Integer, primary_key=True)
+    inmobiliaria_id = db.Column(db.Integer, db.ForeignKey("inmobiliarias.id"),
+                                index=True, nullable=False)
+    alias = db.Column(db.String(80))
+    usuario = db.Column(db.String(160), nullable=False)
+    clave_enc = db.Column(db.Text, nullable=False)
+    creada = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def set_clave(self, clave):
+        from .cripto import cifrar
+        self.clave_enc = cifrar(clave)
+
+    def get_clave(self):
+        from .cripto import descifrar
+        return descifrar(self.clave_enc)
+
+
 class ReciboManual(db.Model):
     __tablename__ = "recibos_manuales"
 

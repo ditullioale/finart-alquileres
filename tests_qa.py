@@ -324,18 +324,35 @@ def run():
         _os.environ["GAS_IMPORT_TOKEN"] = "tok-test-123"
         from app.models import Ajustes, GasEstado
 
-        # A configura su nombre y sus credenciales de Litoral Gas.
-        cl.post("/ajustes/", data={"nombre": "AA Rentas SRL",
+        from app.models import GasCredencial
+        # A configura su nombre (Ajustes) y agrega DOS cuentas de Litoral Gas.
+        cl.post("/ajustes/", data={"nombre": "AA Rentas SRL"})
+        cl.post("/ajustes/gas/agregar", data={"gas_alias": "Principal",
                 "gas_usuario": "aa@correo.com", "gas_clave": "claveGasAA"})
+        cl.post("/ajustes/gas/agregar", data={"gas_alias": "Secundaria",
+                "gas_usuario": "aa2@correo.com", "gas_clave": "claveGas2"})
         pagA = cl.get("/ajustes/").data.decode("utf-8", "ignore")
         pagB = clB.get("/ajustes/").data.decode("utf-8", "ignore")
         check("Ajustes de A guarda su propio nombre", "AA Rentas SRL" in pagA)
         check("B NO ve el nombre de A en sus Ajustes (aislado)", "AA Rentas SRL" not in pagB)
+        check("A puede tener DOS cuentas de gas",
+              q(lambda: GasCredencial.query.filter_by(inmobiliaria_id=1).count()) == 2)
+        check("A ve sus cuentas de gas cargadas", "aa@correo.com" in pagA and "aa2@correo.com" in pagA)
+        check("B NO ve las cuentas de gas de A (aislado)", "aa@correo.com" not in pagB)
 
         check("la clave de gas se guarda cifrada y se recupera",
-              q(lambda: Ajustes.query.filter_by(inmobiliaria_id=1).first().get_gas_clave()) == "claveGasAA")
+              q(lambda: GasCredencial.query.filter_by(inmobiliaria_id=1, usuario="aa@correo.com").first().get_clave()) == "claveGasAA")
         check("la clave de gas NO se guarda en texto plano",
-              q(lambda: Ajustes.query.filter_by(inmobiliaria_id=1).first().gas_clave_enc) != "claveGasAA")
+              q(lambda: GasCredencial.query.filter_by(inmobiliaria_id=1, usuario="aa@correo.com").first().clave_enc) != "claveGasAA")
+
+        # Eliminar una cuenta; y que B no pueda borrar la de A.
+        gcid2 = q(lambda: GasCredencial.query.filter_by(usuario="aa2@correo.com").first().id)
+        cl.post(f"/ajustes/gas/{gcid2}/eliminar")
+        check("A puede eliminar una de sus cuentas de gas (queda 1)",
+              q(lambda: GasCredencial.query.filter_by(inmobiliaria_id=1).count()) == 1)
+        gcidA = q(lambda: GasCredencial.query.filter_by(usuario="aa@correo.com").first().id)
+        check("B NO puede eliminar una cuenta de gas de A (404)",
+              clB.post(f"/ajustes/gas/{gcidA}/eliminar").status_code == 404)
 
         gasA = cl.get("/gas/").data.decode("utf-8", "ignore")
         gasB = clB.get("/gas/").data.decode("utf-8", "ignore")
