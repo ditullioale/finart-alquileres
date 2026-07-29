@@ -463,9 +463,14 @@ class Pago(db.Model):
     # Un solo pago por contrato y período: evita duplicar un cobro (doble clic /
     # dos operaciones simultáneas). Los saldos se completan con "abonar", no con
     # un pago nuevo del mismo período.
+    # Y un número de recibo irrepetible dentro de la inmobiliaria: si dos cobros
+    # simultáneos alcanzan a tomar el mismo número, el segundo commit falla y se
+    # reintenta, en vez de emitir dos recibos con la misma numeración.
     __table_args__ = (
         db.UniqueConstraint("contrato_id", "periodo_mes", "periodo_anio",
                             name="uq_pago_contrato_periodo"),
+        db.UniqueConstraint("inmobiliaria_id", "recibo_numero",
+                            name="uq_pago_recibo_numero"),
     )
 
 
@@ -664,3 +669,19 @@ class Liquidacion(db.Model):
     creado = db.Column(db.DateTime, default=datetime.utcnow)
 
     propietario = db.relationship("Persona")
+
+
+class OperacionIdem(db.Model):
+    """Huella de operaciones de plata ya ejecutadas (clave de idempotencia).
+
+    El único por período frena el pago duplicado, pero no el pago *a cuenta*, que
+    suma plata sobre un pago que ya existe: ahí un doble clic cobra dos veces. Los
+    formularios de plata llevan una clave que se reserva en la misma transacción
+    que la operación; si el pedido llega repetido, la clave ya está tomada y no se
+    vuelve a cobrar.
+    """
+    __tablename__ = "operaciones_idem"
+
+    id = db.Column(db.Integer, primary_key=True)
+    clave = db.Column(db.String(120), unique=True, nullable=False, index=True)
+    creado = db.Column(db.DateTime, default=datetime.utcnow)

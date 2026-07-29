@@ -259,6 +259,9 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
     document.getElementById('cm-detalle').href = btn.dataset.detalle;
     ov._row = btn.closest('tr');
     ov.removeAttribute('hidden');
+    // Clave de este cobro: si el pedido sale dos veces (doble clic, reintento por
+    // conexión lenta), el servidor lo registra una sola.
+    ov._idem = 'c' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
     cmMoraTocada = false;
     cmCalcMora();   // prellena la mora según hoy vs. vencimiento
     cmTotal();
@@ -291,7 +294,9 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
     var payload = {
       cid: document.getElementById('cm-cid').value, mes: period.mes, anio: period.anio,
       fecha: document.getElementById('cm-fecha').value,
-      precio: num('cm-precio'), mora: num('cm-mora'),
+      precio: num('cm-precio'), idem: ov._idem,
+      // La mora la recalcula el servidor; solo se manda si la escribieron a mano.
+      mora: cmMoraTocada ? num('cm-mora') : null,
       forma_pago: document.getElementById('cm-forma').value,
       observaciones: document.getElementById('cm-obs').value.trim(),
       gastos: gastos, pagado: num('cm-pagado')
