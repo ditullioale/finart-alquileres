@@ -79,3 +79,47 @@ def facturar_liquidacion(liq, propietario, ajustes, confirmar_bajo_minimo: bool 
         return r.json()
     except ValueError:
         return {"estado": "error", "mensaje": "Respuesta inesperada del facturador."}
+
+
+# --------------------------------------------------------------------------- #
+#  Proxy de la pantalla "Facturador" (resumen bancario -> transferencias -> facturas)
+#
+#  Estas funciones hablan con el backend del facturador y devuelven la Response
+#  de requests tal cual, para que el blueprint reenvíe el JSON y el status code.
+# --------------------------------------------------------------------------- #
+def subir_resumen(nombre: str, contenido: bytes, content_type: str):
+    return requests.post(
+        f"{_base_url()}/api/lotes",
+        files={"archivo": (nombre, contenido, content_type or "application/octet-stream")},
+        timeout=_timeout(),
+    )
+
+
+def listar_transferencias():
+    return requests.get(f"{_base_url()}/api/transferencias", timeout=_timeout())
+
+
+def actualizar_transferencia(transferencia_id: int, payload: dict):
+    return requests.patch(
+        f"{_base_url()}/api/transferencias/{transferencia_id}",
+        json=payload,
+        timeout=_timeout(),
+    )
+
+
+def facturar_transferencias(ids: list, confirmar_bajo_minimo: bool = False):
+    return requests.post(
+        f"{_base_url()}/api/transferencias/facturar",
+        json={"transferencia_ids": ids, "confirmar_bajo_minimo": confirmar_bajo_minimo},
+        timeout=_timeout(),
+    )
+
+
+def listar_facturas():
+    return requests.get(f"{_base_url()}/api/facturas", timeout=_timeout())
+
+
+def factura_pdf(factura_id: int):
+    return requests.get(
+        f"{_base_url()}/api/facturas/{factura_id}/pdf", timeout=_timeout()
+    )

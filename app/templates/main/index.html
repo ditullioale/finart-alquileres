@@ -2,8 +2,13 @@
 {% from "_icons.html" import icon %}
 {% block title %}Inicio{% endblock %}
 {% block content %}
-<div class="pagehead">
+<div class="pagehead pagehead-search">
   <h1>Panel principal</h1>
+  <button type="button" class="home-search" onclick="abrirBuscar()">
+    <span class="i">{{ icon('search', 18) }}</span>
+    <span class="hs-txt">Buscar persona, inmueble, contrato, recibo o cuenta de gas…</span>
+    <kbd>Ctrl&nbsp;K</kbd>
+  </button>
 </div>
 
 <div class="cards">
@@ -49,7 +54,7 @@
         <td data-l="Debe" class="r"><b class="{{ 'txt-danger' if m.vencido }}">$ {{ m.saldo|money }}</b></td>
         <td data-l="" class="actions" style="gap:8px">
           <a class="btn ok sm" href="{{ url_for('cobros.nuevo', cid=m.cid) }}">💵 Cobrar</a>
-          {% if m.wa %}<a class="wa-ico" style="background:#25d366;color:#fff" href="{{ m.wa }}" target="_blank" title="Recordatorio por WhatsApp">✆</a>{% endif %}
+          <span class="wa-slot">{% if m.wa %}<a class="wa-ico" style="background:#25d366;color:#fff" href="{{ m.wa }}" target="_blank" title="Recordatorio por WhatsApp">✆</a>{% endif %}</span>
         </td>
       </tr>
       {% endfor %}

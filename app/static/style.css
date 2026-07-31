@@ -399,3 +399,20 @@ a:focus-visible,button:focus-visible,.btn:focus-visible,.menu-trigger:focus-visi
   .card-collapse td.actions{width:auto}
   .card-collapse td.actions .btn{width:100%;justify-content:center}
 }
+
+/* ===== Buscador en el Inicio + alineación de botones de acción ===== */
+.pagehead-search{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.home-search{display:flex;align-items:center;gap:10px;min-width:260px;max-width:520px;flex:1 1 320px;
+  background:#fff;border:1px solid var(--bd);border-radius:10px;padding:9px 12px;cursor:pointer;
+  color:var(--muted);font-size:14px;text-align:left;font-family:inherit}
+.home-search:hover{border-color:#9fb4d1;box-shadow:0 1px 4px rgba(18,38,63,.08)}
+.home-search .i{display:inline-flex;color:#7a8aa0}
+.home-search .hs-txt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.home-search kbd{background:#eef1f6;border-radius:5px;padding:2px 6px;font-size:11px;color:var(--muted)}
+/* Slot fijo para el ícono de WhatsApp: mantiene alineados los botones Cobrar */
+.wa-slot{flex:0 0 30px;display:inline-flex;justify-content:center;align-items:center}
+@media(max-width:640px){
+  .home-search{flex:1 1 100%}
+  .card-collapse td.actions{flex-wrap:wrap}
+  .card-collapse td.actions .wa-slot{flex:0 0 auto}
+}

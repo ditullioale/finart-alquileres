@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Facturador{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1>Facturador</h1>
+  <p class="sub">Subí un resumen bancario (Excel, CSV o PDF), revisá las transferencias recibidas y emití las facturas de honorarios en ARCA.</p>
+</div>
+
+{% if not habilitado %}
+<div class="panel" style="border-left:4px solid #d08700;background:#fff8e6">
+  <b>El facturador no está configurado.</b> Falta la variable <code>FACTURADOR_URL</code> en el servidor.
+</div>
+{% else %}
+
+<div class="panel" style="margin-bottom:16px">
+  <h2 style="display:flex;align-items:center;gap:7px">{{ icon('file-text', 18) }} 1. Subir resumen bancario</h2>
+  <form id="formSubir" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
+    <input type="file" id="archivo" name="archivo" accept=".xlsx,.xlsm,.xls,.csv,.pdf" required>
+    <button type="submit" class="btn" id="btnSubir">{{ icon('file-text', 16) }} Subir y detectar</button>
+    <span id="subiendo" class="hint" hidden>Procesando…</span>
+  </form>
+  <div id="resumenImport" class="hint" style="margin-top:8px" hidden></div>
+</div>
+
+<div class="panel" style="margin-bottom:16px">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+    <h2 style="display:flex;align-items:center;gap:7px">{{ icon('banknote', 18) }} 2. Revisar y facturar</h2>
+    <button type="button" class="btn ok" id="btnFacturar" disabled>{{ icon('receipt', 16) }} Facturar (<span id="nSel">0</span>)</button>
+  </div>
+  <div id="msg" class="hint" style="margin-top:8px" hidden></div>
+  <div class="table-wrap" style="margin-top:10px">
+    <table class="grid card-collapse">
+      <thead><tr>
+        <th style="width:34px"><input type="checkbox" id="chkAll"></th>
+        <th>Fecha</th><th>CUIT emisor</th><th>Razón social</th>
+        <th class="r">Importe</th><th>Descripción</th><th>Estado</th>
+      </tr></thead>
+      <tbody id="tbody"><tr><td colspan="7" class="hint">Todavía no importaste ningún resumen.</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="panel">
+  <h2 style="display:flex;align-items:center;gap:7px">{{ icon('receipt', 18) }} Facturas emitidas</h2>
+  <div class="table-wrap" style="margin-top:10px">
+    <table class="grid card-collapse">
+      <thead><tr><th>Nº</th><th>Receptor</th><th class="r">Importe</th><th>CAE</th><th>Estado</th><th></th></tr></thead>
+      <tbody id="tbodyFacturas"><tr><td colspan="6" class="hint">Sin facturas todavía.</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+(function(){
+  var money = new Intl.NumberFormat('es-AR', {style:'currency', currency:'ARS'});
+  var tbody = document.getElementById('tbody');
+  var msg = document.getElementById('msg');
+  var seleccion = new Set();
+  var datos = [];
+
+  function aviso(texto, tipo){
+    msg.hidden = false; msg.textContent = texto;
+    msg.style.color = tipo === 'error' ? '#b00' : '#14663a';
+  }
+  function esFacturable(t){
+    return t.estado === 'pendiente' && t.cuit && (!t.factura || t.factura.estado !== 'emitida');
+  }
+  function chipEstado(t){
+    if(t.estado === 'facturada' && t.factura && t.factura.cae) return '<span class="badge parcial">CAE '+t.factura.cae+'</span>';
+    if(t.factura && t.factura.estado === 'error') return '<span class="badge pendiente" title="'+(t.factura.error||'')+'">Error ARCA</span>';
+    if(t.estado === 'ignorada') return '<span class="badge">Ignorada</span>';
+    return '<span class="badge" style="background:#fdf0e3;color:#8a5a00">Pendiente</span>';
+  }
+  function actualizarBoton(){
+    document.getElementById('nSel').textContent = seleccion.size;
+    document.getElementById('btnFacturar').disabled = seleccion.size === 0;
+  }
+
+  function render(){
+    if(!datos.length){ tbody.innerHTML = '<tr><td colspan="7" class="hint">Todavía no importaste ningún resumen.</td></tr>'; actualizarBoton(); return; }
+    tbody.innerHTML = '';
+    datos.forEach(function(t){
+      var tr = document.createElement('tr');
+      var facturable = esFacturable(t);
+      var cuitCell = t.estado === 'facturada' ? (t.cuit||'—')
+        : '<input class="cuit-inp" data-id="'+t.id+'" value="'+(t.cuit||'')+'" placeholder="CUIT" style="width:120px'+(t.cuit?'':';border-color:#d99')+'">';
+      tr.innerHTML =
+        '<td><input type="checkbox" class="chk" data-id="'+t.id+'" '+(facturable?'':'disabled')+' '+(seleccion.has(t.id)?'checked':'')+'></td>'+
+        '<td data-l="Fecha">'+t.fecha+'</td>'+
+        '<td data-l="CUIT">'+cuitCell+'</td>'+
+        '<td data-l="Razón social">'+(t.razon_social||'—')+'</td>'+
+        '<td data-l="Importe" class="r">'+money.format(Number(t.importe))+(t.supera_minimo===false?' <span title="No supera el mínimo" style="color:#8a5a00">⚠</span>':'')+'</td>'+
+        '<td data-l="Descripción" style="max-width:280px"><span class="hint" title="'+(t.descripcion||'')+'" style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(t.descripcion||'')+'</span></td>'+
+        '<td data-l="Estado">'+chipEstado(t)+'</td>';
+      tbody.appendChild(tr);
+    });
+    tbody.querySelectorAll('.chk').forEach(function(c){
+      c.addEventListener('change', function(){
+        var id = Number(c.dataset.id);
+        if(c.checked) seleccion.add(id); else seleccion.delete(id);
+        actualizarBoton();
+      });
+    });
+    tbody.querySelectorAll('.cuit-inp').forEach(function(inp){
+      inp.addEventListener('blur', function(){
+        var val = inp.value.replace(/\D/g,'');
+        var id = Number(inp.dataset.id);
+        var t = datos.find(function(x){return x.id===id;});
+        if(val.length===11 && val!==(t&&t.cuit)){
+          fetch('/facturador/transferencias/'+id, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({cuit: val})})
+            .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+            .then(function(res){ if(res.ok){ cargar(); } else { aviso(res.j.detail||'CUIT inválido','error'); } });
+        }
+      });
+    });
+    actualizarBoton();
+  }
+
+  function cargar(){
+    fetch('/facturador/transferencias').then(function(r){return r.json();}).then(function(j){
+      datos = Array.isArray(j) ? j : [];
+      // limpiar selección de las que ya no son facturables
+      seleccion.forEach(function(id){ var t = datos.find(function(x){return x.id===id;}); if(!t||!esFacturable(t)) seleccion.delete(id); });
+      render();
+    });
+    fetch('/facturador/facturas').then(function(r){return r.json();}).then(function(j){
+      var tb = document.getElementById('tbodyFacturas');
+      var fs = Array.isArray(j) ? j.filter(function(f){return f.estado==='emitida';}) : [];
+      if(!fs.length){ tb.innerHTML = '<tr><td colspan="6" class="hint">Sin facturas todavía.</td></tr>'; return; }
+      tb.innerHTML = '';
+      fs.forEach(function(f){
+        var nro = String(f.punto_venta).padStart(4,'0')+'-'+String(f.numero||0).padStart(8,'0');
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td data-l="Nº">'+nro+'</td>'+
+          '<td data-l="Receptor">'+(f.razon_social||f.cuit_receptor)+'</td>'+
+          '<td data-l="Importe" class="r">'+money.format(Number(f.importe))+'</td>'+
+          '<td data-l="CAE">'+(f.cae||'—')+'</td>'+
+          '<td data-l="Estado"><span class="badge parcial">Emitida</span></td>'+
+          '<td><a class="btn sec sm" href="/facturador/factura/'+f.id+'/pdf" target="_blank">PDF</a></td>';
+        tb.appendChild(tr);
+      });
+    });
+  }
+
+  document.getElementById('chkAll').addEventListener('change', function(e){
+    tbody.querySelectorAll('.chk:not(:disabled)').forEach(function(c){
+      c.checked = e.target.checked;
+      var id = Number(c.dataset.id);
+      if(e.target.checked) seleccion.add(id); else seleccion.delete(id);
+    });
+    actualizarBoton();
+  });
+
+  document.getElementById('formSubir').addEventListener('submit', function(e){
+    e.preventDefault();
+    var f = document.getElementById('archivo').files[0];
+    if(!f) return;
+    var fd = new FormData(); fd.append('archivo', f);
+    document.getElementById('subiendo').hidden = false;
+    document.getElementById('btnSubir').disabled = true;
+    fetch('/facturador/subir', {method:'POST', body: fd})
+      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+      .then(function(res){
+        document.getElementById('subiendo').hidden = true;
+        document.getElementById('btnSubir').disabled = false;
+        var box = document.getElementById('resumenImport');
+        if(res.ok){
+          box.hidden = false; box.style.color='#14663a';
+          box.textContent = 'Importado: '+res.j.nuevas+' nuevas, '+res.j.duplicadas+' duplicadas, '+res.j.sin_cuit+' sin CUIT.';
+          document.getElementById('formSubir').reset();
+          cargar();
+        } else {
+          box.hidden = false; box.style.color='#b00';
+          box.textContent = res.j.detail || 'No se pudo importar el archivo.';
+        }
+      })
+      .catch(function(){
+        document.getElementById('subiendo').hidden = true;
+        document.getElementById('btnSubir').disabled = false;
+      });
+  });
+
+  document.getElementById('btnFacturar').addEventListener('click', function(){
+    var ids = Array.from(seleccion);
+    if(!ids.length) return;
+    var bajoMin = datos.filter(function(t){ return seleccion.has(t.id) && t.supera_minimo===false; });
+    var confirmar = false;
+    if(bajoMin.length){
+      if(!confirm(bajoMin.length+' transferencia(s) no superan el mínimo para facturar. ¿Emitir igual?')) return;
+      confirmar = true;
+    }
+    document.getElementById('btnFacturar').disabled = true;
+    fetch('/facturador/facturar', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({transferencia_ids: ids, confirmar_bajo_minimo: confirmar})})
+      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+      .then(function(res){
+        if(res.ok){ aviso('Se emitieron '+(res.j.length||0)+' factura(s).'); seleccion.clear(); cargar(); }
+        else { aviso(res.j.detail || 'No se pudieron emitir las facturas.', 'error'); document.getElementById('btnFacturar').disabled = false; }
+      })
+      .catch(function(){ aviso('Error al emitir.', 'error'); document.getElementById('btnFacturar').disabled = false; });
+  });
+
+  cargar();
+})();
+</script>
+{% endif %}
+{% endblock %}

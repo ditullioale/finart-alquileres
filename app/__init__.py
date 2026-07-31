@@ -61,6 +61,7 @@ def create_app(config_class=Config):
     from .blueprints.usuarios import usuarios_bp
     from .blueprints.gas import gas_bp
     from .blueprints.api import api_bp
+    from .blueprints.facturador_web import facturador_bp
     from .blueprints.plataforma import plataforma_bp
 
     app.register_blueprint(auth_bp)
@@ -76,6 +77,7 @@ def create_app(config_class=Config):
     app.register_blueprint(usuarios_bp)
     app.register_blueprint(gas_bp)
     app.register_blueprint(api_bp)
+    app.register_blueprint(facturador_bp)
     app.register_blueprint(plataforma_bp)
 
     # El buzón del robot de gas usa su propio token (X-Gas-Token), no CSRF.
