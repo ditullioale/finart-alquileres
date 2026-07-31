@@ -44,6 +44,31 @@
 {% if liq %}<div class="aviso">Liquidación <b>{{ liq.numero }}</b>{% if individual %} (individual){% endif %} generada el {{ liq.fecha.strftime('%d/%m/%Y') if liq.fecha }}.</div>{% endif %}
 {% if not items %}<div class="aviso" style="background:#fdecec;border-color:#f0b4b4;color:#9c2020">No hay cobros para este período.</div>{% endif %}
 
+{% if liq and facturador_habilitado %}
+  {% if fact == 'requiere_confirmacion' %}
+  <div class="aviso" style="background:#fff6e5;border-color:#f0d089;color:#8a5a00">
+    La comisión (<b>{{ comision|money }}</b>) no supera el mínimo para facturar.
+    ¿Emitir igual la factura de honorarios al propietario?
+    <form method="post"
+          action="{{ url_for('liquidaciones.facturar_honorarios', liq_id=liq.id) }}"
+          style="display:inline;margin-left:8px">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit"
+              style="border:0;border-radius:7px;padding:6px 14px;font-weight:600;
+                     cursor:pointer;background:#1f9d55;color:#fff">
+        Sí, facturar
+      </button>
+    </form>
+  </div>
+  {% elif fact == 'emitida' %}
+  <div class="aviso">Factura de honorarios emitida al propietario.</div>
+  {% elif fact == 'sin_cuit' %}
+  <div class="aviso" style="background:#fdecec;border-color:#f0b4b4;color:#9c2020">
+    No se emitió la factura de honorarios: el propietario no tiene CUIT cargado.
+  </div>
+  {% endif %}
+{% endif %}
+
 <div class="hoja">
   <div class="doc">
     <div class="cab">

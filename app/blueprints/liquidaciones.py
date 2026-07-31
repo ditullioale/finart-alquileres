@@ -6,6 +6,7 @@ from flask import (Blueprint, render_template, redirect, url_for, request,
 from flask_login import login_required
 
 from .. import db
+from .. import facturador
 from ..models import Contrato, Pago, Persona, Liquidacion, Ajustes
 from ..utils import parse_num, pesos_letras, MESES_ES
 
@@ -55,6 +56,33 @@ def _detalle(pagos):
                           neto=round(alq - com, 2),
                           liquidada=p.pagado_al_propietario is not None))
     return items, round(ingresos, 2), round(comision, 2), round(ingresos - comision, 2)
+
+
+def _facturar_honorarios(liq, prop, confirmar=False):
+    """Emite (best-effort) la factura de honorarios de la liquidación al propietario.
+
+    Aplica siempre que se genera una liquidación: toma la CUIT del propietario y
+    factura la comisión. Si la comisión no supera el mínimo, el facturador pide
+    confirmación y acá se informa para que el usuario decida. Devuelve el estado.
+    """
+    resultado = facturador.facturar_liquidacion(liq, prop, Ajustes.get(),
+                                                 confirmar_bajo_minimo=confirmar)
+    estado = resultado.get("estado")
+    if estado == "emitida":
+        f = resultado.get("factura") or {}
+        cae = f.get("cae")
+        flash(f"Factura de honorarios emitida al propietario"
+              + (f" (CAE {cae})." if cae else "."), "ok")
+    elif estado == "error":
+        flash("La liquidación se generó, pero la factura de honorarios no se pudo "
+              f"emitir: {resultado.get('mensaje') or 'error del facturador'}.", "error")
+    elif estado == "sin_cuit":
+        flash("La liquidación se generó, pero no se facturó: el propietario no "
+              "tiene CUIT cargado.", "error")
+    # 'requiere_confirmacion' y 'deshabilitado' no se avisan por toast:
+    #   - requiere_confirmacion: se resuelve con el banner de la liquidación.
+    #   - deshabilitado: la integración no está configurada (FACTURADOR_URL vacío).
+    return estado
 
 
 # --------------------------------------------------------------------------- #
@@ -133,7 +161,23 @@ def ver(pid):
                            ingresos=ingresos, comision=comision, neto=neto,
                            neto_letras=pesos_letras(neto), mes=mes, anio=anio,
                            meses=MESES_ES, a=a, liq=liq, hoy=hoy,
-                           individual=bool(contrato_id))
+                           individual=bool(contrato_id),
+                           fact=request.args.get("fact"),
+                           facturador_habilitado=facturador.habilitado())
+
+
+@liquidaciones_bp.route("/<int:liq_id>/facturar-honorarios", methods=["POST"])
+@login_required
+def facturar_honorarios(liq_id):
+    """Confirma y emite la factura de honorarios cuando la comisión está bajo el mínimo."""
+    liq = db.session.get(Liquidacion, liq_id) or abort(404)
+    prop = db.session.get(Persona, liq.propietario_id)
+    _facturar_honorarios(liq, prop, confirmar=True)
+    return redirect(url_for("liquidaciones.ver", pid=liq.propietario_id,
+                            mes=liq.periodo_mes, anio=liq.periodo_anio,
+                            contrato=liq.contrato_id) if liq.contrato_id else
+                    url_for("liquidaciones.ver", pid=liq.propietario_id,
+                            mes=liq.periodo_mes, anio=liq.periodo_anio))
 
 
 @liquidaciones_bp.route("/generar", methods=["POST"])
@@ -162,12 +206,15 @@ def generar():
         p.pagado_al_propietario = date.today()
     db.session.commit()
 
+    # Emisión automática de la factura de honorarios al propietario.
+    fact = _facturar_honorarios(liq, prop)
+
     if contrato_id:
         flash(f"Liquidación individual {liq.numero} generada.", "ok")
         return redirect(url_for("liquidaciones.ver", pid=pid, mes=mes, anio=anio,
-                                contrato=contrato_id))
+                                contrato=contrato_id, fact=fact))
     flash(f"Liquidación {liq.numero} generada (todas juntas) para {prop.nombre}.", "ok")
-    return redirect(url_for("liquidaciones.ver", pid=pid, mes=mes, anio=anio))
+    return redirect(url_for("liquidaciones.ver", pid=pid, mes=mes, anio=anio, fact=fact))
 
 
 # --------------------------------------------------------------------------- #

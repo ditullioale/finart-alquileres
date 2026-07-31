@@ -30,7 +30,11 @@ algunas pantallas.
 - **Aumentos** — por **índice oficial** (ICL/IPC/Casa Propia, con carga manual o
   consulta al BCRA) o por **porcentaje**. Historial editable. Aviso de vencidos.
 - **Liquidaciones a propietarios** — por período; **todas juntas o individuales**;
-  comisión configurable por contrato o por inmueble. Resumen mensual.
+  comisión configurable por contrato o por inmueble. Resumen mensual. Al generar una
+  liquidación, se emite automáticamente la **factura de honorarios** (comisión) al
+  propietario a través del **Facturador ARCA** (integración opcional; ver
+  `FACTURADOR_URL` en `.env.ejemplo`). Si la comisión no supera el mínimo, la pantalla
+  de la liquidación pregunta si se factura igual.
 - **Comprobantes imprimibles** (HTML → PDF del navegador): recibos de alquiler
   (con vencimiento y fecha de pago), **recibos manuales**, liquidaciones, pagarés
   de contrato y **pagarés manuales**.
