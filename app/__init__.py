@@ -78,6 +78,19 @@ def create_app(config_class=Config):
     app.register_blueprint(gas_bp)
     app.register_blueprint(api_bp)
     app.register_blueprint(facturador_bp)
+
+    @app.context_processor
+    def _inject_facturador():
+        from flask_login import current_user
+        try:
+            if not current_user.is_authenticated:
+                return {"facturador_disponible": False}
+            from . import facturador
+            from .models import Ajustes
+            disponible = facturador.habilitado() and facturador.inmobiliaria_autorizada(Ajustes.get())
+            return {"facturador_disponible": disponible}
+        except Exception:
+            return {"facturador_disponible": False}
     app.register_blueprint(plataforma_bp)
 
     # El buzón del robot de gas usa su propio token (X-Gas-Token), no CSRF.

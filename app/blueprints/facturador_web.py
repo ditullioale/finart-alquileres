@@ -7,12 +7,21 @@ from flask import (Blueprint, Response, jsonify, render_template, request)
 from flask_login import login_required
 
 from .. import facturador
+from ..models import Ajustes
 
 facturador_bp = Blueprint("facturador", __name__, url_prefix="/facturador")
 
 
 def _no_configurado():
     return jsonify({"detail": "El facturador no está configurado (falta FACTURADOR_URL)."}), 503
+
+
+def _autorizada() -> bool:
+    return facturador.inmobiliaria_autorizada(Ajustes.get())
+
+
+def _no_autorizada():
+    return jsonify({"detail": "Tu inmobiliaria no tiene habilitado el facturador."}), 403
 
 
 def _reenviar(resp):
@@ -26,12 +35,15 @@ def _reenviar(resp):
 @facturador_bp.route("/")
 @login_required
 def index():
-    return render_template("facturador/index.html", habilitado=facturador.habilitado())
+    return render_template("facturador/index.html", habilitado=facturador.habilitado(),
+                           autorizada=_autorizada())
 
 
 @facturador_bp.route("/subir", methods=["POST"])
 @login_required
 def subir():
+    if not _autorizada():
+        return _no_autorizada()
     if not facturador.habilitado():
         return _no_configurado()
     archivo = request.files.get("archivo")
@@ -49,7 +61,7 @@ def subir():
 @facturador_bp.route("/transferencias")
 @login_required
 def transferencias():
-    if not facturador.habilitado():
+    if not _autorizada() or not facturador.habilitado():
         return jsonify([]), 200
     try:
         return _reenviar(facturador.listar_transferencias())
@@ -60,6 +72,8 @@ def transferencias():
 @facturador_bp.route("/transferencias/<int:tid>", methods=["POST"])
 @login_required
 def actualizar(tid):
+    if not _autorizada():
+        return _no_autorizada()
     if not facturador.habilitado():
         return _no_configurado()
     try:
@@ -71,6 +85,8 @@ def actualizar(tid):
 @facturador_bp.route("/facturar", methods=["POST"])
 @login_required
 def facturar():
+    if not _autorizada():
+        return _no_autorizada()
     if not facturador.habilitado():
         return _no_configurado()
     datos = request.get_json() or {}
@@ -85,7 +101,7 @@ def facturar():
 @facturador_bp.route("/facturas")
 @login_required
 def facturas():
-    if not facturador.habilitado():
+    if not _autorizada() or not facturador.habilitado():
         return jsonify([]), 200
     try:
         return _reenviar(facturador.listar_facturas())
@@ -96,6 +112,8 @@ def facturas():
 @facturador_bp.route("/factura/<int:fid>/pdf")
 @login_required
 def factura_pdf(fid):
+    if not _autorizada():
+        return _no_autorizada()
     if not facturador.habilitado():
         return _no_configurado()
     try:

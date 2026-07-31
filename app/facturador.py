@@ -19,6 +19,22 @@ import requests
 CONCEPTO_DEFECTO = "HONORARIOS PROFESIONALES"
 
 
+def _solo_digitos(v) -> str:
+    return "".join(ch for ch in str(v or "") if ch.isdigit())
+
+
+def inmobiliaria_autorizada(ajustes) -> bool:
+    """Solo la inmobiliaria dueña del certificado puede facturar (por CUIT).
+
+    Si ``FACTURADOR_CUIT`` está configurado, únicamente la inmobiliaria cuyo CUIT
+    (de Ajustes) coincida puede usar el facturador. Si no está, no hay restricción.
+    """
+    autorizado = _solo_digitos(os.environ.get("FACTURADOR_CUIT"))
+    if not autorizado:
+        return True
+    return _solo_digitos(ajustes.cuit if ajustes else "") == autorizado
+
+
 def habilitado() -> bool:
     """La integración está activa solo si se configuró la URL del facturador."""
     return bool(_base_url())

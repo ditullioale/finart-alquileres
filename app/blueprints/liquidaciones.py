@@ -65,7 +65,10 @@ def _facturar_honorarios(liq, prop, confirmar=False):
     factura la comisión. Si la comisión no supera el mínimo, el facturador pide
     confirmación y acá se informa para que el usuario decida. Devuelve el estado.
     """
-    resultado = facturador.facturar_liquidacion(liq, prop, Ajustes.get(),
+    ajustes = Ajustes.get()
+    if not facturador.inmobiliaria_autorizada(ajustes):
+        return "no_autorizado"
+    resultado = facturador.facturar_liquidacion(liq, prop, ajustes,
                                                  confirmar_bajo_minimo=confirmar)
     estado = resultado.get("estado")
     if estado == "emitida":

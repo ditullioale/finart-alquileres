@@ -59,7 +59,7 @@
       <a class="nav-item {{ 'active' if bp=='contratos' and ep not in ('contratos.generador','contratos.crear') }}" href="{{ url_for('contratos.listar') }}"><span class="i">{{ icon('file-text') }}</span> Contratos</a>
       <a class="nav-item {{ 'active' if bp=='cobros' }}" href="{{ url_for('cobros.index') }}"><span class="i">{{ icon('banknote') }}</span> Cobranzas</a>
       <a class="nav-item {{ 'active' if bp=='liquidaciones' }}" href="{{ url_for('liquidaciones.index') }}"><span class="i">{{ icon('receipt') }}</span> Liquidaciones</a>
-      <a class="nav-item {{ 'active' if bp=='facturador' }}" href="{{ url_for('facturador.index') }}"><span class="i">{{ icon('file-text') }}</span> Facturador</a>
+      {% if facturador_disponible %}<a class="nav-item {{ 'active' if bp=='facturador' }}" href="{{ url_for('facturador.index') }}"><span class="i">{{ icon('file-text') }}</span> Facturador</a>{% endif %}
       <a class="nav-item {{ 'active' if bp=='aumentos' and 'indice' not in ep }}" href="{{ url_for('aumentos.index') }}"><span class="i">{{ icon('trending-up') }}</span> Aumentos
         {% if aumentos_pendientes and aumentos_pendientes > 0 %}<span class="nbadge">{{ aumentos_pendientes }}</span>{% endif %}</a>
       <a class="nav-item {{ 'active' if bp=='inmuebles' }}" href="{{ url_for('inmuebles.listar') }}"><span class="i">{{ icon('building') }}</span> Inmuebles</a>

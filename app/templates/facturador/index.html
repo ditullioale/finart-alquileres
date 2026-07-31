@@ -11,6 +11,12 @@
 <div class="panel" style="border-left:4px solid #d08700;background:#fff8e6">
   <b>El facturador no está configurado.</b> Falta la variable <code>FACTURADOR_URL</code> en el servidor.
 </div>
+{% elif not autorizada %}
+<div class="panel" style="border-left:4px solid #c0392b;background:#fdecec">
+  <b>El facturador no está habilitado para tu inmobiliaria.</b>
+  Cada inmobiliaria factura con su propio certificado de ARCA; por seguridad, esta cuenta no puede
+  usar credenciales de otra.
+</div>
 {% else %}
 
 <div class="panel" style="margin-bottom:16px">
@@ -41,12 +47,13 @@
   </div>
 </div>
 
-<div class="panel">
-  <h2 style="display:flex;align-items:center;gap:7px">{{ icon('receipt', 18) }} Facturas emitidas</h2>
-  <div class="table-wrap" style="margin-top:10px">
+<div class="panel" id="panelResultado" hidden>
+  <h2 style="display:flex;align-items:center;gap:7px">{{ icon('receipt', 18) }} Facturas emitidas ahora</h2>
+  <p class="hint" style="margin:6px 0">Descargá o imprimí los PDF ahora: este listado <b>no se conserva</b> (al recargar la página desaparece).</p>
+  <div class="table-wrap" style="margin-top:6px">
     <table class="grid card-collapse">
       <thead><tr><th>Nº</th><th>Receptor</th><th class="r">Importe</th><th>CAE</th><th>Estado</th><th></th></tr></thead>
-      <tbody id="tbodyFacturas"><tr><td colspan="6" class="hint">Sin facturas todavía.</td></tr></tbody>
+      <tbody id="tbodyResultado"></tbody>
     </table>
   </div>
 </div>
@@ -110,37 +117,35 @@
         if(val.length===11 && val!==(t&&t.cuit)){
           fetch('/facturador/transferencias/'+id, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({cuit: val})})
             .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
-            .then(function(res){ if(res.ok){ cargar(); } else { aviso(res.j.detail||'CUIT inválido','error'); } });
+            .then(function(res){ if(res.ok){ var i=datos.findIndex(function(x){return x.id===id;}); if(i>=0) datos[i]=res.j; render(); } else { aviso(res.j.detail||'CUIT inválido','error'); } });
         }
       });
     });
     actualizarBoton();
   }
 
-  function cargar(){
-    fetch('/facturador/transferencias').then(function(r){return r.json();}).then(function(j){
-      datos = Array.isArray(j) ? j : [];
-      // limpiar selección de las que ya no son facturables
-      seleccion.forEach(function(id){ var t = datos.find(function(x){return x.id===id;}); if(!t||!esFacturable(t)) seleccion.delete(id); });
-      render();
+  function cargar(){ render(); }
+
+  function renderResultado(facturas){
+    var tb = document.getElementById('tbodyResultado');
+    tb.innerHTML='';
+    facturas.forEach(function(f){
+      var nro = String(f.punto_venta).padStart(4,'0')+'-'+String(f.numero||0).padStart(8,'0');
+      var estado = f.estado==='emitida'
+        ? '<span class="badge parcial">Emitida</span>'
+        : '<span class="badge pendiente" title="'+(f.error||'')+'">Error</span>';
+      var pdf = f.estado==='emitida'
+        ? '<a class="btn sec sm" href="/facturador/factura/'+f.id+'/pdf" target="_blank">PDF</a>' : '';
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td data-l="Nº">'+(f.estado==='emitida'?nro:'—')+'</td>'+
+        '<td data-l="Receptor">'+(f.razon_social||f.cuit_receptor)+'</td>'+
+        '<td data-l="Importe" class="r">'+money.format(Number(f.importe))+'</td>'+
+        '<td data-l="CAE">'+(f.cae||'—')+'</td>'+
+        '<td data-l="Estado">'+estado+'</td>'+
+        '<td>'+pdf+'</td>';
+      tb.appendChild(tr);
     });
-    fetch('/facturador/facturas').then(function(r){return r.json();}).then(function(j){
-      var tb = document.getElementById('tbodyFacturas');
-      var fs = Array.isArray(j) ? j.filter(function(f){return f.estado==='emitida';}) : [];
-      if(!fs.length){ tb.innerHTML = '<tr><td colspan="6" class="hint">Sin facturas todavía.</td></tr>'; return; }
-      tb.innerHTML = '';
-      fs.forEach(function(f){
-        var nro = String(f.punto_venta).padStart(4,'0')+'-'+String(f.numero||0).padStart(8,'0');
-        var tr = document.createElement('tr');
-        tr.innerHTML = '<td data-l="Nº">'+nro+'</td>'+
-          '<td data-l="Receptor">'+(f.razon_social||f.cuit_receptor)+'</td>'+
-          '<td data-l="Importe" class="r">'+money.format(Number(f.importe))+'</td>'+
-          '<td data-l="CAE">'+(f.cae||'—')+'</td>'+
-          '<td data-l="Estado"><span class="badge parcial">Emitida</span></td>'+
-          '<td><a class="btn sec sm" href="/facturador/factura/'+f.id+'/pdf" target="_blank">PDF</a></td>';
-        tb.appendChild(tr);
-      });
-    });
+    document.getElementById('panelResultado').hidden = facturas.length===0;
   }
 
   document.getElementById('chkAll').addEventListener('change', function(e){
@@ -169,7 +174,10 @@
           box.hidden = false; box.style.color='#14663a';
           box.textContent = 'Importado: '+res.j.nuevas+' nuevas, '+res.j.duplicadas+' duplicadas, '+res.j.sin_cuit+' sin CUIT.';
           document.getElementById('formSubir').reset();
-          cargar();
+          datos = Array.isArray(res.j.transferencias) ? res.j.transferencias : [];
+          seleccion.clear();
+          document.getElementById('panelResultado').hidden = true;
+          render();
         } else {
           box.hidden = false; box.style.color='#b00';
           box.textContent = res.j.detail || 'No se pudo importar el archivo.';
@@ -194,7 +202,15 @@
     fetch('/facturador/facturar', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({transferencia_ids: ids, confirmar_bajo_minimo: confirmar})})
       .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
       .then(function(res){
-        if(res.ok){ aviso('Se emitieron '+(res.j.length||0)+' factura(s).'); seleccion.clear(); cargar(); }
+        if(res.ok){
+          var emitidas = (res.j||[]).filter(function(f){return f.estado==='emitida';}).length;
+          aviso('Se emitieron '+emitidas+' factura(s). Descargá los PDF abajo (no se guardan).');
+          renderResultado(res.j||[]);
+          var okIds = (res.j||[]).filter(function(f){return f.estado==='emitida';}).map(function(f){return f.transferencia_id;});
+          datos = datos.filter(function(t){ return okIds.indexOf(t.id)===-1; });
+          seleccion.clear();
+          render();
+        }
         else { aviso(res.j.detail || 'No se pudieron emitir las facturas.', 'error'); document.getElementById('btnFacturar').disabled = false; }
       })
       .catch(function(){ aviso('Error al emitir.', 'error'); document.getElementById('btnFacturar').disabled = false; });
