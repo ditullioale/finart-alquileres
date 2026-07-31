@@ -19,3 +19,5 @@ gunicorn>=22.0.0
 xhtml2pdf>=0.2.17
 cryptography>=42
 requests>=2.31
+
+requests>=2.31
