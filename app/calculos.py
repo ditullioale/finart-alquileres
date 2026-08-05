@@ -7,7 +7,30 @@ fuente de verdad y están cubiertas por pruebas.
 """
 from datetime import date
 
-from .utils import q2, vencimiento
+from .utils import q2, vencimiento, add_months, proximo_ajuste
+
+
+def proximo_aumento(contrato):
+    """Fecha del próximo aumento de un contrato. Fuente única de verdad.
+
+    Se cuenta desde el mejor ancla disponible, en este orden:
+      1) la fecha de vigencia del último aumento registrado + cada_meses;
+      2) la 'fecha base' del contrato (aumento_base) + cada_meses — clave para
+         datos importados que no traen el historial de aumentos;
+      3) el inicio del contrato (comportamiento anterior).
+    Devuelve None si el contrato no tiene ajuste configurado."""
+    cada = contrato.ajuste_cada_meses
+    if contrato.metodo_ajuste == "sin_ajuste" or not cada:
+        return None
+    aums = list(contrato.aumentos or [])
+    if aums:
+        ultimo = max((a.fecha_vigencia for a in aums if a.fecha_vigencia), default=None)
+        if ultimo:
+            return add_months(ultimo, int(cada))
+    base = getattr(contrato, "aumento_base", None)
+    if base:
+        return add_months(base, int(cada))
+    return proximo_ajuste(contrato.fecha_inicio, cada, len(aums))
 
 
 def canon_vigente(contrato):

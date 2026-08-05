@@ -30,14 +30,13 @@ def index():
     from ..models import Aumento
     deuda = float(db.session.query(func.coalesce(func.sum(Pago.saldo), 0)).scalar() or 0)
     hoy = date.today()
-    # Cantidad de aumentos por contrato en UNA consulta (evita N+1).
-    _cnt = dict(db.session.query(Aumento.contrato_id, func.count(Aumento.id))
-                .group_by(Aumento.contrato_id).all())
+    from ..calculos import proximo_aumento
     aumentos_pend = 0
-    for c in Contrato.query.filter_by(estado="Vigente").all():
+    for c in (Contrato.query.filter_by(estado="Vigente")
+              .options(joinedload(Contrato.aumentos)).all()):
         if c.metodo_ajuste == "sin_ajuste" or not c.ajuste_cada_meses:
             continue
-        prox = proximo_ajuste(c.fecha_inicio, c.ajuste_cada_meses, _cnt.get(c.id, 0))
+        prox = proximo_aumento(c)
         if prox and prox <= hoy:
             aumentos_pend += 1
 

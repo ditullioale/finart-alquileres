@@ -287,6 +287,10 @@ class Contrato(db.Model):
     indice_tipo = db.Column(db.String(20))                # ICL / IPC / CasaPropia
     ajuste_cada_meses = db.Column(db.Integer, default=6)
     porcentaje_ajuste = db.Column(db.Numeric(8, 2))       # % por período (método porcentaje)
+    # Fecha desde la que se cuenta el próximo aumento (ej: cuando el precio actual
+    # empezó a regir). Útil para datos importados sin historial de aumentos: sin
+    # esto, el próximo aumento se contaría desde el inicio del contrato.
+    aumento_base = db.Column(db.Date)
 
     estado = db.Column(db.String(20), default="Vigente")  # Vigente/Finalizado/Rescindido
     aumento_pospuesto = db.Column(db.Date)                 # no recordar el aumento hasta esta fecha

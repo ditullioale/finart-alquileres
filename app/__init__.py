@@ -194,22 +194,19 @@ def create_app(config_class=Config):
             return dict(aumentos_pendientes=0)
         try:
             from datetime import date
-            from sqlalchemy import func
-            from .models import Contrato, Aumento
-            from .utils import proximo_ajuste
+            from sqlalchemy.orm import joinedload
+            from .models import Contrato
+            from .calculos import proximo_aumento
             hoy = date.today()
-            contratos = Contrato.query.filter_by(estado="Vigente").all()
-            # Cantidad de aumentos por contrato en UNA sola consulta (evita N+1).
-            counts = dict(db.session.query(Aumento.contrato_id, func.count(Aumento.id))
-                          .group_by(Aumento.contrato_id).all())
+            contratos = (Contrato.query.filter_by(estado="Vigente")
+                         .options(joinedload(Contrato.aumentos)).all())
             n = 0
             for c in contratos:
                 if c.metodo_ajuste == "sin_ajuste" or not c.ajuste_cada_meses:
                     continue
                 if c.aumento_pospuesto and c.aumento_pospuesto > hoy:
                     continue
-                prox = proximo_ajuste(c.fecha_inicio, c.ajuste_cada_meses,
-                                      counts.get(c.id, 0))
+                prox = proximo_aumento(c)
                 if prox and prox <= hoy:
                     n += 1
             return dict(aumentos_pendientes=n)

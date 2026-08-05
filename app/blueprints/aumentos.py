@@ -41,11 +41,12 @@ def index():
     hoy = date.today()
     contratos = Contrato.query.filter_by(estado="Vigente").all()
     pendientes, proximos = [], []
+    from ..calculos import proximo_aumento
     for c in contratos:
         if c.metodo_ajuste == "sin_ajuste" or not c.ajuste_cada_meses:
             continue
         n = len(c.aumentos)
-        prox = proximo_ajuste(c.fecha_inicio, c.ajuste_cada_meses, n)
+        prox = proximo_aumento(c)
         if not prox:
             continue
         # Si el aumento fue pospuesto y la fecha aún no llegó, no molestar.
@@ -61,7 +62,8 @@ def index():
     ultimos = Aumento.query.order_by(Aumento.creado.desc()).limit(30).all()
     return render_template("aumentos/index.html", pendientes=pendientes,
                            proximos=proximos, ultimos=ultimos,
-                           indice_nombre=INDICE_NOMBRE, meses=MESES_ES)
+                           indice_nombre=INDICE_NOMBRE, meses=MESES_ES,
+                           hoy_ym=hoy.strftime("%Y-%m"))
 
 
 # --------------------------------------------------------------------------- #
@@ -191,6 +193,11 @@ def config_masiva():
     if tipo not in TIPOS_INDICE:
         tipo = "ICL"
     solo_sin = bool(request.form.get("solo_sin_ajuste"))
+    # Fecha base para contar el próximo aumento (por defecto, el 1° del mes actual).
+    # Sin esto, en contratos importados el próximo aumento se contaría desde el
+    # inicio del contrato y aparecerían todos como "vencidos".
+    base = parse_periodo(request.form.get("desde")) or periodo_date(date.today().year,
+                                                                    date.today().month)
     n = 0
     for c in Contrato.query.filter_by(estado="Vigente").all():
         if solo_sin and c.metodo_ajuste not in (None, "", "sin_ajuste"):
@@ -198,10 +205,12 @@ def config_masiva():
         c.metodo_ajuste = "indice"
         c.indice_tipo = tipo
         c.ajuste_cada_meses = cada
+        c.aumento_base = base
         n += 1
     db.session.commit()
     flash(f"Listo: {n} contrato(s) vigente(s) quedaron con ajuste por índice "
-          f"{INDICE_NOMBRE.get(tipo, tipo)} cada {cada} meses.", "ok")
+          f"{INDICE_NOMBRE.get(tipo, tipo)} cada {cada} meses, contando desde "
+          f"{base.strftime('%m/%Y')}.", "ok")
     return redirect(url_for("aumentos.index"))
 
 

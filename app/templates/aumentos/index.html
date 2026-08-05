@@ -10,7 +10,7 @@
 {% if current_user.rol == 'admin' %}
 <details class="panel" style="margin-bottom:16px">
   <summary style="cursor:pointer;font-weight:700">⚙️ Configurar el ajuste de todos los contratos vigentes (masivo)</summary>
-  <p class="hint" style="margin:10px 0">Útil después de importar de Inmosoft (que no trae el método). Deja todos tus contratos vigentes con ajuste <b>por índice</b> cada X meses. <b>Solo afecta a tu inmobiliaria.</b></p>
+  <p class="hint" style="margin:10px 0">Útil después de importar de Inmosoft. Deja todos tus contratos vigentes con ajuste <b>por índice</b> cada X meses, contando el próximo aumento <b>desde el mes que indiques</b> (así no aparecen todos como vencidos). <b>Solo afecta a tu inmobiliaria.</b></p>
   <form method="post" action="{{ url_for('aumentos.config_masiva') }}"
         onsubmit="return confirm('¿Seguro? Se va a cambiar el método de ajuste de tus contratos vigentes.');"
         style="display:flex;gap:12px;align-items:end;flex-wrap:wrap">
@@ -20,6 +20,8 @@
       </select></div>
     <div><label>Cada cuántos meses</label>
       <input type="number" name="cada_meses" value="4" min="1" max="60" style="width:120px"></div>
+    <div><label>Contar el próximo aumento desde</label>
+      <input type="month" name="desde" value="{{ hoy_ym }}"></div>
     <label class="chk" style="margin-bottom:9px"><input type="checkbox" name="solo_sin_ajuste"> Solo los que hoy están "sin ajuste"</label>
     <button class="btn" type="submit">Aplicar a todos los vigentes</button>
   </form>
