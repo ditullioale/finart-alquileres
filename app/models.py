@@ -512,6 +512,10 @@ class Ajustes(db.Model):
     # Credenciales de Litoral Gas (por inmobiliaria). La clave se guarda cifrada.
     gas_usuario = db.Column(db.String(160))
     gas_clave_enc = db.Column(db.Text)
+    # Facturación electrónica ARCA (multiempresa): token del emisor (cifrado) + datos de referencia.
+    facturador_token_enc = db.Column(db.Text)
+    facturador_modo = db.Column(db.String(16))
+    facturador_pv = db.Column(db.Integer)
 
     @staticmethod
     def get():
@@ -536,6 +540,18 @@ class Ajustes(db.Model):
     @property
     def gas_configurado(self):
         return bool(self.gas_usuario and self.gas_clave_enc)
+
+    def set_facturador_token(self, token):
+        from .cripto import cifrar
+        self.facturador_token_enc = cifrar(token)
+
+    def get_facturador_token(self):
+        from .cripto import descifrar
+        return descifrar(self.facturador_token_enc)
+
+    @property
+    def facturador_configurado(self):
+        return bool(self.facturador_token_enc)
 
     def _bloquear(self):
         """Devuelve esta fila de Ajustes con bloqueo de escritura, para que dos

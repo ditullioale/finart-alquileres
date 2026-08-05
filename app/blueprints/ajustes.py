@@ -47,7 +47,44 @@ def index():
         return redirect(url_for("ajustes.index"))
     from ..models import GasCredencial
     credenciales_gas = GasCredencial.query.order_by(GasCredencial.id).all()
-    return render_template("ajustes/index.html", a=a, credenciales_gas=credenciales_gas)
+    from .. import facturador
+    return render_template("ajustes/index.html", a=a, credenciales_gas=credenciales_gas,
+                           facturador_habilitado=facturador.habilitado())
+
+
+@ajustes_bp.route("/facturador", methods=["POST"])
+@login_required
+@admin_required
+def facturador_config():
+    """Configura el emisor de ARCA de esta inmobiliaria (multiempresa)."""
+    from .. import facturador
+    a = Ajustes.get()
+    if not (a.cuit and len("".join(c for c in a.cuit if c.isdigit())) == 11):
+        flash("Cargá primero el CUIT de la inmobiliaria (arriba) antes de configurar ARCA.", "error")
+        return redirect(url_for("ajustes.index"))
+    modo = request.form.get("arca_mode", "homologacion")
+    pv = parse_num(request.form.get("punto_venta"), entero=True) or 1
+    tipo = parse_num(request.form.get("tipo_comprobante"), entero=True) or 11
+    cert = request.files.get("cert")
+    clave = request.files.get("clave")
+    cert_bytes = cert.read() if cert and cert.filename else None
+    key_bytes = clave.read() if clave and clave.filename else None
+    if modo != "mock" and not a.facturador_configurado and not (cert_bytes and key_bytes):
+        flash("Subí el certificado (.crt/.pem) y la clave privada (.key) de ARCA.", "error")
+        return redirect(url_for("ajustes.index"))
+    res = facturador.registrar_emisor(
+        a, cert_bytes=cert_bytes, key_bytes=key_bytes,
+        punto_venta=pv, tipo_comprobante=tipo, arca_mode=modo,
+    )
+    if res.get("ok"):
+        a.set_facturador_token(res["token"])
+        a.facturador_modo = modo
+        a.facturador_pv = pv
+        db.session.commit()
+        flash("Facturación electrónica configurada.", "ok")
+    else:
+        flash(f"No se pudo configurar la facturación: {res.get('error')}", "error")
+    return redirect(url_for("ajustes.index"))
 
 
 @ajustes_bp.route("/gas/agregar", methods=["POST"])

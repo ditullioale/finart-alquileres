@@ -70,6 +70,48 @@
 </div>
 
 {% if current_user.rol == 'admin' %}
+<div class="cardform" style="margin-top:16px" id="facturacion">
+  <h2>🧾 Facturación electrónica (ARCA)</h2>
+  {% if not facturador_habilitado %}
+  <p class="hint">El facturador no está disponible en este servidor. Consultá al administrador de la plataforma.</p>
+  {% else %}
+  <p class="hint" style="margin:0 0 12px">Cargá el <b>certificado</b> y la <b>clave privada</b> de ARCA de tu inmobiliaria para emitir facturas electrónicas. Se guardan cifrados y nunca se muestran. El CUIT del emisor es el de la inmobiliaria (arriba).</p>
+  {% if a.facturador_configurado %}
+  <p class="hint" style="background:#eefaf1;border:1px solid #a9dcbb;color:#14663a;padding:8px 12px;border-radius:8px">
+    ✓ Configurado — CUIT <b>{{ a.cuit }}</b>, modo <b>{{ a.facturador_modo or '—' }}</b>, punto de venta <b>{{ a.facturador_pv or '—' }}</b>.
+    Podés volver a subir el certificado o cambiar el modo/punto de venta.
+  </p>
+  {% else %}
+  <p class="hint" style="background:#fff6e5;border:1px solid #f0d089;color:#8a5a00;padding:8px 12px;border-radius:8px">Todavía no configuraste la facturación electrónica.</p>
+  {% endif %}
+  <form method="post" action="{{ url_for('ajustes.facturador_config') }}" enctype="multipart/form-data" style="margin-top:12px">
+    <div class="grid2">
+      <div><label>Certificado (.crt / .pem)</label><input type="file" name="cert" accept=".crt,.pem,.cer"></div>
+      <div><label>Clave privada (.key)</label><input type="file" name="clave" accept=".key,.pem"></div>
+      <div><label>Punto de venta (Web Services)</label><input type="number" name="punto_venta" min="1" value="{{ a.facturador_pv or 1 }}"></div>
+      <div>
+        <label>Modo</label>
+        <select name="arca_mode">
+          <option value="homologacion" {{ 'selected' if a.facturador_modo == 'homologacion' or not a.facturador_modo }}>Homologación (prueba)</option>
+          <option value="produccion" {{ 'selected' if a.facturador_modo == 'produccion' }}>Producción (validez fiscal)</option>
+        </select>
+      </div>
+      <div>
+        <label>Tipo de comprobante</label>
+        <select name="tipo_comprobante">
+          <option value="11">Factura C (Monotributo)</option>
+          <option value="6">Factura B</option>
+          <option value="1">Factura A</option>
+        </select>
+      </div>
+    </div>
+    <div class="formbtns"><button class="btn" type="submit">Guardar y activar</button></div>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if current_user.rol == 'admin' %}
 <div class="cardform" style="margin-top:16px">
   <h2>Respaldo de datos</h2>
   <p class="hint" style="margin:0 0 12px">Descargá una copia de toda la base (personas, inmuebles, contratos, pagos, etc.) en un Excel. Guardala cada tanto por seguridad.</p>
