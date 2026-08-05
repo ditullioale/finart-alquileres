@@ -57,7 +57,8 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
       <td data-l="Inquilino"><b>{{ f.c.inquilino.nombre if f.c.inquilino else '—' }}</b></td>
       <td data-l="Inmueble">{{ f.c.inmueble.direccion }}
         {% if f.c.inmueble.localidad %}<div class="hint" style="margin:0">{{ f.c.inmueble.localidad }}</div>{% endif %}</td>
-      <td data-l="A cobrar" class="r">{{ f.c.moneda|simbolo }} {{ f.esperado|money }}</td>
+      <td data-l="A cobrar" class="r">{{ f.c.moneda|simbolo }} {{ f.esperado|money }}
+        {% if f.aum_pendiente and f.estado != 'Pagado' %}<div class="hint" style="margin:0;color:#8a5a00;font-weight:600">⬆ aumenta este mes</div>{% endif %}</td>
       <td data-l="Vence">{% if f.venc %}<span class="{{ 'txt-danger' if (f.estado != 'Pagado' and f.venc < hoy) }}">{{ f.venc.strftime('%d/%m/%Y') }}</span>
         {% if f.estado != 'Pagado' and f.venc < hoy %}<div class="hint" style="margin:0;color:var(--err)">vencido</div>{% endif %}
         {% else %}—{% endif %}</td>
@@ -87,6 +88,8 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
             data-periodo="{{ meses[mes] }} de {{ anio }}"
             data-venc="{{ f.venc.isoformat() if f.venc else '' }}"
             data-morapct="{{ f.c.mora_diaria_pct or 0 }}"
+            data-aumenta="{{ '1' if f.aum_pendiente else '' }}"
+            data-aplicar="{{ url_for('aumentos.aplicar', cid=f.c.id, volver=url_for('cobros.index', mes=mes, anio=anio)) }}"
             data-detalle="{{ url_for('cobros.nuevo', cid=f.c.id, mes=mes, anio=anio) }}">Cobrar</button>
         {% endif %}
       </td>
@@ -119,6 +122,21 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
       <a class="btn ok" id="ask-recibo" href="#" target="_blank">Abrir recibo</a>
       <a class="btn sec" id="ask-pdf" href="#">Descargar PDF</a>
       <button type="button" class="btn sec" onclick="cerrarAsk()">Ahora no</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-ov" id="aumModal" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <h3>⬆ Este alquiler tiene aumento este mes</h3>
+      <button type="button" class="modal-x" aria-label="Cerrar" onclick="cerrarAum()">✕</button>
+    </div>
+    <p class="modal-sub" id="aum-txt">A este contrato le corresponde un aumento en el período que estás cobrando y todavía no está aplicado. ¿Querés calcular el aumento primero o cobrar con el precio actual?</p>
+    <div class="modal-btns">
+      <a class="btn ok" id="aum-calc" href="#">Calcular aumento</a>
+      <button type="button" class="btn sec" id="aum-seguir">Cobrar con precio actual</button>
+      <button type="button" class="btn sec" onclick="cerrarAum()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -278,8 +296,24 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
   window.cerrarAsk = function(){ ask.setAttribute('hidden',''); };
   ask.addEventListener('click', function(e){ if(e.target === ask) cerrarAsk(); });
 
+  var aumOv = document.getElementById('aumModal');
+  window.cerrarAum = function(){ aumOv.setAttribute('hidden',''); };
+  aumOv.addEventListener('click', function(e){ if(e.target === aumOv) cerrarAum(); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape' && !aumOv.hasAttribute('hidden')) cerrarAum(); });
+
   document.querySelectorAll('.js-cobrar').forEach(function(b){
-    b.addEventListener('click', function(){ abrirCobro(b); });
+    b.addEventListener('click', function(){
+      // Si a este alquiler le corresponde un aumento este mes y no está aplicado,
+      // primero preguntamos: calcular el aumento o cobrar con el precio actual.
+      if(b.dataset.aumenta === '1'){
+        document.getElementById('aum-calc').href = b.dataset.aplicar;
+        var seguir = document.getElementById('aum-seguir');
+        seguir.onclick = function(){ cerrarAum(); abrirCobro(b); };
+        aumOv.removeAttribute('hidden');
+      } else {
+        abrirCobro(b);
+      }
+    });
   });
 
   function badgeParcial(saldo){ return '<span class="badge parcial">Parcial · falta ' + fmtMoney(saldo) + '</span>'; }

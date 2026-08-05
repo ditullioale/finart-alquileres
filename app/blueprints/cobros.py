@@ -12,7 +12,8 @@ from ..idempotencia import nueva_clave, reservar
 from ..models import Contrato, Pago, GastoExtra
 from ..utils import (parse_fecha, parse_num, vencimiento, calcular_mora,
                      periodo_siguiente, MESES_ES, link_whatsapp, whatsapp_valido, q2)
-from ..calculos import estado_periodo, canon_vigente
+from ..calculos import (estado_periodo, canon_vigente,
+                        aumento_en_mes, aumento_registrado_en_mes)
 
 cobros_bp = Blueprint("cobros", __name__, url_prefix="/cobros")
 
@@ -113,9 +114,13 @@ def index():
         if estado != "Pagado":
             tot_pendiente += saldo
         prox_nro = (max((p.numero or 0) for p in c.pagos) + 1) if c.pagos else 1
+        # ¿A este contrato le corresponde un aumento en el mes que se está cobrando
+        # y todavía no se registró? Sirve para avisar antes de cobrar al precio viejo.
+        f_aum = aumento_en_mes(c, anio, mes)
+        aum_pendiente = bool(f_aum) and not aumento_registrado_en_mes(c, anio, mes)
         filas.append(dict(c=c, pago=pago, esperado=esperado, estado=estado,
                           cobrado=cobrado, saldo=saldo, prox_nro=prox_nro,
-                          venc=venc))
+                          venc=venc, aum_pendiente=aum_pendiente))
 
     if filtro == "pendiente":
         filas = [f for f in filas if f["estado"] not in ("Pagado",)]

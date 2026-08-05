@@ -18,6 +18,13 @@ TIPOS_INDICE = ["ICL", "IPC", "CasaPropia"]
 ARQUILER_URL = "https://arquiler.com/"   # calculadora externa para IPC / Casa Propia
 
 
+def _destino_seguro(url):
+    """Acepta solo rutas internas (evita open-redirect). Devuelve la url o None."""
+    if url and url.startswith("/") and not url.startswith("//"):
+        return url
+    return None
+
+
 def _asegurar_icl(periodos):
     """Trae del BCRA los valores de ICL que falten para esos períodos (best-effort).
     Devuelve True si, tras intentarlo, están todos disponibles."""
@@ -155,6 +162,11 @@ def aplicar(cid):
         db.session.add(aum)
         db.session.commit()
         flash(f"Aumento aplicado: {c.moneda} {precio_actual:,.2f} → {nuevo:,.2f}.", "ok")
+        # Si venías desde cobranzas (u otra pantalla interna), te devuelvo ahí con
+        # el precio ya actualizado, para seguir cobrando sin dar vueltas.
+        volver = _destino_seguro(request.form.get("volver"))
+        if volver:
+            return redirect(volver)
         return redirect(url_for("contratos.ver", cid=c.id))
 
     per_base, per_dest = _sugerencia(c)
@@ -168,6 +180,7 @@ def aplicar(cid):
         tipos=TIPOS_INDICE, indice_nombre=INDICE_NOMBRE,
         pct_sugerido=float(c.porcentaje_ajuste) if c.porcentaje_ajuste else "",
         hoy=date.today(), metodo_ini=metodo_ini, arquiler_url=ARQUILER_URL,
+        volver=_destino_seguro(request.args.get("volver")),
     )
     return render_template("aumentos/aplicar.html", **contexto)
 

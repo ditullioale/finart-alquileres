@@ -393,6 +393,26 @@ def run():
               q(lambda: _Aum.query.filter_by(contrato_id=ids["c"])
                 .order_by(_Aum.id.desc()).first().precio_nuevo))
 
+        # Aviso de aumento en Cobranzas: si a un contrato le corresponde un aumento
+        # en el período que se está cobrando, la fila trae la marca para preguntar.
+        from app.calculos import aumento_en_mes as _aem
+        def _cfg_aum():
+            cc = _Con.query.get(ids["c2"])
+            cc.metodo_ajuste = "indice"; cc.indice_tipo = "ICL"
+            cc.ajuste_cada_meses = 4; cc.aumentos.clear()
+            # inicio en un mes tal que (mes+4) caiga en un período conocido: uso enero 2025
+            cc.fecha_inicio = _d0(2025, 1, 10)
+            db.session.commit()
+            return cc.id
+        q(_cfg_aum)
+        # Enero 2025 + 4 = mayo 2025 → aumenta en 05/2025 y no está registrado.
+        check("aumento_en_mes marca mayo-2025 para el contrato configurado",
+              q(lambda: bool(_aem(_Con.query.get(ids["c2"]), 2025, 5))))
+        _html_cob = cl.get("/cobros/?mes=5&anio=2025").get_data(as_text=True)
+        check("Cobranzas avisa el aumento del mes (badge + botón)",
+              'aumenta este mes' in _html_cob and 'data-aumenta="1"' in _html_cob)
+        check("Cobranzas incluye el modal de aviso de aumento", "aumModal" in _html_cob)
+
         seccion("Cálculos centralizados (mora / estado de período)")
         from app.calculos import canon_vigente, estado_periodo
         from app.utils import calcular_mora

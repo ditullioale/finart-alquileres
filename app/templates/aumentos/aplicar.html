@@ -10,6 +10,7 @@
 </div>
 
 <form method="post" class="cardform" data-precio="{{ precio_actual }}">
+  {% if volver %}<input type="hidden" name="volver" value="{{ volver }}">{% endif %}
   <label>¿Cómo querés calcular el aumento?</label>
   <div class="metodo-seg">
     <label class="seg-op"><input type="radio" name="metodo" value="manual" {{ 'checked' if metodo_ini=='manual' }} onchange="toggle()"> 💵 Precio nuevo directo</label>
