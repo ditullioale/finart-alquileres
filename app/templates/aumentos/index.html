@@ -26,62 +26,103 @@
 </details>
 {% endif %}
 
+<form class="filters" method="get" style="align-items:center">
+  <b style="margin-right:6px">Ver los que aumentan en:</b>
+  <select name="mes">
+    {% for m in range(1,13) %}<option value="{{ m }}" {{ 'selected' if mes==m }}>{{ meses[m] }}</option>{% endfor %}
+  </select>
+  <select name="anio">
+    {% for a in anios %}<option value="{{ a }}" {{ 'selected' if anio==a }}>{{ a }}</option>{% endfor %}
+  </select>
+  <button class="btn sec" type="submit">Ver</button>
+</form>
+
 <div class="panel" style="margin-bottom:16px">
-  <h2 class="txt-danger">Aumentos pendientes ({{ pendientes|length }})</h2>
-  {% if pendientes %}
-  <table class="grid">
-    <thead><tr><th>Vencía</th><th>Inmueble</th><th>Inquilino</th><th>Método</th><th class="r">Precio actual</th><th></th></tr></thead>
+  <h2>📈 Aumentan en {{ meses[mes] }} {{ anio }} ({{ del_mes|length }})</h2>
+  {% if del_mes %}
+  <div class="table-wrap">
+  <table class="grid card-collapse">
+    <thead><tr><th>Fecha</th><th>Inmueble</th><th>Inquilino</th><th>Método</th><th class="r">Precio actual</th><th></th></tr></thead>
     <tbody>
-      {% for it in pendientes %}
+      {% for it in del_mes %}
       <tr>
-        <td class="txt-danger"><b>{{ it.fecha.strftime('%d/%m/%Y') }}</b></td>
-        <td>{{ it.c.inmueble.direccion }}</td>
-        <td>{{ it.c.inquilino.nombre if it.c.inquilino else '—' }}</td>
-        <td>{% if it.c.metodo_ajuste=='indice' %}{{ indice_nombre.get(it.c.indice_tipo, it.c.indice_tipo) }}{% else %}{{ it.c.porcentaje_ajuste }}%{% endif %}</td>
-        <td class="r">{{ it.c.moneda|simbolo }} {{ it.c.precio_actual|money }}</td>
-        <td class="actions">
-          <a class="btn" href="{{ url_for('aumentos.aplicar', cid=it.c.id) }}">Aplicar</a>
-          <form method="post" action="{{ url_for('aumentos.marcar_aplicado', cid=it.c.id) }}"
-                onsubmit="return confirm('Marcar el aumento de {{ it.fecha.strftime('%m/%Y') }} como YA aplicado, sin cambiar el precio de {{ it.c.moneda|simbolo }} {{ it.c.precio_actual|money }}?')">
-            <button class="btn sec sm" type="submit" title="Registrar que este aumento ya se hizo, sin cambiar el precio">✓ Ya aplicado</button>
-          </form>
-          {% if it.c.inquilino %}
-            {% set msj = "Hola " ~ it.c.inquilino.nombre ~ "! Te escribo para avisarte que corresponde el ajuste del alquiler de " ~ it.c.inmueble.direccion ~ " desde el " ~ it.fecha.strftime('%d/%m/%Y') ~ ". Te paso el nuevo monto en breve. ¡Gracias!" %}
-            {{ wa_icon(it.c.inquilino.telefono, msj, "Avisar ajuste por WhatsApp") }}
+        <td data-l="Fecha"><b>{{ it.fecha.strftime('%d/%m/%Y') }}</b></td>
+        <td data-l="Inmueble">{{ it.c.inmueble.direccion }}</td>
+        <td data-l="Inquilino">{{ it.c.inquilino.nombre if it.c.inquilino else '—' }}</td>
+        <td data-l="Método">{% if it.c.metodo_ajuste=='indice' %}{{ indice_nombre.get(it.c.indice_tipo, it.c.indice_tipo) }}{% else %}{{ it.c.porcentaje_ajuste }}%{% endif %}</td>
+        <td data-l="Precio" class="r">{{ it.c.moneda|simbolo }} {{ it.c.precio_actual|money }}</td>
+        <td data-l="" class="actions">
+          {% if it.hecho %}
+            <span class="badge pagado">✓ Ya aplicado</span>
+          {% else %}
+            <a class="btn ok sm" href="{{ url_for('aumentos.aplicar', cid=it.c.id) }}">Aplicar</a>
+            <form method="post" action="{{ url_for('aumentos.marcar_aplicado', cid=it.c.id) }}"
+                  onsubmit="return confirm('Marcar el aumento de {{ it.fecha.strftime('%m/%Y') }} como YA aplicado, sin cambiar el precio de {{ it.c.moneda|simbolo }} {{ it.c.precio_actual|money }}?')">
+              <button class="btn sec sm" type="submit" title="Registrar que este aumento ya se hizo, sin cambiar el precio">✓ Ya aplicado</button>
+            </form>
+            {% if it.c.inquilino %}
+              {% set msj = "Hola " ~ it.c.inquilino.nombre ~ "! Te escribo para avisarte que corresponde el ajuste del alquiler de " ~ it.c.inmueble.direccion ~ ". Te paso el nuevo monto en breve. ¡Gracias!" %}
+              {{ wa_icon(it.c.inquilino.telefono, msj, "Avisar ajuste por WhatsApp") }}
+            {% endif %}
           {% endif %}
         </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
-  {% else %}<p class="hint">No hay aumentos vencidos. 👍</p>{% endif %}
+  </div>
+  {% else %}<p class="hint">Ningún contrato aumenta en {{ meses[mes] }} {{ anio }}.</p>{% endif %}
 </div>
 
+{% if es_mes_actual and atrasados %}
+<details class="panel" style="margin-bottom:16px;border:1px solid #f0c36d;background:#fffdf5">
+  <summary style="cursor:pointer;font-weight:700;color:#8a5a00">⚠️ Aumentos de meses anteriores sin registrar ({{ atrasados|length }})</summary>
+  <p class="hint" style="margin:10px 0">Corresponden a meses ya pasados y no figuran registrados. Si el precio ya está actualizado, usá "✓ Ya aplicado".</p>
+  <div class="table-wrap">
+  <table class="grid card-collapse">
+    <thead><tr><th>Correspondía</th><th>Inmueble</th><th>Inquilino</th><th class="r">Precio actual</th><th></th></tr></thead>
+    <tbody>
+      {% for it in atrasados %}
+      <tr>
+        <td data-l="Correspondía" class="txt-danger">{{ it.fecha.strftime('%m/%Y') }}</td>
+        <td data-l="Inmueble">{{ it.c.inmueble.direccion }}</td>
+        <td data-l="Inquilino">{{ it.c.inquilino.nombre if it.c.inquilino else '—' }}</td>
+        <td data-l="Precio" class="r">{{ it.c.moneda|simbolo }} {{ it.c.precio_actual|money }}</td>
+        <td data-l="" class="actions">
+          <a class="btn ok sm" href="{{ url_for('aumentos.aplicar', cid=it.c.id) }}">Aplicar</a>
+          <form method="post" action="{{ url_for('aumentos.marcar_aplicado', cid=it.c.id) }}"
+                onsubmit="return confirm('Marcar como YA aplicado sin cambiar el precio?')">
+            <button class="btn sec sm" type="submit">✓ Ya aplicado</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</details>
+{% endif %}
+
+{% if es_mes_actual and proximos %}
 <div class="panel" style="margin-bottom:16px">
-  <h2>Próximos (45 días)</h2>
-  {% if proximos %}
-  <table class="grid">
-    <thead><tr><th>Fecha</th><th>Inmueble</th><th>Inquilino</th><th>Método</th><th></th></tr></thead>
+  <h2>Próximos (1-2 meses)</h2>
+  <div class="table-wrap">
+  <table class="grid card-collapse">
+    <thead><tr><th>Fecha</th><th>Inmueble</th><th>Inquilino</th><th></th></tr></thead>
     <tbody>
       {% for it in proximos %}
       <tr>
-        <td>{{ it.fecha.strftime('%d/%m/%Y') }}</td>
-        <td>{{ it.c.inmueble.direccion }}</td>
-        <td>{{ it.c.inquilino.nombre if it.c.inquilino else '—' }}</td>
-        <td>{% if it.c.metodo_ajuste=='indice' %}{{ indice_nombre.get(it.c.indice_tipo, it.c.indice_tipo) }}{% else %}{{ it.c.porcentaje_ajuste }}%{% endif %}</td>
-        <td class="actions">
-          <a href="{{ url_for('aumentos.aplicar', cid=it.c.id) }}">Aplicar ahora</a>
-          {% if it.c.inquilino %}
-            {% set msj = "Hola " ~ it.c.inquilino.nombre ~ "! Te escribo para avisarte que próximamente corresponde el ajuste del alquiler de " ~ it.c.inmueble.direccion ~ " (vigencia " ~ it.fecha.strftime('%d/%m/%Y') ~ "). ¡Gracias!" %}
-            {{ wa_icon(it.c.inquilino.telefono, msj, "Avisar ajuste por WhatsApp") }}
-          {% endif %}
-        </td>
+        <td data-l="Fecha">{{ it.fecha.strftime('%m/%Y') }}</td>
+        <td data-l="Inmueble">{{ it.c.inmueble.direccion }}</td>
+        <td data-l="Inquilino">{{ it.c.inquilino.nombre if it.c.inquilino else '—' }}</td>
+        <td data-l="" class="actions"><a href="{{ url_for('aumentos.aplicar', cid=it.c.id) }}">Aplicar ahora</a></td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
-  {% else %}<p class="hint">Nada en los próximos 45 días.</p>{% endif %}
+  </div>
 </div>
+{% endif %}
 
 <div class="panel">
   <h2>Últimos aumentos aplicados</h2>

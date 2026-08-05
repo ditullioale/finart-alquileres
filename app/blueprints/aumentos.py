@@ -38,32 +38,48 @@ def _asegurar_icl(periodos):
 @aumentos_bp.route("/")
 @login_required
 def index():
+    from sqlalchemy.orm import joinedload
+    from ..calculos import estado_aumento, aumento_en_mes, aumento_registrado_en_mes, _ym
     hoy = date.today()
-    contratos = Contrato.query.filter_by(estado="Vigente").all()
-    pendientes, proximos = [], []
-    from ..calculos import proximo_aumento
+    # Mes/año a mirar (por defecto, el actual).
+    mes = parse_num(request.args.get("mes"), entero=True) or hoy.month
+    anio = parse_num(request.args.get("anio"), entero=True) or hoy.year
+    es_mes_actual = (anio == hoy.year and mes == hoy.month)
+
+    contratos = (Contrato.query.filter_by(estado="Vigente")
+                 .options(joinedload(Contrato.aumentos),
+                          joinedload(Contrato.inmueble),
+                          joinedload(Contrato.inquilino)).all())
+
+    del_mes, atrasados, proximos = [], [], []
     for c in contratos:
         if c.metodo_ajuste == "sin_ajuste" or not c.ajuste_cada_meses:
             continue
-        n = len(c.aumentos)
-        prox = proximo_aumento(c)
-        if not prox:
+        # ¿Aumenta en el mes elegido?
+        f_sel = aumento_en_mes(c, anio, mes)
+        if f_sel:
+            del_mes.append({"c": c, "fecha": f_sel,
+                            "hecho": aumento_registrado_en_mes(c, anio, mes)})
             continue
-        # Si el aumento fue pospuesto y la fecha aún no llegó, no molestar.
+        # Solo si estamos mirando el mes actual, mostramos atrasados/próximos.
+        if not es_mes_actual:
+            continue
+        e = estado_aumento(c, hoy)
         pospuesto = c.aumento_pospuesto and c.aumento_pospuesto > hoy
-        item = {"c": c, "fecha": prox, "n": n, "pospuesto": c.aumento_pospuesto}
-        if prox <= hoy:
-            if not pospuesto:
-                pendientes.append(item)
-        elif (prox - hoy).days <= 45:
-            proximos.append(item)
-    pendientes.sort(key=lambda x: x["fecha"])
+        if e["pendiente"] and e["corresponde"] and _ym(e["corresponde"]) < _ym(hoy) and not pospuesto:
+            atrasados.append({"c": c, "fecha": e["corresponde"]})
+        elif e["proximo"] and 0 < (_ym(e["proximo"]) - _ym(hoy)) <= 2:
+            proximos.append({"c": c, "fecha": e["proximo"]})
+
+    del_mes.sort(key=lambda x: (x["hecho"], (x["c"].inmueble.direccion if x["c"].inmueble else "")))
+    atrasados.sort(key=lambda x: x["fecha"])
     proximos.sort(key=lambda x: x["fecha"])
-    ultimos = Aumento.query.order_by(Aumento.creado.desc()).limit(30).all()
-    return render_template("aumentos/index.html", pendientes=pendientes,
-                           proximos=proximos, ultimos=ultimos,
+    ultimos = Aumento.query.order_by(Aumento.creado.desc()).limit(20).all()
+    return render_template("aumentos/index.html", del_mes=del_mes,
+                           atrasados=atrasados, proximos=proximos, ultimos=ultimos,
                            indice_nombre=INDICE_NOMBRE, meses=MESES_ES,
-                           hoy_ym=hoy.strftime("%Y-%m"))
+                           mes=mes, anio=anio, es_mes_actual=es_mes_actual,
+                           anios=list(range(hoy.year - 1, hoy.year + 3)))
 
 
 # --------------------------------------------------------------------------- #

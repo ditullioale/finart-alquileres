@@ -358,23 +358,29 @@ def run():
 
         # La grilla de aumentos arranca en la fecha de inicio (inicio + k·cada) y
         # muestra UNO por contrato: el que corresponde ahora (no toda la lista vieja).
-        from app.calculos import proximo_aumento as _prox_aum, estado_aumento as _est_aum
+        from app.calculos import (proximo_aumento as _prox_aum, estado_aumento as _est_aum,
+                                   aumento_en_mes as _aum_en_mes)
         from datetime import date as _d0
         class _Cx:
             pass
         _cx = _Cx(); _cx.metodo_ajuste = "indice"; _cx.ajuste_cada_meses = 4
-        _cx.fecha_inicio = _d0(2025, 8, 1); _cx.aumentos = []; _cx.aumento_base = None
+        _cx.fecha_inicio = _d0(2025, 8, 10); _cx.aumentos = []; _cx.aumento_base = None
         _hoy = _d0(2026, 8, 5)   # grilla: 12/2025, 04/2026, 08/2026, 12/2026...
-        check("aumento: corresponde el de la grilla más reciente (ago-2026), uno solo",
-              _prox_aum(_cx, hoy=_hoy) == _d0(2026, 8, 1))
-        check("aumento: figura como pendiente si no se aplicó",
-              _est_aum(_cx, hoy=_hoy)["pendiente"] is True)
+        # BUG corregido: razona por MES; el aumento de este mes (ago-2026) no se
+        # empuja a "próximo" por el día (10 > 5).
+        check("corresponde el aumento de ESTE mes (ago-2026), no uno viejo",
+              _prox_aum(_cx, hoy=_hoy) == _d0(2026, 8, 10))
+        check("aumento_en_mes detecta agosto 2026", _aum_en_mes(_cx, 2026, 8) == _d0(2026, 8, 10))
+        check("aumento_en_mes: julio 2026 no aumenta", _aum_en_mes(_cx, 2026, 7) is None)
+        check("figura pendiente si no se registró", _est_aum(_cx, hoy=_hoy)["pendiente"] is True)
         class _A:
             pass
-        _a = _A(); _a.fecha_vigencia = _d0(2026, 8, 10)   # aumento aplicado de ese período
+        _a = _A(); _a.fecha_vigencia = _d0(2026, 8, 3)   # mismo mes, otro día
         _cx.aumentos = [_a]
-        check("aumento: al aplicarlo, deja de estar pendiente y pasa al próximo (dic-2026)",
-              _est_aum(_cx, hoy=_hoy)["pendiente"] is False and _prox_aum(_cx, hoy=_hoy) == _d0(2026, 12, 1))
+        check("al registrar el de agosto (aunque otro día), deja de estar pendiente",
+              _est_aum(_cx, hoy=_hoy)["pendiente"] is False)
+        check("y el próximo pasa a diciembre 2026",
+              _prox_aum(_cx, hoy=_hoy) == _d0(2026, 12, 10))
 
         # Botón "Ya aplicado": registra el aumento del período sin cambiar el precio.
         _precio_antes = q(_precio_c)

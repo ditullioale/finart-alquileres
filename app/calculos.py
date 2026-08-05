@@ -10,41 +10,75 @@ from datetime import date
 from .utils import q2, vencimiento, add_months, proximo_ajuste
 
 
+def _ym(d):
+    """Índice de mes (año*12+mes) para comparar fechas por mes, ignorando el día."""
+    return d.year * 12 + (d.month - 1)
+
+
 def _grilla_aumento(inicio, cada, hoy):
     """Grilla de aumentos desde 'inicio' cada 'cada' meses (inicio+cada, +2·cada…).
+    Se razona por MES (no por día): un aumento cuyo mes es el actual cuenta como
+    'ya corresponde', aunque el día del mes todavía no haya llegado.
     Devuelve (corresponde, proximo):
-      - corresponde: la fecha de aumento más reciente que ya llegó (<= hoy), o None
-        si todavía no llegó el primero.
-      - proximo: la próxima fecha de aumento (> hoy)."""
+      - corresponde: la fecha de aumento más reciente cuyo mes es <= el mes de hoy,
+        o None si todavía no llegó el primero.
+      - proximo: la próxima fecha de aumento (mes > mes de hoy)."""
     if not inicio or not cada:
         return (None, None)
     cada = int(cada)
+    hoy_m = _ym(hoy)
     prev, k = None, 1
     while k <= 3000:
         f = add_months(inicio, k * cada)
-        if f > hoy:
+        if _ym(f) > hoy_m:
             return (prev, f)
         prev, k = f, k + 1
     return (prev, None)
 
 
+def _aplicado_desde(contrato, fecha):
+    """True si hay un aumento registrado en el mismo mes de 'fecha' o posterior."""
+    if not fecha:
+        return False
+    return any(a.fecha_vigencia and _ym(a.fecha_vigencia) >= _ym(fecha)
+               for a in (contrato.aumentos or []))
+
+
 def estado_aumento(contrato, hoy=None):
-    """Estado del aumento de un contrato, calculado sobre la grilla que arranca en
-    la fecha de inicio (o en 'aumento_base' si se cargó una a mano). Devuelve
-    dict(corresponde, proximo, pendiente). 'pendiente' es True cuando ya llegó una
-    fecha de aumento y todavía NO se aplicó un aumento en/después de esa fecha."""
+    """Estado del aumento de un contrato, sobre la grilla que arranca en la fecha
+    de inicio (o en 'aumento_base' si se cargó una a mano). Razona por mes.
+    Devuelve dict(corresponde, proximo, pendiente). 'pendiente' = ya llegó (por mes)
+    una fecha de aumento y todavía NO se registró un aumento en ese mes o posterior."""
     hoy = hoy or date.today()
     cada = contrato.ajuste_cada_meses
     if contrato.metodo_ajuste == "sin_ajuste" or not cada:
         return {"corresponde": None, "proximo": None, "pendiente": False}
     inicio = getattr(contrato, "aumento_base", None) or contrato.fecha_inicio
     corresponde, proximo = _grilla_aumento(inicio, cada, hoy)
-    pendiente = False
-    if corresponde:
-        aplicado = any(a.fecha_vigencia and a.fecha_vigencia >= corresponde
-                       for a in (contrato.aumentos or []))
-        pendiente = not aplicado
+    pendiente = bool(corresponde) and not _aplicado_desde(contrato, corresponde)
     return {"corresponde": corresponde, "proximo": proximo, "pendiente": pendiente}
+
+
+def aumento_en_mes(contrato, anio, mes):
+    """Si el contrato tiene un aumento programado en (anio, mes), devuelve su fecha;
+    si no, None. (La grilla arranca en el inicio del contrato, por mes.)"""
+    cada = contrato.ajuste_cada_meses
+    if contrato.metodo_ajuste == "sin_ajuste" or not cada:
+        return None
+    inicio = getattr(contrato, "aumento_base", None) or contrato.fecha_inicio
+    if not inicio:
+        return None
+    diff = (anio * 12 + (mes - 1)) - _ym(inicio)
+    if diff > 0 and diff % int(cada) == 0:
+        return add_months(inicio, diff)
+    return None
+
+
+def aumento_registrado_en_mes(contrato, anio, mes):
+    """True si ya hay un aumento registrado en ese (anio, mes)."""
+    tgt = anio * 12 + (mes - 1)
+    return any(a.fecha_vigencia and _ym(a.fecha_vigencia) == tgt
+               for a in (contrato.aumentos or []))
 
 
 def proximo_aumento(contrato, hoy=None):
