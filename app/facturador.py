@@ -123,6 +123,14 @@ def actualizar_transferencia(transferencia_id: int, payload: dict):
     )
 
 
+def facturar_transferencia(transferencia_id: int, confirmar: bool = False):
+    return requests.post(
+        f"{_base_url()}/api/transferencias/{transferencia_id}/facturar",
+        params={"confirmar": "true" if confirmar else "false"},
+        timeout=_timeout(),
+    )
+
+
 def facturar_transferencias(ids: list, confirmar_bajo_minimo: bool = False):
     return requests.post(
         f"{_base_url()}/api/transferencias/facturar",

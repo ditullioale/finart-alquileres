@@ -82,6 +82,20 @@ def actualizar(tid):
         return jsonify({"detail": f"No se pudo contactar al facturador: {exc}"}), 502
 
 
+@facturador_bp.route("/transferencias/<int:tid>/facturar", methods=["POST"])
+@login_required
+def facturar_una(tid):
+    if not _autorizada():
+        return _no_autorizada()
+    if not facturador.habilitado():
+        return _no_configurado()
+    confirmar = (request.args.get("confirmar", "false").lower() in ("1", "true", "yes"))
+    try:
+        return _reenviar(facturador.facturar_transferencia(tid, confirmar))
+    except facturador.requests.RequestException as exc:
+        return jsonify({"detail": f"No se pudo contactar al facturador: {exc}"}), 502
+
+
 @facturador_bp.route("/facturar", methods=["POST"])
 @login_required
 def facturar():

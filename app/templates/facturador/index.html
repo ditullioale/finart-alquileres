@@ -126,26 +126,32 @@
 
   function cargar(){ render(); }
 
-  function renderResultado(facturas){
+  function badgeResultado(r){
+    if(r.estado==='emitida') return '<span class="badge parcial">Emitida</span>';
+    if(r.estado==='sin_cuit') return '<span class="badge pendiente" title="Falta el CUIT">Sin CUIT</span>';
+    if(r.estado==='requiere_confirmacion') return '<span class="badge" style="background:#fff6e5;color:#8a5a00" title="No supera el mínimo">Bajo mínimo</span>';
+    if(r.estado==='revisar') return '<span class="badge" style="background:#fff6e5;color:#8a5a00" title="'+(r.mensaje||'')+'">A revisar</span>';
+    return '<span class="badge pendiente" title="'+(r.mensaje||'')+'">Error</span>';
+  }
+  function renderResultado(resultados){
     var tb = document.getElementById('tbodyResultado');
     tb.innerHTML='';
-    facturas.forEach(function(f){
-      var nro = String(f.punto_venta).padStart(4,'0')+'-'+String(f.numero||0).padStart(8,'0');
-      var estado = f.estado==='emitida'
-        ? '<span class="badge parcial">Emitida</span>'
-        : '<span class="badge pendiente" title="'+(f.error||'')+'">Error</span>';
-      var pdf = f.estado==='emitida'
+    resultados.forEach(function(r){
+      var f = r.factura;
+      var nro = (f && f.estado==='emitida')
+        ? String(f.punto_venta).padStart(4,'0')+'-'+String(f.numero||0).padStart(8,'0') : '—';
+      var pdf = (f && f.estado==='emitida')
         ? '<a class="btn sec sm" href="/facturador/factura/'+f.id+'/pdf" target="_blank">PDF</a>' : '';
       var tr = document.createElement('tr');
-      tr.innerHTML = '<td data-l="Nº">'+(f.estado==='emitida'?nro:'—')+'</td>'+
-        '<td data-l="Receptor">'+(f.razon_social||f.cuit_receptor)+'</td>'+
-        '<td data-l="Importe" class="r">'+money.format(Number(f.importe))+'</td>'+
-        '<td data-l="CAE">'+(f.cae||'—')+'</td>'+
-        '<td data-l="Estado">'+estado+'</td>'+
+      tr.innerHTML = '<td data-l="Nº">'+nro+'</td>'+
+        '<td data-l="Receptor">'+(r.receptor||'—')+'</td>'+
+        '<td data-l="Importe" class="r">'+(r.importe!=null?money.format(Number(r.importe)):'—')+'</td>'+
+        '<td data-l="CAE">'+((f&&f.cae)||'—')+'</td>'+
+        '<td data-l="Estado">'+badgeResultado(r)+'</td>'+
         '<td>'+pdf+'</td>';
       tb.appendChild(tr);
     });
-    document.getElementById('panelResultado').hidden = facturas.length===0;
+    document.getElementById('panelResultado').hidden = resultados.length===0;
   }
 
   document.getElementById('chkAll').addEventListener('change', function(e){
@@ -189,7 +195,7 @@
       });
   });
 
-  document.getElementById('btnFacturar').addEventListener('click', function(){
+  document.getElementById('btnFacturar').addEventListener('click', async function(){
     var ids = Array.from(seleccion);
     if(!ids.length) return;
     var bajoMin = datos.filter(function(t){ return seleccion.has(t.id) && t.supera_minimo===false; });
@@ -198,22 +204,43 @@
       if(!confirm(bajoMin.length+' transferencia(s) no superan el mínimo para facturar. ¿Emitir igual?')) return;
       confirmar = true;
     }
-    document.getElementById('btnFacturar').disabled = true;
-    fetch('/facturador/facturar', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({transferencia_ids: ids, confirmar_bajo_minimo: confirmar})})
-      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
-      .then(function(res){
-        if(res.ok){
-          var emitidas = (res.j||[]).filter(function(f){return f.estado==='emitida';}).length;
-          aviso('Se emitieron '+emitidas+' factura(s). Descargá los PDF abajo (no se guardan).');
-          renderResultado(res.j||[]);
-          var okIds = (res.j||[]).filter(function(f){return f.estado==='emitida';}).map(function(f){return f.transferencia_id;});
-          datos = datos.filter(function(t){ return okIds.indexOf(t.id)===-1; });
-          seleccion.clear();
-          render();
+    var btn = document.getElementById('btnFacturar');
+    btn.disabled = true;
+    // Se emite de a UNA (cada una en su propio request): evita el timeout del lote grande
+    // y permite mostrar el resultado por ítem.
+    var resultados = [];
+    for(var i=0;i<ids.length;i++){
+      var id = ids[i];
+      var t = datos.find(function(x){return x.id===id;});
+      var receptor = t ? (t.razon_social || t.cuit || t.descripcion || '—') : '—';
+      var importe = t ? t.importe : null;
+      aviso('Facturando '+(i+1)+'/'+ids.length+'…');
+      var conf = (t && t.supera_minimo===false) ? confirmar : false;
+      try{
+        var r = await fetch('/facturador/transferencias/'+id+'/facturar?confirmar='+conf, {method:'POST'});
+        var j = await r.json();
+        if(r.ok){
+          resultados.push({transferencia_id:id, estado:j.estado, mensaje:j.error, factura:j,
+            receptor:(j.razon_social||j.cuit_receptor||receptor), importe:(j.importe!=null?j.importe:importe)});
+        } else {
+          var est = r.status===422 ? 'sin_cuit' : (r.status===409 ? 'requiere_confirmacion' : 'error');
+          resultados.push({transferencia_id:id, estado:est, mensaje:(j.detail||''), factura:null,
+            receptor:receptor, importe:importe});
         }
-        else { aviso(res.j.detail || 'No se pudieron emitir las facturas.', 'error'); document.getElementById('btnFacturar').disabled = false; }
-      })
-      .catch(function(){ aviso('Error al emitir.', 'error'); document.getElementById('btnFacturar').disabled = false; });
+      }catch(e){
+        resultados.push({transferencia_id:id, estado:'error', mensaje:'No se pudo contactar al facturador.',
+          factura:null, receptor:receptor, importe:importe});
+      }
+    }
+    var emitidas = resultados.filter(function(r){return r.estado==='emitida';}).length;
+    var otros = resultados.length - emitidas;
+    aviso(emitidas+' emitida(s)'+(otros? ' · '+otros+' con observaciones (ver abajo)':'')+'. Descargá los PDF (no se guardan).', otros? 'error':'ok');
+    renderResultado(resultados);
+    var okIds = resultados.filter(function(r){return r.estado==='emitida';}).map(function(r){return r.transferencia_id;});
+    datos = datos.filter(function(t){ return okIds.indexOf(t.id)===-1; });
+    seleccion.clear();
+    render();
+    btn.disabled = false;
   });
 
   cargar();
