@@ -432,6 +432,14 @@ def run():
         check("no hay dos pagos con el mismo número de recibo",
               len(_nums) == len(set(_nums)))
 
+        seccion("Historial global de pagos")
+        rp = cl.get("/cobros/pagos")
+        check("el historial de pagos abre (200)", rp.status_code == 200)
+        check("el historial filtra por texto (inquilino)",
+              cl.get("/cobros/pagos?q=Santamaria").status_code == 200)
+        check("B no ve pagos de A en el historial (aislado)",
+              "Santamaria Guido" not in clB.get("/cobros/pagos").data.decode("utf-8", "ignore"))
+
         seccion("Búsqueda global")
         rb = cl.get("/api/buscar?q=Santamaria")
         jb = rb.get_json()

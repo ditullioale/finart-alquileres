@@ -14,6 +14,7 @@
     <p class="sub">Elegí el mes y cobrá cada alquiler con un clic. En verde los que ya pagaron.</p>
   </div>
   <div class="quick">
+    <a class="btn sec" href="{{ url_for('cobros.pagos') }}">🧾 Historial de pagos</a>
     <a class="btn sec" href="{{ url_for('cobros.exportar', mes=mes, anio=anio) }}">⬇ Exportar a Excel</a>
     <a class="btn sec" href="{{ url_for('cobros.recordatorios', mes=mes, anio=anio) }}">Recordatorios de pago</a>
   </div>

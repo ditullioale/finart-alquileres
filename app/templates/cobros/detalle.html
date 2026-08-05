@@ -7,6 +7,7 @@
   <div class="quick">
     <a class="btn ok" href="{{ url_for('cobros.nuevo', cid=c.id) }}">💵 Registrar pago</a>
     <a class="btn sec" href="{{ url_for('contratos.ver', cid=c.id) }}">Ver contrato</a>
+    <a class="btn sec" href="{{ url_for('cobros.pagos', q=(c.inquilino.nombre if c.inquilino else '')) }}">🧾 Historial global</a>
     {% if c.inmueble.cuenta_gas %}<button type="button" class="btn sec js-vergas" data-cuenta="{{ c.inmueble.cuenta_gas }}">🔥 Ver gas</button>{% endif %}
     {% if c.inquilino %}
       {% if resumen.deuda > 0 %}

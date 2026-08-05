@@ -233,6 +233,51 @@ def recordatorios():
                            anios=list(range(hoy.year - 4, hoy.year + 2)))
 
 
+@cobros_bp.route("/pagos")
+@login_required
+def pagos():
+    """Historial global de pagos: todos los pagos registrados (incluidos los
+    importados), buscables y filtrables, sin entrar contrato por contrato."""
+    hoy = date.today()
+    q = request.args.get("q", "").strip().lower()
+    anio = parse_num(request.args.get("anio"), entero=True)
+    mes = parse_num(request.args.get("mes"), entero=True)
+    estado = request.args.get("estado", "")
+
+    query = Pago.query.options(
+        joinedload(Pago.contrato).joinedload(Contrato.inquilino),
+        joinedload(Pago.contrato).joinedload(Contrato.inmueble))
+    if anio:
+        query = query.filter(Pago.periodo_anio == anio)
+    if mes:
+        query = query.filter(Pago.periodo_mes == mes)
+    if estado:
+        query = query.filter(Pago.estado == estado)
+    query = query.order_by(Pago.periodo_anio.desc(), Pago.periodo_mes.desc(),
+                           Pago.id.desc())
+    filas = query.limit(800).all()
+
+    if q:
+        def _match(p):
+            c = p.contrato
+            campos = " ".join(filter(None, [
+                (c.inquilino.nombre if c and c.inquilino else ""),
+                (c.inmueble.direccion if c and c.inmueble else ""),
+                (c.inmueble.codigo if c and c.inmueble else ""),
+                (p.recibo_numero or "")])).lower()
+            return q in campos
+        filas = [p for p in filas if _match(p)]
+
+    anios = [a for (a,) in db.session.query(Pago.periodo_anio)
+             .distinct().order_by(Pago.periodo_anio.desc()).all() if a]
+    tot_cobrado = sum(float(p.pagado or 0) for p in filas)
+    tot_saldo = sum(float(p.saldo or 0) for p in filas)
+    return render_template("cobros/pagos.html", pagos=filas, meses=MESES_ES,
+                           q=request.args.get("q", ""), anio=anio, mes=mes,
+                           estado=estado, anios=anios, tot_cobrado=tot_cobrado,
+                           tot_saldo=tot_saldo, hoy=hoy)
+
+
 @cobros_bp.route("/contrato/<int:cid>")
 @login_required
 def detalle(cid):
