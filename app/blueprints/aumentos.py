@@ -208,6 +208,29 @@ def config_masiva():
     return redirect(url_for("aumentos.index"))
 
 
+@aumentos_bp.route("/contrato/<int:cid>/marcar-aplicado", methods=["POST"])
+@login_required
+def marcar_aplicado(cid):
+    """Marca el aumento del período actual como YA aplicado, sin cambiar el precio.
+    Sirve para datos importados cuyo precio ya está actualizado: registra el
+    aumento del período (precio nuevo = precio actual) para que deje de figurar
+    pendiente y el sistema avise recién en el próximo período."""
+    from ..calculos import estado_aumento
+    c = db.session.get(Contrato, cid) or abort(404)
+    e = estado_aumento(c)
+    fecha = e["corresponde"] or date.today()
+    precio = float(c.precio_actual or c.precio_inicial or 0)
+    aum = Aumento(contrato_id=c.id, fecha_vigencia=fecha, metodo="manual",
+                  precio_anterior=precio, precio_nuevo=precio,
+                  observaciones="Marcado como ya aplicado (sin cambio de precio).")
+    c.aumento_pospuesto = None
+    db.session.add(aum)
+    db.session.commit()
+    flash(f"Listo: el aumento de {fecha.strftime('%m/%Y')} quedó marcado como ya "
+          "aplicado (el precio no cambió). El sistema te avisará en el próximo período.", "ok")
+    return redirect(url_for("aumentos.index"))
+
+
 @aumentos_bp.route("/contrato/<int:cid>/posponer", methods=["POST"])
 @login_required
 def posponer(cid):

@@ -41,6 +41,10 @@
         <td class="r">{{ it.c.moneda|simbolo }} {{ it.c.precio_actual|money }}</td>
         <td class="actions">
           <a class="btn" href="{{ url_for('aumentos.aplicar', cid=it.c.id) }}">Aplicar</a>
+          <form method="post" action="{{ url_for('aumentos.marcar_aplicado', cid=it.c.id) }}"
+                onsubmit="return confirm('Marcar el aumento de {{ it.fecha.strftime('%m/%Y') }} como YA aplicado, sin cambiar el precio de {{ it.c.moneda|simbolo }} {{ it.c.precio_actual|money }}?')">
+            <button class="btn sec sm" type="submit" title="Registrar que este aumento ya se hizo, sin cambiar el precio">✓ Ya aplicado</button>
+          </form>
           {% if it.c.inquilino %}
             {% set msj = "Hola " ~ it.c.inquilino.nombre ~ "! Te escribo para avisarte que corresponde el ajuste del alquiler de " ~ it.c.inmueble.direccion ~ " desde el " ~ it.fecha.strftime('%d/%m/%Y') ~ ". Te paso el nuevo monto en breve. ¡Gracias!" %}
             {{ wa_icon(it.c.inquilino.telefono, msj, "Avisar ajuste por WhatsApp") }}

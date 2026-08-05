@@ -376,6 +376,17 @@ def run():
         check("aumento: al aplicarlo, deja de estar pendiente y pasa al próximo (dic-2026)",
               _est_aum(_cx, hoy=_hoy)["pendiente"] is False and _prox_aum(_cx, hoy=_hoy) == _d0(2026, 12, 1))
 
+        # Botón "Ya aplicado": registra el aumento del período sin cambiar el precio.
+        _precio_antes = q(_precio_c)
+        cl.post(f"/aumentos/contrato/{ids['c']}/marcar-aplicado")
+        check("'Ya aplicado' NO cambia el precio del contrato",
+              abs(q(_precio_c) - _precio_antes) < 0.01)
+        check("'Ya aplicado' registra un aumento sin cambio (precio ant. = nuevo)",
+              q(lambda: _Aum.query.filter_by(contrato_id=ids["c"])
+                .order_by(_Aum.id.desc()).first().precio_anterior) ==
+              q(lambda: _Aum.query.filter_by(contrato_id=ids["c"])
+                .order_by(_Aum.id.desc()).first().precio_nuevo))
+
         seccion("Cálculos centralizados (mora / estado de período)")
         from app.calculos import canon_vigente, estado_periodo
         from app.utils import calcular_mora
