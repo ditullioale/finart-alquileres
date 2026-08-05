@@ -10,27 +10,51 @@ from datetime import date
 from .utils import q2, vencimiento, add_months, proximo_ajuste
 
 
-def proximo_aumento(contrato):
-    """Fecha del próximo aumento de un contrato. Fuente única de verdad.
+def _grilla_aumento(inicio, cada, hoy):
+    """Grilla de aumentos desde 'inicio' cada 'cada' meses (inicio+cada, +2·cada…).
+    Devuelve (corresponde, proximo):
+      - corresponde: la fecha de aumento más reciente que ya llegó (<= hoy), o None
+        si todavía no llegó el primero.
+      - proximo: la próxima fecha de aumento (> hoy)."""
+    if not inicio or not cada:
+        return (None, None)
+    cada = int(cada)
+    prev, k = None, 1
+    while k <= 3000:
+        f = add_months(inicio, k * cada)
+        if f > hoy:
+            return (prev, f)
+        prev, k = f, k + 1
+    return (prev, None)
 
-    Se cuenta desde el mejor ancla disponible, en este orden:
-      1) la fecha de vigencia del último aumento registrado + cada_meses;
-      2) la 'fecha base' del contrato (aumento_base) + cada_meses — clave para
-         datos importados que no traen el historial de aumentos;
-      3) el inicio del contrato (comportamiento anterior).
-    Devuelve None si el contrato no tiene ajuste configurado."""
+
+def estado_aumento(contrato, hoy=None):
+    """Estado del aumento de un contrato, calculado sobre la grilla que arranca en
+    la fecha de inicio (o en 'aumento_base' si se cargó una a mano). Devuelve
+    dict(corresponde, proximo, pendiente). 'pendiente' es True cuando ya llegó una
+    fecha de aumento y todavía NO se aplicó un aumento en/después de esa fecha."""
+    hoy = hoy or date.today()
     cada = contrato.ajuste_cada_meses
     if contrato.metodo_ajuste == "sin_ajuste" or not cada:
-        return None
-    aums = list(contrato.aumentos or [])
-    if aums:
-        ultimo = max((a.fecha_vigencia for a in aums if a.fecha_vigencia), default=None)
-        if ultimo:
-            return add_months(ultimo, int(cada))
-    base = getattr(contrato, "aumento_base", None)
-    if base:
-        return add_months(base, int(cada))
-    return proximo_ajuste(contrato.fecha_inicio, cada, len(aums))
+        return {"corresponde": None, "proximo": None, "pendiente": False}
+    inicio = getattr(contrato, "aumento_base", None) or contrato.fecha_inicio
+    corresponde, proximo = _grilla_aumento(inicio, cada, hoy)
+    pendiente = False
+    if corresponde:
+        aplicado = any(a.fecha_vigencia and a.fecha_vigencia >= corresponde
+                       for a in (contrato.aumentos or []))
+        pendiente = not aplicado
+    return {"corresponde": corresponde, "proximo": proximo, "pendiente": pendiente}
+
+
+def proximo_aumento(contrato, hoy=None):
+    """Fecha de aumento a mostrar: la que corresponde ahora si está pendiente; si
+    no, la próxima de la grilla. Se cuenta desde la fecha de inicio del contrato,
+    sin depender del historial de aumentos aplicados (útil tras importar)."""
+    e = estado_aumento(contrato, hoy)
+    if e["pendiente"] and e["corresponde"]:
+        return e["corresponde"]
+    return e["proximo"]
 
 
 def canon_vigente(contrato):

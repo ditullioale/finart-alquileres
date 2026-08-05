@@ -193,11 +193,6 @@ def config_masiva():
     if tipo not in TIPOS_INDICE:
         tipo = "ICL"
     solo_sin = bool(request.form.get("solo_sin_ajuste"))
-    # Fecha base para contar el próximo aumento (por defecto, el 1° del mes actual).
-    # Sin esto, en contratos importados el próximo aumento se contaría desde el
-    # inicio del contrato y aparecerían todos como "vencidos".
-    base = parse_periodo(request.form.get("desde")) or periodo_date(date.today().year,
-                                                                    date.today().month)
     n = 0
     for c in Contrato.query.filter_by(estado="Vigente").all():
         if solo_sin and c.metodo_ajuste not in (None, "", "sin_ajuste"):
@@ -205,12 +200,11 @@ def config_masiva():
         c.metodo_ajuste = "indice"
         c.indice_tipo = tipo
         c.ajuste_cada_meses = cada
-        c.aumento_base = base
         n += 1
     db.session.commit()
     flash(f"Listo: {n} contrato(s) vigente(s) quedaron con ajuste por índice "
-          f"{INDICE_NOMBRE.get(tipo, tipo)} cada {cada} meses, contando desde "
-          f"{base.strftime('%m/%Y')}.", "ok")
+          f"{INDICE_NOMBRE.get(tipo, tipo)} cada {cada} meses. El próximo aumento "
+          "se cuenta desde la fecha de inicio de cada contrato.", "ok")
     return redirect(url_for("aumentos.index"))
 
 

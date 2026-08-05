@@ -356,20 +356,25 @@ def run():
         check("config masiva: deja los vigentes en índice ICL cada 4 meses",
               q(_cfg) == ("indice", "ICL", 4))
 
-        # El próximo aumento se cuenta desde la fecha base, no desde el inicio
-        # (esto evita que los contratos importados aparezcan todos como vencidos).
-        from app.calculos import proximo_aumento as _prox_aum
-        from app.utils import add_months as _addm
+        # La grilla de aumentos arranca en la fecha de inicio (inicio + k·cada) y
+        # muestra UNO por contrato: el que corresponde ahora (no toda la lista vieja).
+        from app.calculos import proximo_aumento as _prox_aum, estado_aumento as _est_aum
         from datetime import date as _d0
         class _Cx:
             pass
         _cx = _Cx(); _cx.metodo_ajuste = "indice"; _cx.ajuste_cada_meses = 4
-        _cx.fecha_inicio = _d0(2020, 1, 1); _cx.aumentos = []; _cx.aumento_base = _d0(2026, 7, 1)
-        check("próximo aumento se cuenta desde la fecha base (no desde el inicio 2020)",
-              _prox_aum(_cx) == _addm(_d0(2026, 7, 1), 4))
-        _cx.aumento_base = None
-        check("sin fecha base cae al inicio del contrato (compatibilidad)",
-              _prox_aum(_cx) == _addm(_d0(2020, 1, 1), 4))
+        _cx.fecha_inicio = _d0(2025, 8, 1); _cx.aumentos = []; _cx.aumento_base = None
+        _hoy = _d0(2026, 8, 5)   # grilla: 12/2025, 04/2026, 08/2026, 12/2026...
+        check("aumento: corresponde el de la grilla más reciente (ago-2026), uno solo",
+              _prox_aum(_cx, hoy=_hoy) == _d0(2026, 8, 1))
+        check("aumento: figura como pendiente si no se aplicó",
+              _est_aum(_cx, hoy=_hoy)["pendiente"] is True)
+        class _A:
+            pass
+        _a = _A(); _a.fecha_vigencia = _d0(2026, 8, 10)   # aumento aplicado de ese período
+        _cx.aumentos = [_a]
+        check("aumento: al aplicarlo, deja de estar pendiente y pasa al próximo (dic-2026)",
+              _est_aum(_cx, hoy=_hoy)["pendiente"] is False and _prox_aum(_cx, hoy=_hoy) == _d0(2026, 12, 1))
 
         seccion("Cálculos centralizados (mora / estado de período)")
         from app.calculos import canon_vigente, estado_periodo
