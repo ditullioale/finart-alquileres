@@ -9,6 +9,27 @@
   <a class="btn" href="{{ url_for('plataforma.nueva_inmobiliaria') }}">+ Nueva inmobiliaria</a>
 </div>
 
+<div class="panel" style="margin-bottom:16px;background:#f6f9ff;border:1px solid #e3ecff">
+  <h2 style="margin-top:0">🔗 Link para invitar a una inmobiliaria</h2>
+  <p class="hint" style="margin:0 0 10px">Pasale este link. Completa sus datos y elige su usuario y contraseña; después la aprobás en "Solicitudes de acceso pendientes" (más abajo).</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <input id="reg-link" readonly value="{{ url_for('auth.registro', _external=True) }}"
+           style="flex:1;min-width:260px;padding:9px 11px;border:1px solid var(--bd);border-radius:8px;font-size:14px;background:#fff">
+    <button type="button" class="btn sec" onclick="copiarLink()">📋 Copiar</button>
+    <a class="btn sec" href="{{ url_for('auth.registro') }}" target="_blank">Abrir</a>
+  </div>
+  <p class="hint" id="reg-copiado" style="margin:8px 0 0;color:var(--ok);display:none">¡Link copiado!</p>
+</div>
+<script>
+function copiarLink(){
+  var i = document.getElementById('reg-link');
+  i.select(); i.setSelectionRange(0, 99999);
+  var ok = function(){ document.getElementById('reg-copiado').style.display='block'; };
+  if(navigator.clipboard){ navigator.clipboard.writeText(i.value).then(ok, function(){ document.execCommand('copy'); ok(); }); }
+  else { document.execCommand('copy'); ok(); }
+}
+</script>
+
 {% if solicitudes %}
 <div class="panel" style="margin-bottom:18px;border:1px solid #f0c36d;background:#fffdf5">
   <h2 style="margin-top:0">📥 Solicitudes de acceso pendientes ({{ solicitudes|length }})</h2>

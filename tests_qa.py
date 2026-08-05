@@ -348,6 +348,14 @@ def run():
         check("índice ICL: trae valores del BCRA y calcula el factor (1.2)",
               jc.get("ok") and abs(jc.get("factor") - 1.2) < 0.001 and jc.get("fuente") == "BCRA")
 
+        # 3) Configuración masiva: todos los vigentes con índice ICL cada 4 meses.
+        cl.post("/aumentos/config-masiva", data={"indice_tipo": "ICL", "cada_meses": "4"})
+        def _cfg():
+            c = _Con.query.get(ids["c"])
+            return (c.metodo_ajuste, c.indice_tipo, c.ajuste_cada_meses)
+        check("config masiva: deja los vigentes en índice ICL cada 4 meses",
+              q(_cfg) == ("indice", "ICL", 4))
+
         seccion("Cálculos centralizados (mora / estado de período)")
         from app.calculos import canon_vigente, estado_periodo
         from app.utils import calcular_mora

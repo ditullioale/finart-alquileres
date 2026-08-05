@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from flask import (Blueprint, render_template, redirect, url_for, request,
                    flash, abort, jsonify)
-from flask_login import login_required
+from flask_login import login_required, current_user
 
 from .. import db
 from ..models import Contrato, Aumento, IndiceValor
@@ -176,6 +176,33 @@ def calcular_indice(cid):
     precio_actual = float(c.precio_actual or c.precio_inicial or 0)
     return jsonify(ok=True, v_base=v_base, v_dest=v_dest, factor=round(factor, 4),
                    nuevo=float(q2(precio_actual * factor)), fuente=fuente)
+
+
+@aumentos_bp.route("/config-masiva", methods=["POST"])
+@login_required
+def config_masiva():
+    """Configura de una sola vez el método de ajuste de TODOS los contratos
+    vigentes de la inmobiliaria actual (útil tras importar de Inmosoft, que no
+    trae el método). Solo admin. Es tenant-scoped: no toca a otras inmobiliarias."""
+    if getattr(current_user, "rol", None) != "admin":
+        abort(403)
+    cada = parse_num(request.form.get("cada_meses"), entero=True) or 4
+    tipo = request.form.get("indice_tipo") or "ICL"
+    if tipo not in TIPOS_INDICE:
+        tipo = "ICL"
+    solo_sin = bool(request.form.get("solo_sin_ajuste"))
+    n = 0
+    for c in Contrato.query.filter_by(estado="Vigente").all():
+        if solo_sin and c.metodo_ajuste not in (None, "", "sin_ajuste"):
+            continue
+        c.metodo_ajuste = "indice"
+        c.indice_tipo = tipo
+        c.ajuste_cada_meses = cada
+        n += 1
+    db.session.commit()
+    flash(f"Listo: {n} contrato(s) vigente(s) quedaron con ajuste por índice "
+          f"{INDICE_NOMBRE.get(tipo, tipo)} cada {cada} meses.", "ok")
+    return redirect(url_for("aumentos.index"))
 
 
 @aumentos_bp.route("/contrato/<int:cid>/posponer", methods=["POST"])
