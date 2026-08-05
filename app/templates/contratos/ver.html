@@ -79,7 +79,7 @@
       {% elif c.metodo_ajuste=='porcentaje' %}Por porcentaje — {{ c.porcentaje_ajuste }}% cada {{ c.ajuste_cada_meses }} meses
       {% else %}Sin ajuste{% endif %}
     </div>
-    <div><span class="k">Origen</span><br>{{ 'Generador de contratos' if c.origen=='generador' else 'Alta directa' }}</div>
+    <div><span class="k">Origen</span><br>{{ 'Redactado con el asistente' if c.origen=='generador' else 'Contrato existente (registrado)' }}</div>
   </div>
 
   {% if c.fiadores %}

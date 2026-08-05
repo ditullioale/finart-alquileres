@@ -15,6 +15,21 @@ from ..indices_oficiales import traer_icl_bcra
 aumentos_bp = Blueprint("aumentos", __name__, url_prefix="/aumentos")
 
 TIPOS_INDICE = ["ICL", "IPC", "CasaPropia"]
+ARQUILER_URL = "https://arquiler.com/"   # calculadora externa para IPC / Casa Propia
+
+
+def _asegurar_icl(periodos):
+    """Trae del BCRA los valores de ICL que falten para esos períodos (best-effort).
+    Devuelve True si, tras intentarlo, están todos disponibles."""
+    faltan = [p for p in periodos if p and _valor_indice("ICL", p) is None]
+    if not faltan:
+        return True
+    valores, error = traer_icl_bcra()
+    if not error and valores:
+        for v in valores:
+            _guardar_valor("ICL", v["periodo"], v["valor"], "BCRA")
+        db.session.commit()
+    return all(p and _valor_indice("ICL", p) is not None for p in periodos)
 
 
 # --------------------------------------------------------------------------- #
@@ -77,12 +92,19 @@ def aplicar(cid):
     precio_actual = float(c.precio_actual or c.precio_inicial or 0)
 
     if request.method == "POST":
-        metodo = request.form.get("metodo", c.metodo_ajuste)
+        metodo = request.form.get("metodo", "manual")
         fecha_vig = parse_fecha(request.form.get("fecha_vigencia")) or date.today()
         aum = Aumento(contrato_id=c.id, fecha_vigencia=fecha_vig,
                       precio_anterior=precio_actual, metodo=metodo)
 
-        if metodo == "porcentaje":
+        if metodo == "manual":
+            # El usuario escribe directamente el nuevo precio (sin % ni índice).
+            nuevo = parse_num(request.form.get("precio_nuevo"))
+            if not nuevo or nuevo <= 0:
+                flash("Ingresá el nuevo precio (mayor a 0).", "error")
+                return redirect(url_for("aumentos.aplicar", cid=c.id))
+            nuevo = float(q2(nuevo))
+        elif metodo == "porcentaje":
             pct = parse_num(request.form.get("porcentaje"))
             if not pct:
                 flash("Indicá el porcentaje del aumento.", "error")
@@ -90,13 +112,17 @@ def aplicar(cid):
             nuevo = float(q2(q2(precio_actual) * (Decimal(1) + q2(pct) / Decimal(100))))
             aum.porcentaje = pct
         else:  # indice
-            tipo = request.form.get("indice_tipo") or c.indice_tipo
+            tipo = request.form.get("indice_tipo") or c.indice_tipo or "ICL"
             per_base = parse_periodo(request.form.get("periodo_base"))
             per_dest = parse_periodo(request.form.get("periodo_destino"))
+            if tipo == "ICL":
+                _asegurar_icl([per_base, per_dest])   # trae del BCRA lo que falte
             v_base = _valor_indice(tipo, per_base)
             v_dest = _valor_indice(tipo, per_dest)
             if v_base is None or v_dest is None:
-                flash("Faltan valores del índice para esos meses. Cargalos en “Índices”.", "error")
+                flash("No encontré los valores del índice para esos meses. Para IPC o "
+                      "Casa Propia, usá “Calcular en ARquiler” y cargá el resultado con "
+                      "“Precio nuevo directo”.", "error")
                 return redirect(url_for("aumentos.aplicar", cid=c.id))
             factor = v_dest / v_base
             nuevo = float(q2(precio_actual * factor))
@@ -115,15 +141,41 @@ def aplicar(cid):
 
     per_base, per_dest = _sugerencia(c)
     tipo = c.indice_tipo or "ICL"
+    # Método inicial sugerido según el contrato (el usuario puede cambiarlo).
+    metodo_ini = {"indice": "indice", "porcentaje": "porcentaje"}.get(c.metodo_ajuste, "manual")
     contexto = dict(
         c=c, precio_actual=precio_actual,
         per_base=per_base, per_dest=per_dest,
         v_base=_valor_indice(tipo, per_base), v_dest=_valor_indice(tipo, per_dest),
         tipos=TIPOS_INDICE, indice_nombre=INDICE_NOMBRE,
         pct_sugerido=float(c.porcentaje_ajuste) if c.porcentaje_ajuste else "",
-        hoy=date.today(),
+        hoy=date.today(), metodo_ini=metodo_ini, arquiler_url=ARQUILER_URL,
     )
     return render_template("aumentos/aplicar.html", **contexto)
+
+
+@aumentos_bp.route("/contrato/<int:cid>/calcular-indice")
+@login_required
+def calcular_indice(cid):
+    """Previsualiza el precio nuevo por índice. Para ICL trae del BCRA lo que falte."""
+    c = db.session.get(Contrato, cid) or abort(404)
+    tipo = request.args.get("tipo", "ICL")
+    per_base = parse_periodo(request.args.get("base"))
+    per_dest = parse_periodo(request.args.get("dest"))
+    if not per_base or not per_dest:
+        return jsonify(ok=False, error="Elegí el mes base y el mes destino.")
+    fuente = "cargado"
+    if tipo == "ICL" and _asegurar_icl([per_base, per_dest]):
+        fuente = "BCRA"
+    v_base = _valor_indice(tipo, per_base)
+    v_dest = _valor_indice(tipo, per_dest)
+    if v_base is None or v_dest is None:
+        return jsonify(ok=False, error=f"No encontré valores de {tipo} para esos meses. "
+                       "Calculalo en ARquiler y usá “Precio nuevo directo”.")
+    factor = v_dest / v_base
+    precio_actual = float(c.precio_actual or c.precio_inicial or 0)
+    return jsonify(ok=True, v_base=v_base, v_dest=v_dest, factor=round(factor, 4),
+                   nuevo=float(q2(precio_actual * factor)), fuente=fuente)
 
 
 @aumentos_bp.route("/contrato/<int:cid>/posponer", methods=["POST"])

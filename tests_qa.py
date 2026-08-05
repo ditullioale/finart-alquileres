@@ -318,6 +318,36 @@ def run():
         check("A no ve el cliente de B", "Cliente Solo B" not in lista_a)
         check("A sí ve sus propios datos", "Santamaria Guido" in lista_a)
 
+        seccion("Aumentos: precio directo + índice automático")
+        from app.models import Aumento as _Aum, Contrato as _Con
+
+        def _precio_c():
+            return float(_Con.query.get(ids["c"]).precio_actual or _Con.query.get(ids["c"]).precio_inicial or 0)
+        _p0 = q(_precio_c)
+        # 1) Modo manual: solo el precio nuevo, sin % ni índice.
+        cl.post(f"/aumentos/contrato/{ids['c']}/aplicar",
+                data={"metodo": "manual", "precio_nuevo": str(_p0 + 50000),
+                      "fecha_vigencia": "2027-01-01"})
+        check("aumento manual: guarda el precio nuevo tal cual",
+              abs(q(_precio_c) - (_p0 + 50000)) < 0.01)
+        check("aumento manual: queda registrado con método 'manual'",
+              q(lambda: _Aum.query.filter_by(contrato_id=ids["c"], metodo="manual").count()) >= 1)
+
+        # 2) Índice ICL automático: se simula la respuesta del BCRA (sin red).
+        import app.blueprints.aumentos as _aum
+        from datetime import date as _da
+        _orig_icl = _aum.traer_icl_bcra
+        _aum.traer_icl_bcra = lambda desde=None, hasta=None: (
+            [{"periodo": _da(2026, 1, 1), "valor": 100.0},
+             {"periodo": _da(2026, 7, 1), "valor": 120.0}], None)
+        try:
+            rc = cl.get(f"/aumentos/contrato/{ids['c']}/calcular-indice?tipo=ICL&base=2026-01&dest=2026-07")
+            jc = rc.get_json()
+        finally:
+            _aum.traer_icl_bcra = _orig_icl
+        check("índice ICL: trae valores del BCRA y calcula el factor (1.2)",
+              jc.get("ok") and abs(jc.get("factor") - 1.2) < 0.001 and jc.get("fuente") == "BCRA")
+
         seccion("Cálculos centralizados (mora / estado de período)")
         from app.calculos import canon_vigente, estado_periodo
         from app.utils import calcular_mora
