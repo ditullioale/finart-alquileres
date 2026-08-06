@@ -16,6 +16,11 @@ ROLES = [("admin", "Administrador (gestiona usuarios y todo el sistema)"),
          ("contador", "Contador (ve y exporta, sin modificar)"),
          ("lectura", "Solo lectura (ve todo, no modifica)")]
 
+# Roles que un administrador de inmobiliaria puede asignar. NUNCA 'superadmin':
+# ese rol es de la plataforma y se otorga por fuera de este panel. Validar el rol
+# del lado del servidor evita que un POST manipulado escale privilegios.
+_ROLES_ASIGNABLES = {clave for clave, _ in ROLES}
+
 
 def admin_required(f):
     @wraps(f)
@@ -122,6 +127,8 @@ def nuevo():
         error = None
         if not username:
             error = "El nombre de usuario es obligatorio."
+        elif rol not in _ROLES_ASIGNABLES:
+            error = "Rol inválido."
         elif Usuario.query.filter_by(username=username).first():
             error = "Ya existe un usuario con ese nombre."
         elif validar_password(password):
@@ -148,6 +155,11 @@ def editar(uid):
     u = _usuario_de_mi_inmobiliaria(uid)
     if request.method == "POST":
         nuevo_rol = request.form.get("rol", u.rol)
+        # Un admin nunca puede asignar un rol fuera de los permitidos (p.ej. no
+        # puede convertir a alguien en 'superadmin' de plataforma).
+        if nuevo_rol not in _ROLES_ASIGNABLES:
+            flash("Rol inválido.", "error")
+            return redirect(url_for("usuarios.editar", uid=u.id))
         activo = bool(request.form.get("activo"))
         # Proteger al último admin activo.
         quita_admin = (u.rol == "admin" and (nuevo_rol != "admin" or not activo))

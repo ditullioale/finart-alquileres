@@ -337,6 +337,34 @@ def run():
         check("B no ve contratos de A", "Santamaria Guido" not in lc_b)
         check("B no puede abrir por ID un contrato de A (404)",
               clB.get(f"/contratos/{ids['c']}").status_code == 404)
+
+        seccion("Escalamiento de privilegios (Fase 2.4)")
+        from app.models import Usuario as _U
+        _oper_id = q(lambda: _U.query.filter_by(username="oper").first().id)
+        _userb_id = q(lambda: _U.query.filter_by(username="userb").first().id)
+        # 1) Un operador no puede crear usuarios (ni por POST directo).
+        check("operador NO puede crear usuarios (403)",
+              co.post("/usuarios/nuevo", data={"username": "x", "nombre": "X",
+                      "rol": "operador", "password": "clave1234"}).status_code == 403)
+        # 2) Un admin no puede crear un superadmin (rol manipulado en el POST).
+        cl.post("/usuarios/nuevo", data={"username": "colado", "nombre": "C",
+                "rol": "superadmin", "password": "clave1234"})
+        check("admin NO puede crear un superadmin",
+              q(lambda: _U.query.filter_by(username="colado").first()) is None)
+        # 3) Un admin no puede ascender a nadie a superadmin por edición.
+        cl.post(f"/usuarios/{_oper_id}/editar",
+                data={"nombre": "Oper", "rol": "superadmin", "activo": "on"})
+        check("admin NO puede ascender a superadmin por edición",
+              q(lambda: db.session.get(_U, _oper_id).rol) != "superadmin")
+        # 4) El admin de A no puede editar un usuario de B (cross-tenant → 404).
+        check("admin de A NO puede editar un usuario de B (404)",
+              cl.post(f"/usuarios/{_userb_id}/editar",
+                      data={"nombre": "Hack", "rol": "operador"}).status_code == 404)
+        # 5) Ni operador ni admin de inmobiliaria entran a la plataforma (solo superadmin).
+        check("operador NO accede a la plataforma (403)",
+              co.get("/plataforma/").status_code == 403)
+        check("admin de inmobiliaria NO accede a la plataforma (403)",
+              cl.get("/plataforma/").status_code == 403)
         lista_a = cl.get("/personas/").data.decode("utf-8", "ignore")
         check("A no ve el cliente de B", "Cliente Solo B" not in lista_a)
         check("A sí ve sus propios datos", "Santamaria Guido" in lista_a)

@@ -30,7 +30,7 @@ interfaces que permitan escalar cuando haga falta.
 - ✅ 2.1 Tenant como frontera (filtro automático por sesión, `with_loader_criteria`).
 - ✅ 2.2 `inmobiliaria_id` en todas las entidades comerciales.
 - ✅ 2.3 Tests de aislamiento (83 pruebas: listados, por ID, PDF, documentos, búsquedas).
-- 🟡 2.4 Tests de escalamiento de privilegios (hay checks de rol 403; falta batería explícita usuario→admin, A→B).
+- ✅ 2.4 Tests de escalamiento de privilegios (operador no crea usuarios; admin no puede crear ni ascender a superadmin; admin de A no edita usuarios de B; nadie salvo superadmin entra a la plataforma). Rol validado en el servidor.
 
 ## Fase 3 — Testing profesional
 - ⬜ 3.1 pytest como framework central (hoy hay suite propia que anda; se migrará de a poco, no como milestone).
@@ -77,6 +77,7 @@ interfaces que permitan escalar cuando haga falta.
 ---
 
 ## Hecho recientemente (changelog)
+- **Escalamiento de privilegios (Fase 2.4):** rol validado en el servidor (un admin no puede fabricar un superadmin), + 6 pruebas negativas.
 - **Seguridad base (Fase 1):** política única de contraseñas, logout POST+CSRF, cabeceras de seguridad, freno por IP en registro/recuperación.
 - **CI (Fase 4.1):** GitHub Actions corriendo QA + aislamiento + facturador.
 - **Estado fiscal (6.1) y reconciliación básica (6.3):** CAE guardado en la liquidación + bandeja de pendientes de facturar.
@@ -84,5 +85,6 @@ interfaces que permitan escalar cuando haga falta.
 - **UX (24.4):** feedback de facturación/ICL, `[object Object]` corregido, ficha de contrato con teléfono y deuda real.
 
 ## Próximo sugerido
-Terminar **Fase 2.4** (batería de escalamiento de privilegios) y avanzar **1.4** (verificación
-de email / CAPTCHA en el registro), aprovechando que el CI ya cuida cada cambio.
+Avanzar **Fase 1.4** (verificación de email / CAPTCHA en el registro) y luego **Fase 0**
+(documentar el contrato de integración Finart ↔ Facturador y versionar la API), aprovechando
+que el CI ya cuida cada cambio.
