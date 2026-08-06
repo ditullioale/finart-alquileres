@@ -12,9 +12,9 @@ interfaces que permitan escalar cuando haga falta.
 ---
 
 ## Fase 0 — Congelar la arquitectura
-- 🟡 0.1 Límites de responsabilidad Finart / Facturador (existen en la práctica; falta el documento formal).
-- ⬜ 0.2 Contrato formal de integración (endpoints, auth, errores, idempotencia, timeouts, versionado).
-- ⬜ 0.3 Versionar API (`/api/v1/...`).
+- ✅ 0.1 Límites de responsabilidad Finart / Facturador (documentado en `FINART_INTEGRACION_API.md`).
+- ✅ 0.2 Contrato formal de integración (endpoints, auth, request/response, códigos HTTP, errores, idempotencia, timeouts — documentado; reintentos con backoff quedan para Fase 5.6).
+- 🟡 0.3 Versionar API: Finart ya soporta prefijo versionado (`FACTURADOR_API_PREFIX`, default `/api`); falta que el Facturador exponga `/api/v1`.
 
 ## Fase 1 — Seguridad base
 - ✅ 1.1 Política única de contraseñas (`validar_password`: mínimo 8, no solo números; usada en registro, restablecer, cambio y alta por admin).
@@ -77,6 +77,7 @@ interfaces que permitan escalar cuando haga falta.
 ---
 
 ## Hecho recientemente (changelog)
+- **Contrato de integración (Fase 0):** documento formal `FINART_INTEGRACION_API.md` (responsabilidades, endpoints, auth, errores, idempotencia) + API del Facturador versionable desde Finart.
 - **Verificación de email en el registro (Fase 1.4):** la solicitud no llega al superadmin hasta que el interesado confirma su email por enlace (con resguardo si no hay correo saliente configurado).
 - **Escalamiento de privilegios (Fase 2.4):** rol validado en el servidor (un admin no puede fabricar un superadmin), + 6 pruebas negativas.
 - **Seguridad base (Fase 1):** política única de contraseñas, logout POST+CSRF, cabeceras de seguridad, freno por IP en registro/recuperación.
@@ -86,6 +87,7 @@ interfaces que permitan escalar cuando haga falta.
 - **UX (24.4):** feedback de facturación/ICL, `[object Object]` corregido, ficha de contrato con teléfono y deuda real.
 
 ## Próximo sugerido
-**Fase 0** (documentar el contrato de integración Finart ↔ Facturador y versionar la API):
-es la base para la Fase 5, no requiere cuentas externas y ordena todo lo fiscal. Opcional
-en paralelo: CAPTCHA/Turnstile en el registro (requiere cuenta gratuita de Cloudflare).
+**Fase 5.1 + 5.4** (identidad del emisor 100% del lado servidor + `Idempotency-Key` formal)
+o **Fase 6.3** (reconciliación automática con `FECompConsultar`): ambas apoyan sobre el
+contrato ya documentado y blindan lo fiscal antes de emitir en serio. Requieren coordinar
+cambios en el repo del Facturador.

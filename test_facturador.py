@@ -58,6 +58,15 @@ def run():
     os.environ["FACTURADOR_URL"] = "http://localhost:8000/"
     check("con FACTURADOR_URL, la integración está habilitada", facturador.habilitado())
 
+    # Versionado de la API (Fase 0.3): prefijo configurable, /api por defecto.
+    os.environ.pop("FACTURADOR_API_PREFIX", None)
+    check("por defecto la API usa el prefijo /api",
+          facturador._api("/facturas") == "http://localhost:8000/api/facturas")
+    os.environ["FACTURADOR_API_PREFIX"] = "/api/v1"
+    check("se puede versionar la API a /api/v1 por variable de entorno",
+          facturador._api("/facturas") == "http://localhost:8000/api/v1/facturas")
+    os.environ.pop("FACTURADOR_API_PREFIX", None)
+
     # referencia idempotente
     check("referencia externa con inmobiliaria y número",
           facturador.referencia_externa(_liq(numero="0001-00000009", inmo=3))

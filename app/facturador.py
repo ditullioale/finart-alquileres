@@ -25,6 +25,21 @@ def _base_url() -> str:
     return (os.environ.get("FACTURADOR_URL") or "").rstrip("/")
 
 
+def _api_prefix() -> str:
+    """Prefijo (versionado) de la API del Facturador. Por defecto '/api'; se puede
+    apuntar a '/api/v1' con FACTURADOR_API_PREFIX cuando el Facturador lo exponga,
+    sin tocar código. Ver FINART_INTEGRACION_API.md."""
+    p = (os.environ.get("FACTURADOR_API_PREFIX") or "/api").strip()
+    if not p.startswith("/"):
+        p = "/" + p
+    return p.rstrip("/")
+
+
+def _api(path: str) -> str:
+    """URL completa de un endpoint de la API del Facturador."""
+    return f"{_base_url()}{_api_prefix()}{path}"
+
+
 def _timeout() -> float:
     try:
         return float(os.environ.get("FACTURADOR_TIMEOUT", "20"))
@@ -101,7 +116,7 @@ def registrar_emisor(
     }
     try:
         r = requests.post(
-            f"{_base_url()}/api/emisores",
+            _api("/emisores"),
             json=payload,
             headers={"X-Admin-Token": admin},
             timeout=_timeout(),
@@ -140,7 +155,7 @@ def facturar_liquidacion(liq, propietario, ajustes, confirmar_bajo_minimo: bool 
     }
     try:
         r = requests.post(
-            f"{_base_url()}/api/integracion/liquidacion",
+            _api("/integracion/liquidacion"),
             json=payload,
             headers=_headers(ajustes),
             timeout=_timeout(),
@@ -163,7 +178,7 @@ def facturar_liquidacion(liq, propietario, ajustes, confirmar_bajo_minimo: bool 
 # --------------------------------------------------------------------------- #
 def subir_resumen(nombre: str, contenido: bytes, content_type: str):
     return requests.post(
-        f"{_base_url()}/api/lotes",
+        _api("/lotes"),
         files={"archivo": (nombre, contenido, content_type or "application/octet-stream")},
         headers=_headers(),
         timeout=_timeout(),
@@ -172,13 +187,13 @@ def subir_resumen(nombre: str, contenido: bytes, content_type: str):
 
 def listar_transferencias():
     return requests.get(
-        f"{_base_url()}/api/transferencias", headers=_headers(), timeout=_timeout()
+        _api("/transferencias"), headers=_headers(), timeout=_timeout()
     )
 
 
 def actualizar_transferencia(transferencia_id: int, payload: dict):
     return requests.patch(
-        f"{_base_url()}/api/transferencias/{transferencia_id}",
+        _api(f"/transferencias/{transferencia_id}"),
         json=payload,
         headers=_headers(),
         timeout=_timeout(),
@@ -187,7 +202,7 @@ def actualizar_transferencia(transferencia_id: int, payload: dict):
 
 def facturar_transferencia(transferencia_id: int, confirmar: bool = False):
     return requests.post(
-        f"{_base_url()}/api/transferencias/{transferencia_id}/facturar",
+        _api(f"/transferencias/{transferencia_id}/facturar"),
         params={"confirmar": "true" if confirmar else "false"},
         headers=_headers(),
         timeout=_timeout(),
@@ -196,7 +211,7 @@ def facturar_transferencia(transferencia_id: int, confirmar: bool = False):
 
 def facturar_transferencias(ids: list, confirmar_bajo_minimo: bool = False):
     return requests.post(
-        f"{_base_url()}/api/transferencias/facturar",
+        _api("/transferencias/facturar"),
         json={"transferencia_ids": ids, "confirmar_bajo_minimo": confirmar_bajo_minimo},
         headers=_headers(),
         timeout=_timeout(),
@@ -204,10 +219,10 @@ def facturar_transferencias(ids: list, confirmar_bajo_minimo: bool = False):
 
 
 def listar_facturas():
-    return requests.get(f"{_base_url()}/api/facturas", headers=_headers(), timeout=_timeout())
+    return requests.get(_api("/facturas"), headers=_headers(), timeout=_timeout())
 
 
 def factura_pdf(factura_id: int):
     return requests.get(
-        f"{_base_url()}/api/facturas/{factura_id}/pdf", headers=_headers(), timeout=_timeout()
+        _api(f"/facturas/{factura_id}/pdf"), headers=_headers(), timeout=_timeout()
     )
