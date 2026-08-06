@@ -404,10 +404,19 @@ def indice_bcra():
     if error:
         flash(error, "error")
         return redirect(url_for("aumentos.indices", tipo="ICL"))
-    n = 0
+    nuevos = 0
     for v in valores:
         if _guardar_valor("ICL", v["periodo"], v["valor"], "BCRA"):
-            n += 1
+            nuevos += 1
     db.session.commit()
-    flash(f"Se actualizaron {n} valores de ICL desde el BCRA.", "ok")
+    total = len(valores or [])
+    if nuevos:
+        flash(f"ICL actualizado desde el BCRA: {nuevos} valor(es) nuevo(s) "
+              f"(de {total} que trajo la serie).", "ok")
+    elif total:
+        flash(f"El BCRA respondió bien, pero esos {total} valores de ICL ya los "
+              "tenías cargados: no había nada nuevo.", "ok")
+    else:
+        flash("El BCRA no devolvió valores de ICL. Cargalos a mano o probá más tarde.",
+              "error")
     return redirect(url_for("aumentos.indices", tipo="ICL"))

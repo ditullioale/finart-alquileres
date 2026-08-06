@@ -51,19 +51,53 @@ def parse_fecha(valor):
 
 
 def parse_num(valor, entero=False):
-    """Convierte texto a número tolerando formato es-AR (miles con punto)."""
+    """Convierte texto a número tolerando el formato es-AR.
+
+    Reconoce el punto como separador de miles ('250.000' -> 250000), la coma como
+    decimal ('1.234,56' -> 1234.56) y descarta el símbolo de moneda y los espacios
+    ('$ 250.000' -> 250000). Devuelve None si el texto no representa un número, para
+    que quien llama pueda avisar 'no entendí el número' en vez de guardar cualquier
+    cosa (antes '250.000' se guardaba como 250)."""
     if valor is None:
         return None
+    if isinstance(valor, (int, float)):
+        return int(valor) if entero else float(valor)
     s = str(valor).strip()
     if s == "":
         return None
-    # Si tiene coma decimal, quitar puntos de miles.
-    if "," in s:
-        s = s.replace(".", "").replace(",", ".")
+    # Sacar moneda, espacios y separadores de miles no numéricos; dejar dígitos,
+    # signo y los separadores . , para decidir el decimal.
+    neg = s.lstrip().startswith("-")
+    s = re.sub(r"[^0-9.,]", "", s)
+    if s in ("", ".", ","):
+        return None
+
+    if "," in s and "." in s:
+        # El último separador que aparece es el decimal.
+        if s.rfind(",") > s.rfind("."):
+            s = s.replace(".", "").replace(",", ".")   # es-AR: 1.234,56
+        else:
+            s = s.replace(",", "")                        # en-US: 1,234.56
+    elif "," in s:
+        s = s.replace(".", "").replace(",", ".")         # coma decimal
+    elif "." in s:
+        partes = s.split(".")
+        # Varios puntos => separador de miles ('1.250.000'). Un solo punto es de
+        # miles solo si detrás hay 3 dígitos y la parte entera tiene 1 a 3 dígitos
+        # ('250.000', '1.500'); si no, es decimal ('0.75', '100000.005').
+        miles = (len(partes) > 2 or
+                 (len(partes) == 2 and 1 <= len(partes[0]) <= 3
+                  and len(partes[1]) == 3))
+        if miles:
+            s = s.replace(".", "")
+
     try:
-        return int(float(s)) if entero else float(s)
+        n = float(s)
     except ValueError:
         return None
+    if neg:
+        n = -n
+    return int(n) if entero else n
 
 
 # Mapeo del índice del generador -> código interno

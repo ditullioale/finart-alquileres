@@ -107,20 +107,25 @@ def documento(cid):
 def ver(cid):
     contrato = db.session.get(Contrato, cid) or abort(404)
     from datetime import date
-    from ..calculos import deuda_total
-    from ..utils import proximo_ajuste, link_whatsapp
+    from ..calculos import deuda_real, periodos_impagos, proximo_aumento
+    from ..utils import link_whatsapp, MESES_ES
     hoy = date.today()
     prox_aumento = None
     if contrato.metodo_ajuste != "sin_ajuste" and contrato.ajuste_cada_meses:
-        prox_aumento = proximo_ajuste(contrato.fecha_inicio, contrato.ajuste_cada_meses,
-                                      len(contrato.aumentos))
+        prox_aumento = proximo_aumento(contrato, hoy)
+    tel = contrato.inquilino.telefono if contrato.inquilino else None
     wa = None
     if contrato.inquilino:
-        wa = link_whatsapp(contrato.inquilino.telefono,
+        wa = link_whatsapp(tel,
                            f"Hola {contrato.inquilino.nombre}! Te escribo por el "
                            f"alquiler de {contrato.inmueble.direccion if contrato.inmueble else ''}.")
-    resumen = dict(deuda=deuda_total(contrato), prox_aumento=prox_aumento,
-                   aumento_vencido=bool(prox_aumento and prox_aumento <= hoy), wa=wa)
+    impagos = periodos_impagos(contrato, hoy)
+    impagos_txt = ", ".join(f"{MESES_ES[p['mes']]} {p['anio']}" for p in impagos[-6:])
+    resumen = dict(deuda=deuda_real(contrato, hoy), impagos=impagos,
+                   impagos_txt=impagos_txt, prox_aumento=prox_aumento,
+                   aumento_vencido=bool(prox_aumento and prox_aumento <= hoy),
+                   wa=wa, telefono=tel,
+                   email=(contrato.inquilino.email if contrato.inquilino else None))
     return render_template("contratos/ver.html", c=contrato,
                            indice_nombre=INDICE_NOMBRE, cat_docs=CATEGORIAS_DOC,
                            resumen=resumen)

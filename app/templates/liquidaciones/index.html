@@ -6,6 +6,10 @@
     <h1>Liquidaciones a propietarios</h1>
     <p class="sub">Elegí el período y generá la liquidación de cada propietario con lo cobrado de sus inmuebles.</p>
   </div>
+  {% if pendientes_facturar %}
+  <a class="btn sec" href="{{ url_for('liquidaciones.pendientes_facturar') }}"
+     style="border-color:#f0b4b4;color:#9c2020">⚠️ Pendientes de facturar ({{ pendientes_facturar }})</a>
+  {% endif %}
 </div>
 
 <form class="filters" method="get">

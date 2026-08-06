@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Pendientes de facturar{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Liquidaciones pendientes de facturar</h1>
+    <p class="sub">Liquidaciones cuya factura de honorarios no quedó emitida (error del facturador, propietario sin CUIT, o todavía sin intentar). Reintentá desde acá para que no se pierdan.</p>
+  </div>
+  <a class="btn sec" href="{{ url_for('liquidaciones.index') }}">← Volver a liquidaciones</a>
+</div>
+
+{% if not habilitado %}
+<div class="aviso" style="background:#fff6e5;border-color:#f0d089;color:#8a5a00">
+  El facturador no está configurado en este servidor, así que no se emiten facturas de honorarios.
+</div>
+{% endif %}
+
+{% if filas %}
+<table class="grid card-collapse">
+  <thead>
+    <tr><th>Fecha</th><th>Liquidación</th><th>Propietario</th><th>Período</th>
+        <th class="r">Comisión</th><th>Estado</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for f in filas %}
+    <tr>
+      <td data-l="Fecha">{{ f.liq.fecha.strftime('%d/%m/%Y') if f.liq.fecha else '—' }}</td>
+      <td data-l="Liquidación"><b>{{ f.liq.numero }}</b></td>
+      <td data-l="Propietario">{{ f.prop.nombre if f.prop else '—' }}</td>
+      <td data-l="Período">{{ meses[f.liq.periodo_mes] if f.liq.periodo_mes }} {{ f.liq.periodo_anio }}</td>
+      <td data-l="Comisión" class="r">{{ f.liq.moneda|simbolo }} {{ f.liq.total_comision|money }}</td>
+      <td data-l="Estado">
+        {% set e = f.liq.factura_estado %}
+        {% if e == 'sin_cuit' %}<span class="badge pendiente">Sin CUIT</span>
+        {% elif e == 'error' %}<span class="badge pendiente" title="{{ f.liq.factura_detalle or '' }}">Error del facturador</span>
+        {% elif e == 'requiere_confirmacion' %}<span class="badge parcial">Bajo el mínimo</span>
+        {% else %}<span class="badge pendiente">Sin facturar</span>{% endif %}
+        {% if f.liq.factura_detalle %}<div class="hint" style="margin:2px 0 0">{{ f.liq.factura_detalle }}</div>{% endif %}
+      </td>
+      <td data-l="" class="actions">
+        <a class="btn sec sm" href="{{ url_for('liquidaciones.ver', pid=f.liq.propietario_id, mes=f.liq.periodo_mes, anio=f.liq.periodo_anio) }}">Ver</a>
+        {% if habilitado %}
+        <form method="post" action="{{ url_for('liquidaciones.facturar_honorarios', liq_id=f.liq.id) }}"
+              onsubmit="return confirm('¿Reintentar la facturación de honorarios de esta liquidación?')">
+          <button class="btn ok sm" type="submit">Reintentar</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+  <div class="em">✓</div>
+  <h3>No hay liquidaciones pendientes de facturar</h3>
+  <p>Todas las liquidaciones con factura de honorarios quedaron emitidas.</p>
+</div>
+{% endif %}
+{% endblock %}

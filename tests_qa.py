@@ -128,6 +128,12 @@ def run():
         check("pesos en letras",
               "ciento ochenta mil" in pesos_letras(180000).lower())
         check("parse_num formato es-AR", parse_num("1.234,56") == 1234.56)
+        check("parse_num: '250.000' es 250000 (no 250)", parse_num("250.000") == 250000)
+        check("parse_num: saca el símbolo de moneda", parse_num("$ 250.000") == 250000)
+        check("parse_num: millones con puntos", parse_num("1.250.000") == 1250000)
+        check("parse_num: decimal con punto respetado", parse_num("0.75") == 0.75)
+        check("parse_num: coma decimal", parse_num("250,5") == 250.5)
+        check("parse_num: texto no numérico es None", parse_num("abc") is None)
         check("add_months ajusta fin de mes",
               add_months(date(2025, 1, 31), 1) == date(2025, 2, 28))
 
@@ -433,6 +439,43 @@ def run():
         check("mora 0 si paga en fecha o antes",
               float(calcular_mora(100000, 1, _d(2026, 7, 10), _d(2026, 7, 5))) == 0.0)
 
+        # canon_vigente por período: elige el aumento con mayor fecha <= el período.
+        class _Au2:
+            def __init__(s, f, p, i): s.fecha_vigencia=f; s.precio_nuevo=p; s.id=i
+        _cp = _Ct(); _cp.precio_inicial=200000; _cp.precio_actual=387500; _cp.dia_vencimiento=10
+        _cp.aumentos=[_Au2(_d(2026,4,10),310000,1), _Au2(_d(2026,8,6),387500,2)]
+        _cp.pagos=[]
+        check("período previo al 1er aumento usa el precio inicial",
+              canon_vigente(_cp, 2, 2026) == 200000)
+        check("período entre aumentos usa el aumento correspondiente",
+              canon_vigente(_cp, 6, 2026) == 310000)
+        check("período >= último aumento usa el último precio",
+              canon_vigente(_cp, 9, 2026) == 387500)
+        # Congelar mes ya cobrado: un aumento posterior NO cambia el esperado.
+        class _Pg:
+            pass
+        _pg = _Pg(); _pg.periodo_mes=8; _pg.periodo_anio=2026; _pg.precio_alquiler=310000
+        _pg.estado="Pagado"; _pg.pagado=310000; _pg.saldo=0
+        _cp.pagos=[_pg]
+        _ei = estado_periodo(_cp, 8, 2026, hoy=_d(2026,8,20))
+        check("mes ya cobrado: 'A cobrar' queda congelado en lo cobrado (bug C4)",
+              _ei["esperado"] == 310000 and _ei["estado"] == "Pagado")
+
+        # Deuda real: cuenta los meses vencidos sin cobrar, no solo saldos parciales.
+        from app.calculos import deuda_real, periodos_impagos
+        _cd = _Ct(); _cd.precio_inicial=200000; _cd.precio_actual=200000
+        _cd.dia_vencimiento=10; _cd.pagos=[]; _cd.aumentos=[]
+        _cd.fecha_inicio=_d(2025,3,1); _cd.fecha_fin=None
+        _imp = periodos_impagos(_cd, hoy=_d(2025,8,20))
+        check("deuda real: detecta los meses vencidos impagos (mar-ago = 6)",
+              len(_imp) == 6)
+        check("deuda real suma los meses adeudados (6 × 200000)",
+              deuda_real(_cd, hoy=_d(2025,8,20)) == 1200000)
+        # Con hoy=05/08, agosto (vence el 10) todavía no venció: no cuenta (quedan 5).
+        _imp2 = periodos_impagos(_cd, hoy=_d(2025,8,5))
+        check("el mes en curso aún no vencido NO cuenta como deuda (quedan 5)",
+              len(_imp2) == 5 and not any(p["mes"] == 8 for p in _imp2))
+
         seccion("Anti-doble-cobro (un pago por contrato/período)")
 
         def _dup():
@@ -464,6 +507,68 @@ def run():
         check("queda un solo pago de ese período",
               q(lambda: Pago.query.filter_by(contrato_id=ids["c2"], periodo_mes=12,
                                              periodo_anio=2099).count()) == 1)
+
+        seccion("Anular pago (rastro, no borrado)")
+        # Cobro un período, lo anulo y verifico: sigue existiendo (anulado) y el
+        # período queda libre para volver a cobrarse.
+        cl.post("/cobros/rapido", json={"cid": ids["c2"], "mes": 7, "anio": 2098,
+                "precio": 5000, "pagado": 5000})
+        _pid = q(lambda: Pago.query.filter_by(contrato_id=ids["c2"], periodo_mes=7,
+                                              periodo_anio=2098).first().id)
+        cl.post(f"/cobros/pago/{_pid}/anular", data={"motivo": "cargado mal"})
+        check("el pago anulado NO se borra (sigue en la base)",
+              q(lambda: db.session.get(Pago, _pid) is not None))
+        check("el pago anulado queda en estado 'Anulado' con saldo 0",
+              q(lambda: db.session.get(Pago, _pid).estado) == "Anulado")
+        check("anular deja constancia del motivo en observaciones",
+              q(lambda: "ANULADO" in (db.session.get(Pago, _pid).observaciones or "")))
+        _re = cl.post("/cobros/rapido", json={"cid": ids["c2"], "mes": 7, "anio": 2098,
+                      "precio": 6000, "pagado": 6000})
+        check("tras anular, se puede volver a cobrar ese mismo período (200)",
+              _re.status_code == 200)
+        check("el período recobrado cuenta como pago ACTIVO (el anulado no)",
+              q(lambda: Pago.query.filter_by(contrato_id=ids["c2"], periodo_mes=7,
+                periodo_anio=2098).filter(Pago.estado != "Anulado").count()) == 1)
+
+        seccion("Liquidación: guardar el comprobante emitido")
+        from app.blueprints.liquidaciones import _guardar_factura as _guard
+        from app.models import Liquidacion as _Liq
+
+        def _liq_emitida():
+            l = _Liq(numero="0001-00000099", propietario_id=ids["prop"],
+                     periodo_mes=8, periodo_anio=2026, fecha=date(2026, 8, 6),
+                     total_comision=42400)
+            db.session.add(l); db.session.commit()
+            _guard(l, {"estado": "emitida", "factura": {
+                "id": 5, "numero": "0001-00000099", "tipo": "C", "cae": "72608060000001",
+                "cae_vencimiento": "2026-08-16", "fecha": "2026-08-06"}})
+            return l.id
+        _lid = q(_liq_emitida)
+        check("la liquidación guarda el CAE emitido",
+              q(lambda: db.session.get(_Liq, _lid).factura_cae) == "72608060000001")
+        check("la liquidación queda marcada como facturada",
+              q(lambda: db.session.get(_Liq, _lid).facturada) is True)
+        check("guarda el id de la factura (para el PDF)",
+              q(lambda: db.session.get(_Liq, _lid).factura_id) == 5)
+
+        def _liq_error():
+            l = _Liq(numero="0001-00000100", propietario_id=ids["prop"],
+                     periodo_mes=8, periodo_anio=2026, fecha=date(2026, 8, 6),
+                     total_comision=100)
+            db.session.add(l); db.session.commit()
+            _guard(l, {"estado": "error", "mensaje": "El facturador respondió 500."})
+            return l.id
+        _lide = q(_liq_error)
+        check("una emisión fallida guarda el estado 'error' y el detalle",
+              q(lambda: (db.session.get(_Liq, _lide).factura_estado,
+                         bool(db.session.get(_Liq, _lide).factura_detalle))) == ("error", True))
+        _band = cl.get("/liquidaciones/pendientes-facturar")
+        check("la bandeja de pendientes de facturar responde 200",
+              _band.status_code == 200)
+        check("la liquidación con error aparece en la bandeja de pendientes",
+              "0001-00000100" in _band.get_data(as_text=True))
+        check("la liquidación emitida NO aparece en la bandeja",
+              "0001-00000099" not in _band.get_data(as_text=True))
 
         seccion("Anti-doble-cobro (pago a cuenta)")
 

@@ -29,10 +29,18 @@
 
     {% if tipo=='ICL' %}
     <h2 style="margin-top:18px">Traer del BCRA</h2>
-    <form method="post" action="{{ url_for('aumentos.indice_bcra') }}">
-      <p class="hint">Consulta la serie oficial del ICL. Si el servicio no responde, cargalo manualmente.</p>
-      <button class="btn sec" type="submit">Actualizar ICL desde BCRA</button>
+    <form method="post" action="{{ url_for('aumentos.indice_bcra') }}" id="bcra-form">
+      <p class="hint">Consulta la serie oficial del ICL. La respuesta del BCRA puede tardar unos segundos. Si el servicio no responde, cargalo manualmente.</p>
+      <button class="btn sec" type="submit" id="bcra-btn">Actualizar ICL desde BCRA</button>
+      <span class="hint" id="bcra-estado" style="display:none;margin-left:8px">⏳ Consultando el BCRA… (puede tardar unos segundos)</span>
     </form>
+    <script>
+      document.getElementById('bcra-form').addEventListener('submit', function(){
+        var b = document.getElementById('bcra-btn');
+        b.disabled = true; b.textContent = 'Consultando…';
+        document.getElementById('bcra-estado').style.display = 'inline';
+      });
+    </script>
     {% endif %}
   </div>
 

@@ -342,9 +342,11 @@ def rapido():
     if not precio or precio <= 0:
         return jsonify(ok=False, error="El precio del alquiler debe ser mayor a 0."), 400
 
-    # Evitar duplicar: si ya hay un pago de ese período, no crear otro.
+    # Evitar duplicar: si ya hay un pago ACTIVO de ese período, no crear otro.
+    # (Un pago anulado no bloquea: se puede volver a cobrar el mes.)
     ya = next((p for p in contrato.pagos
-               if p.periodo_mes == mes and p.periodo_anio == anio), None)
+               if p.periodo_mes == mes and p.periodo_anio == anio
+               and p.estado != "Anulado"), None)
     if ya:
         return jsonify(ok=False, error="Ya existe un pago para ese período."), 409
 
@@ -425,7 +427,8 @@ def nuevo(cid):
         if not error:
             dup = next((p for p in contrato.pagos
                         if p.periodo_mes == pago.periodo_mes
-                        and p.periodo_anio == pago.periodo_anio), None)
+                        and p.periodo_anio == pago.periodo_anio
+                        and p.estado != "Anulado"), None)
             if dup:
                 error = (f"Ya existe un pago para {MESES_ES[pago.periodo_mes]} "
                          f"{pago.periodo_anio}. Abrí ese pago para completarlo o corregirlo.")
@@ -507,15 +510,35 @@ def editar(pid):
                            formas=FORMAS_PAGO, meses=MESES_ES, nuevo=False)
 
 
+@cobros_bp.route("/pago/<int:pid>/anular", methods=["POST"])
+@login_required
+def anular(pid):
+    """Anula un pago sin borrarlo: conserva el número, el recibo y el rastro, y
+    libera el período para volver a cobrarlo. No se pierde plata ni numeración."""
+    pago = db.session.get(Pago, pid) or abort(404)
+    cid = pago.contrato_id
+    if pago.estado == "Anulado":
+        flash("Ese pago ya estaba anulado.", "ok")
+        return redirect(url_for("cobros.detalle", cid=cid))
+    motivo = (request.form.get("motivo") or "").strip()
+    from flask_login import current_user
+    quien = getattr(current_user, "username", "") or "—"
+    sello = date.today().strftime("%d/%m/%Y")
+    nota = f"ANULADO {sello} por {quien}" + (f": {motivo}" if motivo else "") + "."
+    pago.observaciones = ((pago.observaciones or "") + " " + nota).strip()
+    pago.estado = "Anulado"
+    pago.saldo = 0
+    db.session.commit()
+    flash("Pago anulado. Queda registrado como anulado y el período puede volver a "
+          "cobrarse.", "ok")
+    return redirect(url_for("cobros.detalle", cid=cid))
+
+
+# Alias viejo: por si quedó algún enlace a /eliminar, ahora anula (no borra).
 @cobros_bp.route("/pago/<int:pid>/eliminar", methods=["POST"])
 @login_required
 def eliminar(pid):
-    pago = db.session.get(Pago, pid) or abort(404)
-    cid = pago.contrato_id
-    db.session.delete(pago)
-    db.session.commit()
-    flash("Pago eliminado.", "ok")
-    return redirect(url_for("cobros.detalle", cid=cid))
+    return anular(pid)
 
 
 @cobros_bp.route("/pago/<int:pid>/abonar", methods=["GET", "POST"])

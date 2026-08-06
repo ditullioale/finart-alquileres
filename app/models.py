@@ -470,12 +470,20 @@ class Pago(db.Model):
     # Y un número de recibo irrepetible dentro de la inmobiliaria: si dos cobros
     # simultáneos alcanzan a tomar el mismo número, el segundo commit falla y se
     # reintenta, en vez de emitir dos recibos con la misma numeración.
+    # Un solo pago ACTIVO por contrato y período: un pago anulado deja libre el
+    # período para volver a cobrarlo, pero se conserva como rastro (índice parcial).
     __table_args__ = (
-        db.UniqueConstraint("contrato_id", "periodo_mes", "periodo_anio",
-                            name="uq_pago_contrato_periodo"),
+        db.Index("uq_pago_contrato_periodo",
+                 "contrato_id", "periodo_mes", "periodo_anio", unique=True,
+                 sqlite_where=db.text("estado <> 'Anulado'"),
+                 postgresql_where=db.text("estado <> 'Anulado'")),
         db.UniqueConstraint("inmobiliaria_id", "recibo_numero",
                             name="uq_pago_recibo_numero"),
     )
+
+    @property
+    def anulado(self):
+        return self.estado == "Anulado"
 
 
 class GastoExtra(db.Model):
@@ -688,7 +696,22 @@ class Liquidacion(db.Model):
     total_neto = db.Column(db.Numeric(14, 2))
     creado = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # Comprobante de honorarios emitido por el facturador (se guarda para poder
+    # verlo después sin salir del gestor y para la bandeja de "sin facturar").
+    factura_estado = db.Column(db.String(24))   # emitida/error/sin_cuit/requiere_confirmacion/...
+    factura_id = db.Column(db.Integer)          # id en el facturador (para el PDF)
+    factura_numero = db.Column(db.String(30))
+    factura_tipo = db.Column(db.String(10))     # C / A / B / 11...
+    factura_cae = db.Column(db.String(20))
+    factura_cae_vto = db.Column(db.Date)
+    factura_fecha = db.Column(db.Date)
+    factura_detalle = db.Column(db.Text)        # mensaje de error si no se pudo emitir
+
     propietario = db.relationship("Persona")
+
+    @property
+    def facturada(self):
+        return self.factura_estado == "emitida"
 
 
 class OperacionIdem(db.Model):

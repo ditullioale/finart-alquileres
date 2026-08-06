@@ -40,7 +40,7 @@
   </thead>
   <tbody>
     {% for p in pagos %}
-    <tr>
+    <tr {% if p.anulado %}style="opacity:.55;text-decoration:line-through"{% endif %}>
       <td>{{ p.fecha_pago.strftime('%d/%m/%Y') if p.fecha_pago else '—' }}</td>
       <td>{{ p.numero or '—' }}</td>
       <td>{{ meses[p.periodo_mes] if p.periodo_mes }} {{ p.periodo_anio }}</td>
@@ -49,18 +49,22 @@
       <td class="r"><b>{{ p.total|money }}</b></td>
       <td class="r">{{ p.pagado|money }}</td>
       <td class="r {{ 'txt-danger' if (p.saldo or 0) > 0 }}">{{ p.saldo|money }}</td>
-      <td><span class="badge {{ p.estado|lower }}">{{ p.estado }}</span></td>
+      <td><span class="badge {{ 'pendiente' if p.anulado else p.estado|lower }}">{{ p.estado }}</span></td>
       <td>{{ p.pagado_al_propietario.strftime('%d/%m/%Y') if p.pagado_al_propietario else '—' }}</td>
       <td class="actions">
-        {% if (p.saldo or 0) > 0 %}<a href="{{ url_for('cobros.abonar', pid=p.id) }}"><b>Abonar</b></a>{% endif %}
-        <a href="{{ url_for('recibos.recibo', pid=p.id) }}" target="_blank">Recibo</a>
-        <a href="{{ url_for('recibos.recibo_pdf', pid=p.id) }}">PDF</a>
-        <a href="{{ url_for('recibos.liquidacion', pid=p.id) }}" target="_blank">Liquidación</a>
-        <a href="{{ url_for('cobros.editar', pid=p.id) }}">Editar</a>
-        <form method="post" action="{{ url_for('cobros.eliminar', pid=p.id) }}"
-              onsubmit="return confirm('¿Eliminar este pago?')">
-          <button class="link-danger" type="submit">Eliminar</button>
-        </form>
+        {% if p.anulado %}
+          <a href="{{ url_for('recibos.recibo', pid=p.id) }}" target="_blank">Recibo</a>
+        {% else %}
+          {% if (p.saldo or 0) > 0 %}<a href="{{ url_for('cobros.abonar', pid=p.id) }}"><b>Abonar</b></a>{% endif %}
+          <a href="{{ url_for('recibos.recibo', pid=p.id) }}" target="_blank">Recibo</a>
+          <a href="{{ url_for('recibos.recibo_pdf', pid=p.id) }}">PDF</a>
+          <a href="{{ url_for('recibos.liquidacion', pid=p.id) }}" target="_blank">Liquidación</a>
+          <a href="{{ url_for('cobros.editar', pid=p.id) }}">Editar</a>
+          <form method="post" action="{{ url_for('cobros.anular', pid=p.id) }}"
+                onsubmit="return confirm('¿Anular este pago? Queda como anulado (no se borra) y el período podrá cobrarse de nuevo.')">
+            <button class="link-danger" type="submit">Anular</button>
+          </form>
+        {% endif %}
       </td>
     </tr>
     {% else %}

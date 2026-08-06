@@ -71,21 +71,84 @@ def _facturar_honorarios(liq, prop, confirmar=False):
     resultado = facturador.facturar_liquidacion(liq, prop, ajustes,
                                                  confirmar_bajo_minimo=confirmar)
     estado = resultado.get("estado")
+    _guardar_factura(liq, resultado)   # deja el CAE/estado guardado en la liquidación
     if estado == "emitida":
-        f = resultado.get("factura") or {}
-        cae = f.get("cae")
-        flash(f"Factura de honorarios emitida al propietario"
-              + (f" (CAE {cae})." if cae else "."), "ok")
+        cae = liq.factura_cae
+        num = liq.factura_numero
+        flash("Factura de honorarios emitida al propietario"
+              + (f" — {('C ' + num) if num else 'comprobante'}" if num else "")
+              + (f" · CAE {cae}." if cae else "."), "ok")
     elif estado == "error":
         flash("La liquidación se generó, pero la factura de honorarios no se pudo "
-              f"emitir: {resultado.get('mensaje') or 'error del facturador'}.", "error")
+              f"emitir: {resultado.get('mensaje') or 'error del facturador'}. "
+              "Quedó en la bandeja de pendientes de facturar.", "error")
     elif estado == "sin_cuit":
         flash("La liquidación se generó, pero no se facturó: el propietario no "
-              "tiene CUIT cargado.", "error")
+              "tiene CUIT cargado. Quedó en la bandeja de pendientes de facturar.", "error")
     # 'requiere_confirmacion' y 'deshabilitado' no se avisan por toast:
     #   - requiere_confirmacion: se resuelve con el banner de la liquidación.
     #   - deshabilitado: la integración no está configurada (FACTURADOR_URL vacío).
     return estado
+
+
+def _guardar_factura(liq, resultado):
+    """Persiste en la liquidación el resultado de la emisión (CAE, número, PDF, etc.)
+    para poder verlo después y para la bandeja de pendientes. Best-effort."""
+    from ..utils import parse_fecha
+
+    def _fecha(v):
+        return parse_fecha(v) if isinstance(v, str) else None
+
+    try:
+        estado = resultado.get("estado")
+        liq.factura_estado = estado
+        if estado == "emitida":
+            f = resultado.get("factura") or {}
+            liq.factura_id = f.get("id")
+            liq.factura_numero = f.get("numero") or f.get("comprobante")
+            liq.factura_tipo = str(f.get("tipo") or f.get("letra") or "") or None
+            liq.factura_cae = f.get("cae")
+            liq.factura_cae_vto = _fecha(f.get("cae_vencimiento") or f.get("cae_vto"))
+            liq.factura_fecha = _fecha(f.get("fecha")) or liq.fecha
+            liq.factura_detalle = None
+        else:
+            liq.factura_detalle = (resultado.get("mensaje")
+                                   or resultado.get("detail") or None)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
+def _pendientes_facturar_query():
+    """Liquidaciones cuya factura de honorarios NO quedó emitida (o nunca se intentó).
+    Sirve para que un facturador caído o un CUIT faltante no queden en el olvido."""
+    from sqlalchemy import or_
+    return (Liquidacion.query
+            .filter(or_(Liquidacion.factura_estado.is_(None),
+                        Liquidacion.factura_estado != "emitida"))
+            .order_by(Liquidacion.fecha.desc().nullslast(), Liquidacion.id.desc()))
+
+
+@liquidaciones_bp.app_context_processor
+def _inyectar_pendientes():
+    """Contador para el menú/enlaces (solo si el facturador está habilitado)."""
+    try:
+        if not facturador.habilitado():
+            return {"pendientes_facturar": 0}
+        return {"pendientes_facturar": _pendientes_facturar_query().count()}
+    except Exception:
+        return {"pendientes_facturar": 0}
+
+
+@liquidaciones_bp.route("/pendientes-facturar")
+@login_required
+def pendientes_facturar():
+    """Bandeja de liquidaciones sin factura emitida (error, sin CUIT, sin intentar…)."""
+    liqs = _pendientes_facturar_query().all()
+    props = {p.id: p for p in Persona.query.all()}
+    filas = [dict(liq=l, prop=props.get(l.propietario_id)) for l in liqs]
+    return render_template("liquidaciones/pendientes.html", filas=filas,
+                           meses=MESES_ES, habilitado=facturador.habilitado())
 
 
 # --------------------------------------------------------------------------- #

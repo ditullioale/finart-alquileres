@@ -71,7 +71,7 @@ def run():
     # captura el payload enviado y devuelve 'emitida'
     capturado = {}
 
-    def _post_ok(url, json=None, timeout=None):
+    def _post_ok(url, json=None, timeout=None, headers=None, **kw):
         capturado["url"] = url
         capturado["json"] = json
         return _RespFalsa(200, {"estado": "emitida", "factura": {"cae": "7123", "id": 5}})

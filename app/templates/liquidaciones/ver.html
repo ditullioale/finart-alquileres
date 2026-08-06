@@ -45,7 +45,18 @@
 {% if not items %}<div class="aviso" style="background:#fdecec;border-color:#f0b4b4;color:#9c2020">No hay cobros para este período.</div>{% endif %}
 
 {% if liq and facturador_habilitado %}
-  {% if fact == 'requiere_confirmacion' %}
+  {% if liq.facturada %}
+  {# Comprobante ya emitido: se muestra SIEMPRE (queda guardado en la liquidación). #}
+  <div class="aviso" style="background:#eaf7ee;border-color:#a9d9ba;color:#1c6b3a">
+    <b>✓ Factura de honorarios emitida</b>
+    {% if liq.factura_numero %} — {{ liq.factura_tipo or 'C' }} {{ liq.factura_numero }}{% endif %}
+    {% if liq.factura_cae %}<br>CAE {{ liq.factura_cae }}{% if liq.factura_cae_vto %} · vence {{ liq.factura_cae_vto.strftime('%d/%m/%Y') }}{% endif %}{% endif %}
+    {% if liq.factura_id %}
+      <a class="btn sec sm" style="margin-left:10px" target="_blank"
+         href="{{ url_for('facturador.factura_pdf', fid=liq.factura_id) }}">Ver PDF</a>
+    {% endif %}
+  </div>
+  {% elif fact == 'requiere_confirmacion' or liq.factura_estado == 'requiere_confirmacion' %}
   <div class="aviso" style="background:#fff6e5;border-color:#f0d089;color:#8a5a00">
     La comisión (<b>{{ comision|money }}</b>) no supera el mínimo para facturar.
     ¿Emitir igual la factura de honorarios al propietario?
@@ -60,11 +71,20 @@
       </button>
     </form>
   </div>
-  {% elif fact == 'emitida' %}
-  <div class="aviso">Factura de honorarios emitida al propietario.</div>
-  {% elif fact == 'sin_cuit' %}
+  {% elif liq.factura_estado in ('error', 'sin_cuit') or fact in ('error', 'sin_cuit') %}
   <div class="aviso" style="background:#fdecec;border-color:#f0b4b4;color:#9c2020">
-    No se emitió la factura de honorarios: el propietario no tiene CUIT cargado.
+    <b>No se emitió la factura de honorarios.</b>
+    {% if liq.factura_estado == 'sin_cuit' or fact == 'sin_cuit' %}
+      El propietario no tiene CUIT cargado.
+    {% elif liq.factura_detalle %}
+      {{ liq.factura_detalle }}
+    {% endif %}
+    <form method="post"
+          action="{{ url_for('liquidaciones.facturar_honorarios', liq_id=liq.id) }}"
+          style="display:inline;margin-left:8px">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn sec sm">Reintentar facturación</button>
+    </form>
   </div>
   {% endif %}
 {% endif %}

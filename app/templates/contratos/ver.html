@@ -21,8 +21,15 @@
     <div class="rc-val">{{ c.moneda|simbolo }} {{ c.precio_actual|money }}</div>
   </div>
   <div class="rc-item {{ 'rc-alert' if resumen.deuda > 0 }}">
-    <div class="rc-lbl">Deuda registrada</div>
+    <div class="rc-lbl">Deuda</div>
     <div class="rc-val">$ {{ resumen.deuda|money }}</div>
+    {% if resumen.impagos %}<div class="hint" style="margin:2px 0 0;color:var(--err)">Debe: {{ resumen.impagos_txt }}{% if resumen.impagos|length > 6 %} y más{% endif %}</div>
+    {% elif resumen.deuda == 0 %}<div class="hint" style="margin:2px 0 0">Al día</div>{% endif %}
+  </div>
+  <div class="rc-item">
+    <div class="rc-lbl">Teléfono</div>
+    <div class="rc-val" style="font-size:16px">{{ resumen.telefono or '—' }}</div>
+    {% if resumen.email %}<div class="hint" style="margin:2px 0 0">{{ resumen.email }}</div>{% endif %}
   </div>
   <div class="rc-item">
     <div class="rc-lbl">Vence día</div>

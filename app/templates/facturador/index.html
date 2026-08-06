@@ -70,6 +70,22 @@
     msg.hidden = false; msg.textContent = texto;
     msg.style.color = tipo === 'error' ? '#b00' : '#14663a';
   }
+  function limpiarAviso(){ msg.hidden = true; msg.textContent = ''; }
+  // El backend (FastAPI) a veces manda 'detail' como lista de objetos de validación.
+  // Lo convertimos a texto legible en vez de mostrar "[object Object]".
+  function detalleError(j, porDefecto){
+    if(!j) return porDefecto || 'Ocurrió un error.';
+    var d = j.detail;
+    if(typeof d === 'string' && d) return d;
+    if(Array.isArray(d)) {
+      var partes = d.map(function(e){ return (e && (e.msg || e.message)) || ''; })
+                    .filter(Boolean);
+      if(partes.length) return partes.join(' · ');
+    }
+    if(d && typeof d === 'object' && (d.msg || d.message)) return d.msg || d.message;
+    if(typeof j.error === 'string' && j.error) return j.error;
+    return porDefecto || 'Ocurrió un error.';
+  }
   function esFacturable(t){
     return t.estado === 'pendiente' && t.cuit && (!t.factura || t.factura.estado !== 'emitida');
   }
@@ -115,9 +131,13 @@
         var id = Number(inp.dataset.id);
         var t = datos.find(function(x){return x.id===id;});
         if(val.length===11 && val!==(t&&t.cuit)){
+          limpiarAviso();
           fetch('/facturador/transferencias/'+id, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({cuit: val})})
             .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
-            .then(function(res){ if(res.ok){ var i=datos.findIndex(function(x){return x.id===id;}); if(i>=0) datos[i]=res.j; render(); } else { aviso(res.j.detail||'CUIT inválido','error'); } });
+            .then(function(res){ if(res.ok){ limpiarAviso(); var i=datos.findIndex(function(x){return x.id===id;}); if(i>=0) datos[i]=res.j; render(); } else { aviso(detalleError(res.j, 'CUIT inválido'),'error'); } })
+            .catch(function(){ aviso('No se pudo contactar al facturador.','error'); });
+        } else if(val.length && val.length!==11){
+          aviso('El CUIT debe tener 11 dígitos.','error');
         }
       });
     });
@@ -186,7 +206,7 @@
           render();
         } else {
           box.hidden = false; box.style.color='#b00';
-          box.textContent = res.j.detail || 'No se pudo importar el archivo.';
+          box.textContent = detalleError(res.j, 'No se pudo importar el archivo.');
         }
       })
       .catch(function(){
@@ -224,7 +244,7 @@
             receptor:(j.razon_social||j.cuit_receptor||receptor), importe:(j.importe!=null?j.importe:importe)});
         } else {
           var est = r.status===422 ? 'sin_cuit' : (r.status===409 ? 'requiere_confirmacion' : 'error');
-          resultados.push({transferencia_id:id, estado:est, mensaje:(j.detail||''), factura:null,
+          resultados.push({transferencia_id:id, estado:est, mensaje:detalleError(j,''), factura:null,
             receptor:receptor, importe:importe});
         }
       }catch(e){
