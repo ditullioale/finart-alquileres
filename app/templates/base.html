@@ -84,7 +84,10 @@
       <div class="who"><span class="i">{{ icon('user', 16) }}</span> {{ current_user.nombre or current_user.username }}</div>
       <button type="button" class="dens-toggle" onclick="toggleDensidad()"><span id="densLbl">Vista compacta</span></button>
       <a class="logout" href="{{ url_for('usuarios.cambiar_clave') }}" style="margin:6px 0"><span class="i">{{ icon('settings', 15) }}</span> Cambiar contraseña</a>
-      <a class="logout" href="{{ url_for('auth.logout') }}"><span class="i">{{ icon('log-out', 15) }}</span> Cerrar sesión</a>
+      <form method="post" action="{{ url_for('auth.logout') }}" style="margin:0">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="logout" style="background:none;border:0;width:100%;text-align:left;cursor:pointer;font:inherit;color:inherit;padding:0"><span class="i">{{ icon('log-out', 15) }}</span> Cerrar sesión</button>
+      </form>
       <a href="{{ url_for('main.acerca') }}" style="display:block;text-align:center;color:#6f86a6;font-size:11px;margin-top:8px;text-decoration:none">v{{ app_version }} · Acerca de</a>
     </div>
   </aside>

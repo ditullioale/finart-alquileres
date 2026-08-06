@@ -153,6 +153,23 @@ def run():
         check("operador NO accede a respaldo (403)",
               co.get("/ajustes/respaldo").status_code == 403)
 
+        seccion("Seguridad (headers / contraseña / logout)")
+        from app.seguridad import validar_password as _valpw
+        _h = cl.get("/").headers
+        check("respuesta trae X-Content-Type-Options: nosniff",
+              _h.get("X-Content-Type-Options") == "nosniff")
+        check("respuesta trae Content-Security-Policy",
+              "default-src 'self'" in (_h.get("Content-Security-Policy") or ""))
+        check("respuesta trae anti-clickjacking (X-Frame-Options)",
+              _h.get("X-Frame-Options") == "DENY")
+        check("política de clave: rechaza menos de 8", _valpw("corta12") is not None)
+        check("política de clave: rechaza solo números", _valpw("12345678") is not None)
+        check("política de clave: acepta 8+ con letras", _valpw("clave123") is None)
+        check("logout por GET no se permite (405)", cl.get("/logout").status_code == 405)
+        check("logout por POST cierra sesión (302)",
+              cl.post("/logout").status_code in (301, 302))
+        cl = login(app)   # re-login para el resto de las pruebas
+
         seccion("Navegacion general")
         for url in ["/", "/personas/", "/personas/telefonos", "/inmuebles/",
                     "/contratos/", f"/contratos/{ids['c']}", "/cobros/",

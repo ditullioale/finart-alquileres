@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Pruebas (QA + aislamiento + facturador)
+        env:
+          TESTING: "1"
+        run: |
+          python tests_qa.py
+          python test_aislamiento.py
+          python test_facturador.py
+
+      - name: Lint (informativo, no bloquea)
+        continue-on-error: true
+        run: |
+          pip install ruff
+          ruff check .

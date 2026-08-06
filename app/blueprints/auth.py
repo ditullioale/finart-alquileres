@@ -9,6 +9,7 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 from .. import db
 from ..models import IntentoLogin, Usuario
+from ..seguridad import validar_password
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -80,6 +81,46 @@ def _purgar_intentos_viejos():
     IntentoLogin.query.filter(IntentoLogin.ultimo < limite).delete()
 
 
+# Freno genérico por IP para endpoints públicos (registro, recuperación), para
+# frenar el abuso automatizado. Reusa la tabla IntentoLogin.
+def _throttle(clave, maximo, ventana, bloqueo):
+    """Minutos de espera (0 si se puede seguir). Cuenta intentos por 'clave'."""
+    reg = IntentoLogin.query.filter_by(clave=clave).first()
+    ahora = datetime.utcnow()
+    if reg and (ahora - reg.ultimo).total_seconds() >= ventana:
+        db.session.delete(reg)
+        db.session.commit()
+        return 0
+    if reg and (reg.fallos or 0) >= maximo:
+        transcurrido = (ahora - reg.ultimo).total_seconds()
+        if transcurrido < bloqueo:
+            return max(math.ceil((bloqueo - transcurrido) / 60), 1)
+    return 0
+
+
+def _throttle_contar(clave):
+    reg = IntentoLogin.query.filter_by(clave=clave).first()
+    if reg is None:
+        reg = IntentoLogin(clave=clave, fallos=0)
+        db.session.add(reg)
+    reg.fallos = (reg.fallos or 0) + 1
+    reg.ultimo = datetime.utcnow()
+    db.session.commit()
+
+
+def _throttle_publico(accion, maximo=10, ventana=3600, bloqueo=3600):
+    """Aplica el freno a la acción pública actual. Devuelve minutos de espera (0 = ok).
+    Desactivado en pruebas para no interferir con la batería automática."""
+    import os
+    if os.environ.get("TESTING"):
+        return 0
+    clave = f"{accion}|{request.remote_addr or '?'}"[:160]
+    espera = _throttle(clave, maximo, ventana, bloqueo)
+    if not espera:
+        _throttle_contar(clave)
+    return espera
+
+
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
@@ -108,7 +149,7 @@ def login():
     return render_template("auth/login.html")
 
 
-@auth_bp.route("/logout")
+@auth_bp.route("/logout", methods=["POST"])
 @login_required
 def logout():
     logout_user()
@@ -125,6 +166,11 @@ def registro():
     from ..models import SolicitudAlta
 
     if request.method == "POST":
+        espera = _throttle_publico("registro")
+        if espera:
+            flash("Demasiadas solicitudes desde tu conexión. Probá de nuevo en un "
+                  f"rato (unos {espera} minuto/s).", "error")
+            return render_template("auth/registro.html", datos=request.form)
         nombre_inmo = request.form.get("nombre_inmobiliaria", "").strip()
         contacto = request.form.get("nombre_contacto", "").strip()
         email = request.form.get("email", "").strip()
@@ -143,8 +189,8 @@ def registro():
             error = "Ese usuario ya está en uso. Probá con otro."
         elif SolicitudAlta.query.filter_by(username=username, estado="pendiente").first():
             error = "Ya hay una solicitud pendiente con ese usuario."
-        elif len(password) < 6:
-            error = "La contraseña debe tener al menos 6 caracteres."
+        elif validar_password(password):
+            error = validar_password(password)
         elif password != password2:
             error = "Las contraseñas no coinciden."
 
@@ -172,6 +218,11 @@ def recuperar():
     if current_user.is_authenticated:
         return redirect(url_for("main.index"))
     if request.method == "POST":
+        espera = _throttle_publico("recuperar")
+        if espera:
+            flash("Demasiados pedidos desde tu conexión. Probá de nuevo en un rato "
+                  f"(unos {espera} minuto/s).", "error")
+            return render_template("auth/recuperar.html")
         ident = request.form.get("ident", "").strip()
         usuario = (Usuario.query.filter(db.or_(Usuario.username == ident.lower(),
                                                Usuario.email == ident)).first()
@@ -200,8 +251,9 @@ def restablecer(token):
     if request.method == "POST":
         nueva = request.form.get("nueva", "")
         repetir = request.form.get("repetir", "")
-        if len(nueva) < 6:
-            flash("La contraseña debe tener al menos 6 caracteres.", "error")
+        err = validar_password(nueva)
+        if err:
+            flash(err, "error")
             return render_template("auth/restablecer.html", token=token)
         if nueva != repetir:
             flash("Las contraseñas no coinciden.", "error")

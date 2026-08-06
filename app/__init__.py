@@ -34,6 +34,10 @@ def create_app(config_class=Config):
     csrf.init_app(app)
     migrate.init_app(app, db, directory=_MIGRATIONS_DIR)
 
+    # Cabeceras de seguridad (CSP, HSTS, anti-clickjacking, etc.) en cada respuesta.
+    from .seguridad import aplicar_headers_seguridad
+    aplicar_headers_seguridad(app)
+
     # Multiempresa: asignar inmobiliaria al crear + filtro de aislamiento.
     from .tenant import registrar_eventos
     registrar_eventos()

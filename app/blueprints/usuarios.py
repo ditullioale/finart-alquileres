@@ -7,6 +7,7 @@ from flask_login import login_required, current_user
 
 from .. import db
 from ..models import Usuario
+from ..seguridad import validar_password
 
 usuarios_bp = Blueprint("usuarios", __name__, url_prefix="/usuarios")
 
@@ -92,8 +93,8 @@ def cambiar_clave():
         error = None
         if not current_user.check_password(actual):
             error = "La contraseña actual no es correcta."
-        elif len(nueva) < 6:
-            error = "La nueva contraseña debe tener al menos 6 caracteres."
+        elif validar_password(nueva):
+            error = validar_password(nueva)
         elif nueva != repetir:
             error = "Las contraseñas nuevas no coinciden."
         elif nueva == actual:
@@ -123,8 +124,8 @@ def nuevo():
             error = "El nombre de usuario es obligatorio."
         elif Usuario.query.filter_by(username=username).first():
             error = "Ya existe un usuario con ese nombre."
-        elif len(password) < 4:
-            error = "La contraseña debe tener al menos 4 caracteres."
+        elif validar_password(password):
+            error = validar_password(password)
         if error:
             flash(error, "error")
             return render_template("usuarios/form.html", u=None, roles=ROLES,
@@ -159,8 +160,9 @@ def editar(uid):
         u.activo = activo
         nueva = request.form.get("password", "")
         if nueva:
-            if len(nueva) < 4:
-                flash("La nueva contraseña es muy corta.", "error")
+            err_pw = validar_password(nueva)
+            if err_pw:
+                flash(err_pw, "error")
                 return redirect(url_for("usuarios.editar", uid=u.id))
             u.set_password(nueva)
         db.session.commit()

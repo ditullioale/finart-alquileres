@@ -1,0 +1,88 @@
+# FINART — Roadmap técnico (documento vivo)
+
+> Norte a seguir. Se va marcando: ✅ hecho · 🟡 parcial · ⬜ pendiente.
+> Última actualización: 2026-08-06.
+
+**Principio rector:** Finart administra el negocio inmobiliario; el Facturador ARCA
+administra lo fiscal. Ninguno absorbe responsabilidades del otro.
+
+**Regla de oro:** no agregar complejidad antes de necesitarla; sí dejar listas las
+interfaces que permitan escalar cuando haga falta.
+
+---
+
+## Fase 0 — Congelar la arquitectura
+- 🟡 0.1 Límites de responsabilidad Finart / Facturador (existen en la práctica; falta el documento formal).
+- ⬜ 0.2 Contrato formal de integración (endpoints, auth, errores, idempotencia, timeouts, versionado).
+- ⬜ 0.3 Versionar API (`/api/v1/...`).
+
+## Fase 1 — Seguridad base
+- ✅ 1.1 Política única de contraseñas (`validar_password`: mínimo 8, no solo números; usada en registro, restablecer, cambio y alta por admin).
+- ✅ 1.2 Logout seguro (POST + CSRF).
+- 🟡 1.3 Rate limiting (login ✅ por intentos; registro y recuperación ✅ por IP; APIs/integración ⬜).
+- 🟡 1.4 Protección del registro (freno por IP ✅; CAPTCHA/Turnstile y verificación de email ⬜).
+- ✅ 1.5 Cabeceras de seguridad (CSP, HSTS en https, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy).
+- 🟡 1.6 Secretos fuera de Git (revisar que `.env` esté en `.gitignore`; secretos ya rotados una vez).
+- ⬜ 1.7 Rotación de secretos (tokens de integración, claves admin).
+- ⬜ 1.8 2FA (primero superadmin, luego admins).
+
+## Fase 2 — Multi-tenancy
+- ✅ 2.1 Tenant como frontera (filtro automático por sesión, `with_loader_criteria`).
+- ✅ 2.2 `inmobiliaria_id` en todas las entidades comerciales.
+- ✅ 2.3 Tests de aislamiento (83 pruebas: listados, por ID, PDF, documentos, búsquedas).
+- 🟡 2.4 Tests de escalamiento de privilegios (hay checks de rol 403; falta batería explícita usuario→admin, A→B).
+
+## Fase 3 — Testing profesional
+- ⬜ 3.1 pytest como framework central (hoy hay suite propia que anda; se migrará de a poco, no como milestone).
+- ✅ 3.2 Unit tests de dinero, mora, aumentos, comisiones y numeración (cubiertos en la suite QA).
+- 🟡 3.3 Integración Finart → Facturador con doble de prueba (`test_facturador`); falta homologación.
+- ⬜ 3.4 E2E completo (inmobiliaria → contrato → liquidación → facturador → CAE).
+
+## Fase 4 — CI/CD
+- ✅ 4.1 GitHub Actions para Finart (corre las 3 suites en cada push/PR + ruff informativo).
+- 🟡 4.2 CI independiente por repo (Finart ✅; Facturador ⬜).
+- ⬜ 4.3 Pipeline de integración (levantar PostgreSQL + Finart + Facturador).
+- ⬜ 4.4 Separar development / staging / production.
+
+## Fase 5 — Contrato Finart ↔ Facturador
+- 🟡 5.1 Identidad del emisor por token (token por inmobiliaria ✅; mover toda la validación al servidor ⬜).
+- 🟡 5.2 Autenticación servicio-a-servicio.
+- ⬜ 5.3 Credenciales de integración con rotación, revocación y último uso.
+- 🟡 5.4 Idempotency-Key (hay `referencia_externa` idempotente; formalizar).
+- ✅ 5.5 Timeouts (`FACTURADOR_TIMEOUT`).
+- ⬜ 5.6 Reintentos controlados por tipo de error (nunca reintentar a ciegas una operación fiscal).
+
+## Fase 6 — Estado fiscal
+- ✅ 6.1 Estado en Finart (cada liquidación guarda estado, CAE, número, vencimiento y PDF).
+- 🟡 6.2 Estado propio en el Facturador.
+- 🟡 6.3 Reconciliación (bandeja de "pendientes de facturar" + reintento ✅; falta consulta automática `FECompConsultar`).
+
+## Fases 7–23 (pendientes, según prioridad del roadmap)
+- ⬜ 7 Asincronía (job de facturación, cola, backoff, DLQ).
+- ⬜ 8 Webhook/callback Facturador → Finart.
+- ⬜ 9 Auditoría cross-system (correlation IDs) — nota: ya hay auditoría funcional interna.
+- 🟡 10 Documentos (adjuntos de contrato ✅; storage externo S3/R2, URLs firmadas, versionado y hash ⬜).
+- 🟡 11 Performance (índices por `inmobiliaria_id` ✅; paginación general, N+1, agregaciones, cache ⬜).
+- ⬜ 12 Observabilidad (logging estructurado, error tracking, health checks, métricas).
+- ⬜ 13 Modelo Persona multi-rol + Inmueble + Operación.
+- ⬜ 14 CRM · ⬜ 15 Ventas · ⬜ 16 Dashboard · ⬜ 17 Automatización.
+- ⬜ 18 SaaS/planes/billing · ⬜ 19 Superadmin avanzado (base ya existe en Plataforma).
+- ⬜ 20 IA · ⬜ 21 Escalabilidad · ⬜ 22 Recuperación ante desastres · ⬜ 23 Compliance.
+
+## Fase 24 — Calidad de producto
+- ⬜ 24.1 Design system · ⬜ 24.2 Accesibilidad.
+- ✅ 24.3 Responsive (desktop/tablet/móvil, tablas→tarjetas).
+- 🟡 24.4 UX de errores comprensibles (arreglado `[object Object]` de CUIT; feedback al facturar y al traer ICL; falta barrer el resto).
+
+---
+
+## Hecho recientemente (changelog)
+- **Seguridad base (Fase 1):** política única de contraseñas, logout POST+CSRF, cabeceras de seguridad, freno por IP en registro/recuperación.
+- **CI (Fase 4.1):** GitHub Actions corriendo QA + aislamiento + facturador.
+- **Estado fiscal (6.1) y reconciliación básica (6.3):** CAE guardado en la liquidación + bandeja de pendientes de facturar.
+- **Errores de plata:** precio por período (aumentos con fecha), parseo es-AR, anulación de pagos con rastro.
+- **UX (24.4):** feedback de facturación/ICL, `[object Object]` corregido, ficha de contrato con teléfono y deuda real.
+
+## Próximo sugerido
+Terminar **Fase 2.4** (batería de escalamiento de privilegios) y avanzar **1.4** (verificación
+de email / CAPTCHA en el registro), aprovechando que el CI ya cuida cada cambio.
