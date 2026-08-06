@@ -20,7 +20,7 @@ interfaces que permitan escalar cuando haga falta.
 - ✅ 1.1 Política única de contraseñas (`validar_password`: mínimo 8, no solo números; usada en registro, restablecer, cambio y alta por admin).
 - ✅ 1.2 Logout seguro (POST + CSRF).
 - 🟡 1.3 Rate limiting (login ✅ por intentos; registro y recuperación ✅ por IP; APIs/integración ⬜).
-- 🟡 1.4 Protección del registro (freno por IP ✅; CAPTCHA/Turnstile y verificación de email ⬜).
+- 🟡 1.4 Protección del registro (freno por IP ✅; verificación de email por enlace ✅; CAPTCHA/Turnstile ⬜, requiere cuenta Cloudflare).
 - ✅ 1.5 Cabeceras de seguridad (CSP, HSTS en https, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy).
 - 🟡 1.6 Secretos fuera de Git (revisar que `.env` esté en `.gitignore`; secretos ya rotados una vez).
 - ⬜ 1.7 Rotación de secretos (tokens de integración, claves admin).
@@ -77,6 +77,7 @@ interfaces que permitan escalar cuando haga falta.
 ---
 
 ## Hecho recientemente (changelog)
+- **Verificación de email en el registro (Fase 1.4):** la solicitud no llega al superadmin hasta que el interesado confirma su email por enlace (con resguardo si no hay correo saliente configurado).
 - **Escalamiento de privilegios (Fase 2.4):** rol validado en el servidor (un admin no puede fabricar un superadmin), + 6 pruebas negativas.
 - **Seguridad base (Fase 1):** política única de contraseñas, logout POST+CSRF, cabeceras de seguridad, freno por IP en registro/recuperación.
 - **CI (Fase 4.1):** GitHub Actions corriendo QA + aislamiento + facturador.
@@ -85,6 +86,6 @@ interfaces que permitan escalar cuando haga falta.
 - **UX (24.4):** feedback de facturación/ICL, `[object Object]` corregido, ficha de contrato con teléfono y deuda real.
 
 ## Próximo sugerido
-Avanzar **Fase 1.4** (verificación de email / CAPTCHA en el registro) y luego **Fase 0**
-(documentar el contrato de integración Finart ↔ Facturador y versionar la API), aprovechando
-que el CI ya cuida cada cambio.
+**Fase 0** (documentar el contrato de integración Finart ↔ Facturador y versionar la API):
+es la base para la Fase 5, no requiere cuentas externas y ordena todo lo fiscal. Opcional
+en paralelo: CAPTCHA/Turnstile en el registro (requiere cuenta gratuita de Cloudflare).

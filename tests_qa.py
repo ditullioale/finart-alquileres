@@ -865,10 +865,38 @@ def run():
         # contraseñas que no coinciden -> no crea nada
         antes_sol = q(lambda: SolicitudAlta.query.count())
         cpub.post("/registro", data={
-            "nombre_inmobiliaria": "X", "username": "otrouser",
-            "password": "aaa111", "password2": "bbb222"})
+            "nombre_inmobiliaria": "X", "email": "otro@correo.com",
+            "username": "otrouser", "password": "clave1234", "password2": "clave9999"})
         check("registro rechaza contraseñas que no coinciden",
               q(lambda: SolicitudAlta.query.count()) == antes_sol)
+
+        # registro sin email válido -> no crea nada
+        cpub.post("/registro", data={
+            "nombre_inmobiliaria": "Y", "email": "sinarroba", "username": "otro2",
+            "password": "clave1234", "password2": "clave1234"})
+        check("registro rechaza email inválido",
+              q(lambda: SolicitudAlta.query.filter_by(username="otro2").first()) is None)
+
+        # Verificación de email: una solicitud SIN verificar no llega al superadmin
+        # hasta que se confirma con el enlace.
+        def _crear_sinverif():
+            s = SolicitudAlta(nombre_inmobiliaria="Inmobiliaria SV", nombre_contacto="Sara",
+                              email="sara@correo.com", username="adminsv",
+                              estado="sin_verificar")
+            s.set_password("claveSV123")
+            db.session.add(s); db.session.commit()
+            from app.blueprints.auth import generar_token_alta
+            return s.id, generar_token_alta(s.id)
+        sv_id, sv_token = q(_crear_sinverif)
+        check("una solicitud sin verificar NO aparece en el panel del superadmin",
+              b"Inmobiliaria SV" not in clS.get("/plataforma/").data)
+        cpub.get(f"/registro/confirmar/{sv_token}")
+        check("al confirmar el email, la solicitud pasa a pendiente",
+              q(lambda: db.session.get(SolicitudAlta, sv_id).estado) == "pendiente")
+        check("y recién ahí aparece en el panel del superadmin",
+              b"Inmobiliaria SV" in clS.get("/plataforma/").data)
+        check("un token de confirmación inválido no rompe (redirige)",
+              cpub.get("/registro/confirmar/basura").status_code in (301, 302))
 
         # el superadmin ve la solicitud en el panel
         check("el superadmin ve la solicitud pendiente en /plataforma",
@@ -896,8 +924,9 @@ def run():
 
         # rechazar otra solicitud
         cpub.post("/registro", data={
-            "nombre_inmobiliaria": "Inmobiliaria E", "username": "admine",
-            "password": "claveE123", "password2": "claveE123"}, follow_redirects=True)
+            "nombre_inmobiliaria": "Inmobiliaria E", "email": "eve@correo.com",
+            "username": "admine", "password": "claveE123", "password2": "claveE123"},
+            follow_redirects=True)
         sol_e = q(lambda: SolicitudAlta.query.filter_by(username="admine").first())
         clS.post(f"/plataforma/solicitudes/{sol_e.id}/rechazar", follow_redirects=True)
         check("rechazar marca la solicitud y no crea usuario",

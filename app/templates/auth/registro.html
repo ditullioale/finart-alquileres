@@ -39,7 +39,7 @@
       <div class="grid2">
         <div>
           <label>Email</label>
-          <input name="email" type="email" value="{{ datos.email or '' }}" placeholder="tu@correo.com">
+          <input name="email" type="email" value="{{ datos.email or '' }}" placeholder="tu@correo.com" required>
         </div>
         <div>
           <label>Teléfono</label>
@@ -56,7 +56,7 @@
       <div class="grid2">
         <div>
           <label>Contraseña <span class="req">*</span></label>
-          <input name="password" type="password" autocomplete="new-password" placeholder="Mínimo 6 caracteres" required>
+          <input name="password" type="password" autocomplete="new-password" placeholder="Mínimo 8 caracteres" required>
         </div>
         <div>
           <label>Repetir contraseña <span class="req">*</span></label>

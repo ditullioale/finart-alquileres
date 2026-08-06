@@ -15,6 +15,8 @@ auth_bp = Blueprint("auth", __name__)
 
 _RESET_SALT = "reset-password"
 _RESET_MAX_AGE = 3600   # 1 hora
+_ALTA_SALT = "verif-alta"
+_ALTA_MAX_AGE = 3 * 24 * 3600   # 3 días para confirmar el email
 
 
 def _serializer():
@@ -31,6 +33,27 @@ def verificar_token_reset(token):
     except (BadSignature, SignatureExpired, Exception):
         return None
     return db.session.get(Usuario, uid)
+
+
+def generar_token_alta(solicitud_id):
+    return _serializer().dumps(solicitud_id, salt=_ALTA_SALT)
+
+
+def verificar_token_alta(token):
+    from ..models import SolicitudAlta
+    try:
+        sid = _serializer().loads(token, salt=_ALTA_SALT, max_age=_ALTA_MAX_AGE)
+    except (BadSignature, SignatureExpired, Exception):
+        return None
+    return db.session.get(SolicitudAlta, sid)
+
+
+def _email_valido(email):
+    """Chequeo básico de formato (no verifica que exista; eso lo hace el enlace)."""
+    if not email or email.count("@") != 1:
+        return False
+    local, dominio = email.split("@")
+    return bool(local) and "." in dominio and not dominio.startswith(".")
 
 # Límite de intentos de login. Tras MAX_INTENTOS fallidos dentro de VENTANA
 # segundos, se bloquea ese usuario+IP por BLOQUEO segundos. El contador se
@@ -180,15 +203,19 @@ def registro():
         password = request.form.get("password", "")
         password2 = request.form.get("password2", "")
 
+        _abiertas = ("pendiente", "sin_verificar")
         error = None
         if not nombre_inmo:
             error = "El nombre de la inmobiliaria es obligatorio."
         elif not username or len(username) < 3:
             error = "Elegí un usuario de al menos 3 caracteres."
+        elif not _email_valido(email):
+            error = "Ingresá un email válido: te vamos a enviar un enlace para confirmarlo."
         elif Usuario.query.filter_by(username=username).first():
             error = "Ese usuario ya está en uso. Probá con otro."
-        elif SolicitudAlta.query.filter_by(username=username, estado="pendiente").first():
-            error = "Ya hay una solicitud pendiente con ese usuario."
+        elif SolicitudAlta.query.filter(SolicitudAlta.username == username,
+                                        SolicitudAlta.estado.in_(_abiertas)).first():
+            error = "Ya hay una solicitud con ese usuario. Revisá tu email para confirmarla."
         elif validar_password(password):
             error = validar_password(password)
         elif password != password2:
@@ -198,18 +225,58 @@ def registro():
             flash(error, "error")
             return render_template("auth/registro.html", datos=request.form)
 
+        # La solicitud nace SIN verificar; solo llega al superadmin cuando el
+        # interesado confirma su email con el enlace que le enviamos.
         sol = SolicitudAlta(
             nombre_inmobiliaria=nombre_inmo, nombre_contacto=contacto,
             email=email, telefono=telefono, localidad=localidad,
-            username=username, estado="pendiente")
+            username=username, estado="sin_verificar")
         sol.set_password(password)
         db.session.add(sol)
         db.session.commit()
-        flash("¡Solicitud enviada! Te vamos a habilitar el acceso a la brevedad. "
-              "Después vas a poder ingresar con el usuario y contraseña que elegiste.", "ok")
+
+        from ..emailer import enviar_email
+        link = url_for("auth.confirmar_registro",
+                       token=generar_token_alta(sol.id), _external=True)
+        enviado = enviar_email(
+            email, "Confirmá tu email — FINART",
+            f"Hola {contacto or nombre_inmo}:\n\n"
+            f"Recibimos tu pedido de acceso a FINART. Para confirmar tu email y que "
+            f"tu solicitud pase a revisión, entrá a este enlace (vence en 3 días):\n"
+            f"{link}\n\nSi no pediste esto, ignorá el mensaje.")
+
+        if enviado:
+            flash("¡Casi listo! Te enviamos un email para confirmar tu dirección. "
+                  "Hacé clic en el enlace y tu solicitud pasará a revisión.", "ok")
+        else:
+            # Sin correo saliente configurado no podríamos verificar nunca: para no
+            # bloquear el alta, la solicitud pasa directo a revisión del superadmin.
+            sol.estado = "pendiente"
+            db.session.commit()
+            flash("¡Solicitud enviada! Te vamos a habilitar el acceso a la brevedad.", "ok")
         return redirect(url_for("auth.login"))
 
     return render_template("auth/registro.html", datos={})
+
+
+@auth_bp.route("/registro/confirmar/<token>")
+def confirmar_registro(token):
+    """El interesado confirma su email: la solicitud pasa de 'sin_verificar' a
+    'pendiente' y recién ahí aparece en el panel del superadmin."""
+    sol = verificar_token_alta(token)
+    if not sol:
+        flash("El enlace de confirmación no es válido o venció. Volvé a registrarte.", "error")
+        return redirect(url_for("auth.registro"))
+    if sol.estado == "sin_verificar":
+        sol.estado = "pendiente"
+        db.session.commit()
+        flash("¡Email confirmado! Tu solicitud ya está en revisión. Te avisaremos "
+              "cuando esté habilitada.", "ok")
+    elif sol.estado == "pendiente":
+        flash("Tu email ya estaba confirmado. Tu solicitud está en revisión.", "ok")
+    else:
+        flash("Esta solicitud ya fue procesada.", "ok")
+    return redirect(url_for("auth.login"))
 
 
 @auth_bp.route("/recuperar", methods=["GET", "POST"])
