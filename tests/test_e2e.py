@@ -26,9 +26,10 @@ def test_circuito_completo(client, monkeypatch):
 
     def _emitir(liq, propietario, ajustes, confirmar_bajo_minimo=False):
         return {"estado": "emitida", "factura": {
-            "id": 77, "numero": "0001-00000001", "tipo": "C",
+            "id": 77, "punto_venta": 1, "numero": 1, "tipo_comprobante": 11,
             "cae": "71234567890123", "cae_vencimiento": "2026-12-31",
-            "fecha": hoy.isoformat()}}
+            "fecha_comprobante": hoy.isoformat(), "estado": "emitida",
+            "referencia_externa": "gestor:1:" + str(liq.numero)}}
 
     monkeypatch.setattr(fact, "facturar_liquidacion", _emitir)
     # Que la inmobiliaria esté autorizada a facturar en el test.

@@ -47,6 +47,49 @@ def _timeout() -> float:
         return 20.0
 
 
+def _reintentos() -> int:
+    """Cantidad de REINTENTOS ante fallas transitorias (además del primer intento)."""
+    try:
+        return max(0, int(os.environ.get("FACTURADOR_RETRIES", "2")))
+    except (TypeError, ValueError):
+        return 2
+
+
+def _dormir(segundos: float):
+    # En pruebas no dormimos, para que la batería siga siendo rápida.
+    if os.environ.get("TESTING"):
+        return
+    import time
+    time.sleep(segundos)
+
+
+def _post_con_reintentos(url, **kw):
+    """POST con reintentos SOLO ante fallas transitorias (error de red / timeout /
+    HTTP 5xx). Nunca reintenta un 4xx: son respuestas deterministas (p. ej. 422 por
+    datos inválidos) y reintentar no cambiaría el resultado. Pensado para operaciones
+    fiscales: se acompaña de una Idempotency-Key para que un reintento no emita dos
+    veces. Devuelve la Response; si se agotan los intentos por red, relanza la
+    excepción de requests."""
+    intentos = _reintentos() + 1
+    backoff = 0.5
+    ultima_exc = None
+    for i in range(intentos):
+        try:
+            r = requests.post(url, timeout=_timeout(), **kw)
+        except requests.RequestException as exc:
+            ultima_exc = exc
+        else:
+            if r.status_code < 500:
+                return r            # éxito o error determinista: no reintentar
+            ultima_exc = None       # 5xx transitorio: se puede reintentar
+            if i == intentos - 1:
+                return r            # se acabaron los intentos: devolver el 5xx
+        if i < intentos - 1:
+            _dormir(backoff)
+            backoff *= 2            # 0.5s, 1s, 2s...
+    raise ultima_exc                # se agotaron los intentos por error de red
+
+
 def habilitado() -> bool:
     """La integración está activa solo si se configuró la URL del facturador."""
     return bool(_base_url())
@@ -153,12 +196,15 @@ def facturar_liquidacion(liq, propietario, ajustes, confirmar_bajo_minimo: bool 
         "domicilio": propietario.domicilio,
         "confirmar_bajo_minimo": confirmar_bajo_minimo,
     }
+    # Idempotency-Key formal (Fase 5.4): identifica la operación fiscal de forma
+    # única. Con los reintentos (5.6), garantiza que un reintento no emita dos veces.
+    headers = dict(_headers(ajustes))
+    headers["Idempotency-Key"] = referencia_externa(liq)
     try:
-        r = requests.post(
+        r = _post_con_reintentos(
             _api("/integracion/liquidacion"),
             json=payload,
-            headers=_headers(ajustes),
-            timeout=_timeout(),
+            headers=headers,
         )
     except requests.RequestException as exc:
         return {"estado": "error", "mensaje": f"No se pudo contactar al facturador: {exc}"}
@@ -220,6 +266,39 @@ def facturar_transferencias(ids: list, confirmar_bajo_minimo: bool = False):
 
 def listar_facturas():
     return requests.get(_api("/facturas"), headers=_headers(), timeout=_timeout())
+
+
+def buscar_comprobante(referencia_ext: str, ajustes=None) -> dict:
+    """Reconciliación (Fase 6.3): busca en el Facturador un comprobante ya emitido
+    para esa referencia externa. Sirve para resolver liquidaciones que quedaron
+    'pendientes'/'error' cuando en realidad la factura sí se emitió (p. ej. un timeout
+    tras el cual ARCA devolvió CAE).
+
+    Devuelve {"estado": "emitida", "factura": {...}} si lo encuentra emitido,
+    {"estado": "no_encontrada"} si no está, o {"estado": "error"} si no se pudo
+    consultar. No lanza excepciones.
+
+    Nota: hoy filtra sobre el listado de /facturas del lado del gestor. Lo ideal es
+    que el Facturador exponga una consulta directa por referencia_externa (documentado
+    en FINART_INTEGRACION_API.md)."""
+    if not habilitado():
+        return {"estado": "deshabilitado"}
+    try:
+        r = requests.get(_api("/facturas"), headers=_headers(ajustes), timeout=_timeout())
+        if not r.ok:
+            return {"estado": "error"}
+        data = r.json()
+    except (requests.RequestException, ValueError):
+        return {"estado": "error"}
+    facturas = data if isinstance(data, list) else (data.get("facturas") or data.get("items") or [])
+    for f in facturas:
+        if not isinstance(f, dict):
+            continue
+        ref = f.get("referencia_externa") or f.get("referencia") or f.get("external_ref")
+        estado = (f.get("estado") or "").lower()
+        if ref == referencia_ext and (estado == "emitida" or f.get("cae")):
+            return {"estado": "emitida", "factura": f}
+    return {"estado": "no_encontrada"}
 
 
 def factura_pdf(factura_id: int):

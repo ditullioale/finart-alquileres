@@ -606,13 +606,21 @@ def run():
                      periodo_mes=8, periodo_anio=2026, fecha=date(2026, 8, 6),
                      total_comision=42400)
             db.session.add(l); db.session.commit()
+            # Shape REAL de FacturaOut del Facturador (numero+punto_venta enteros,
+            # tipo_comprobante numérico, fecha_comprobante).
             _guard(l, {"estado": "emitida", "factura": {
-                "id": 5, "numero": "0001-00000099", "tipo": "C", "cae": "72608060000001",
-                "cae_vencimiento": "2026-08-16", "fecha": "2026-08-06"}})
+                "id": 5, "punto_venta": 1, "numero": 99, "tipo_comprobante": 11,
+                "cae": "72608060000001", "cae_vencimiento": "2026-08-16",
+                "fecha_comprobante": "2026-08-06", "estado": "emitida",
+                "referencia_externa": "gestor:1:0001-00000099"}})
             return l.id
         _lid = q(_liq_emitida)
         check("la liquidación guarda el CAE emitido",
               q(lambda: db.session.get(_Liq, _lid).factura_cae) == "72608060000001")
+        check("arma el número de comprobante desde punto_venta+numero",
+              q(lambda: db.session.get(_Liq, _lid).factura_numero) == "0001-00000099")
+        check("traduce tipo_comprobante 11 a la letra C",
+              q(lambda: db.session.get(_Liq, _lid).factura_tipo) == "C")
         check("la liquidación queda marcada como facturada",
               q(lambda: db.session.get(_Liq, _lid).facturada) is True)
         check("guarda el id de la factura (para el PDF)",
@@ -636,6 +644,23 @@ def run():
               "0001-00000100" in _band.get_data(as_text=True))
         check("la liquidación emitida NO aparece en la bandeja",
               "0001-00000099" not in _band.get_data(as_text=True))
+
+        # Fase 6.3 — reconciliación: el facturador informa que el comprobante SÍ se
+        # emitió (p. ej. tras un timeout) y la liquidación pendiente se actualiza.
+        import app.facturador as _F
+        _hab, _bc = _F.habilitado, _F.buscar_comprobante
+        _F.habilitado = lambda: True
+        _F.buscar_comprobante = lambda ref, aj=None: {"estado": "emitida", "factura": {
+            "id": 88, "punto_venta": 1, "numero": 100, "tipo_comprobante": 11,
+            "cae": "55555555555555", "cae_vencimiento": "2026-09-01",
+            "fecha_comprobante": "2026-08-06", "estado": "emitida",
+            "referencia_externa": ref}}
+        cl.post("/liquidaciones/reconciliar")
+        _F.habilitado, _F.buscar_comprobante = _hab, _bc
+        check("reconciliar marca como emitida la liquidación que ya tenía CAE",
+              q(lambda: db.session.get(_Liq, _lide).factura_estado) == "emitida")
+        check("reconciliar guarda el CAE que traía el facturador",
+              q(lambda: db.session.get(_Liq, _lide).factura_cae) == "55555555555555")
 
         seccion("Recibos manuales (CSRF del servidor + retiene datos)")
         from app.models import ReciboManual as _RM

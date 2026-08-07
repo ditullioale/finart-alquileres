@@ -91,9 +91,30 @@ def _facturar_honorarios(liq, prop, confirmar=False):
     return estado
 
 
+# Tipos de comprobante de ARCA → letra para mostrar.
+_TIPO_LETRA = {1: "A", 6: "B", 11: "C", 51: "M", 201: "A", 206: "B", 211: "C"}
+
+
+def _num_comprobante(f):
+    """'0001-00000123' a partir de punto_venta + numero (formato del Facturador).
+    Cae a un valor ya formateado si viniera como string."""
+    pv, nro = f.get("punto_venta"), f.get("numero")
+    if isinstance(pv, int) and isinstance(nro, int):
+        return f"{pv:04d}-{nro:08d}"
+    return f.get("numero") or f.get("comprobante") or None
+
+
+def _tipo_letra(f):
+    t = f.get("tipo_comprobante")
+    if isinstance(t, int):
+        return _TIPO_LETRA.get(t, str(t))
+    return str(f.get("tipo") or f.get("letra") or "") or None
+
+
 def _guardar_factura(liq, resultado):
-    """Persiste en la liquidación el resultado de la emisión (CAE, número, PDF, etc.)
-    para poder verlo después y para la bandeja de pendientes. Best-effort."""
+    """Persiste en la liquidación el resultado de la emisión (CAE, número, PDF, etc.).
+    Mapea los campos reales de FacturaOut del Facturador (numero+punto_venta,
+    tipo_comprobante, fecha_comprobante, cae_vencimiento). Best-effort."""
     from ..utils import parse_fecha
 
     def _fecha(v):
@@ -105,11 +126,12 @@ def _guardar_factura(liq, resultado):
         if estado == "emitida":
             f = resultado.get("factura") or {}
             liq.factura_id = f.get("id")
-            liq.factura_numero = f.get("numero") or f.get("comprobante")
-            liq.factura_tipo = str(f.get("tipo") or f.get("letra") or "") or None
+            liq.factura_numero = _num_comprobante(f)
+            liq.factura_tipo = _tipo_letra(f)
             liq.factura_cae = f.get("cae")
             liq.factura_cae_vto = _fecha(f.get("cae_vencimiento") or f.get("cae_vto"))
-            liq.factura_fecha = _fecha(f.get("fecha")) or liq.fecha
+            liq.factura_fecha = (_fecha(f.get("fecha_comprobante") or f.get("fecha"))
+                                 or liq.fecha)
             liq.factura_detalle = None
         else:
             liq.factura_detalle = (resultado.get("mensaje")
@@ -149,6 +171,44 @@ def pendientes_facturar():
     filas = [dict(liq=l, prop=props.get(l.propietario_id)) for l in liqs]
     return render_template("liquidaciones/pendientes.html", filas=filas,
                            meses=MESES_ES, habilitado=facturador.habilitado())
+
+
+def _reconciliar_liquidacion(liq, ajustes):
+    """Si el comprobante de esta liquidación ya se emitió en el Facturador (aunque acá
+    figure pendiente/error), trae el CAE y actualiza la liquidación. Devuelve True si
+    la reconcilió."""
+    if liq.factura_estado == "emitida":
+        return False
+    res = facturador.buscar_comprobante(facturador.referencia_externa(liq), ajustes)
+    if res.get("estado") == "emitida":
+        _guardar_factura(liq, res)
+        return True
+    return False
+
+
+@liquidaciones_bp.route("/reconciliar", methods=["POST"])
+@login_required
+def reconciliar():
+    """Fase 6.3: revisa las liquidaciones pendientes contra el Facturador y actualiza
+    las que en realidad ya tienen comprobante emitido (resuelve timeouts, cortes)."""
+    if not facturador.habilitado():
+        flash("El facturador no está configurado, no hay nada que reconciliar.", "error")
+        return redirect(url_for("liquidaciones.pendientes_facturar"))
+    ajustes = Ajustes.get()
+    reconciliadas = 0
+    for liq in _pendientes_facturar_query().all():
+        try:
+            if _reconciliar_liquidacion(liq, ajustes):
+                reconciliadas += 1
+        except Exception:
+            db.session.rollback()
+    if reconciliadas:
+        flash(f"Reconciliación lista: {reconciliadas} liquidación(es) que ya estaban "
+              "facturadas quedaron actualizadas con su CAE.", "ok")
+    else:
+        flash("Reconciliación lista: no había comprobantes emitidos pendientes de "
+              "sincronizar.", "ok")
+    return redirect(url_for("liquidaciones.pendientes_facturar"))
 
 
 # --------------------------------------------------------------------------- #

@@ -83,6 +83,7 @@ def run():
     def _post_ok(url, json=None, timeout=None, headers=None, **kw):
         capturado["url"] = url
         capturado["json"] = json
+        capturado["headers"] = headers or {}
         return _RespFalsa(200, {"estado": "emitida", "factura": {"cae": "7123", "id": 5}})
 
     facturador.requests.post = _post_ok
@@ -95,6 +96,57 @@ def run():
           capturado["json"]["emisor_cuit"] == "20111111112")
     check("pega al endpoint de integración",
           capturado["url"].endswith("/api/integracion/liquidacion"))
+    # 5.4 — Idempotency-Key formal en la emisión.
+    check("la emisión manda una Idempotency-Key",
+          capturado["headers"].get("Idempotency-Key") == "gestor:1:0001-00000001")
+
+    # 5.6 — Reintentos controlados (no reintentar a ciegas una operación fiscal).
+    os.environ["TESTING"] = "1"          # sin sleeps
+    os.environ["FACTURADOR_RETRIES"] = "2"
+    _c = {"n": 0}
+
+    def _post_5xx(url, **kw):
+        _c["n"] += 1
+        return _RespFalsa(500 if _c["n"] < 3 else 200, {"ok": True})
+    facturador.requests.post = _post_5xx
+    check("reintenta ante 5xx transitorio y termina en 200",
+          facturador._post_con_reintentos("http://x").status_code == 200 and _c["n"] == 3)
+
+    _c2 = {"n": 0}
+
+    def _post_422(url, **kw):
+        _c2["n"] += 1
+        return _RespFalsa(422, {"detail": "datos inválidos"})
+    facturador.requests.post = _post_422
+    _r422 = facturador._post_con_reintentos("http://x")
+    check("NO reintenta un 4xx (es determinista)",
+          _r422.status_code == 422 and _c2["n"] == 1)
+
+    _c3 = {"n": 0}
+
+    def _post_caido(url, **kw):
+        _c3["n"] += 1
+        raise facturador.requests.RequestException("timeout")
+    facturador.requests.post = _post_caido
+    try:
+        facturador._post_con_reintentos("http://x")
+        _relanzo = False
+    except facturador.requests.RequestException:
+        _relanzo = True
+    check("ante caída total de red, agota los intentos y relanza (3 intentos)",
+          _relanzo and _c3["n"] == 3)
+
+    # 6.3 — Reconciliación: buscar un comprobante ya emitido por referencia externa.
+    def _get_facturas(url, headers=None, timeout=None, **kw):
+        return _RespFalsa(200, [
+            {"referencia_externa": "gestor:1:0001-9", "estado": "emitida", "cae": "111", "id": 9},
+            {"referencia_externa": "gestor:1:otra", "estado": "emitida", "cae": "222", "id": 10}])
+    facturador.requests.get = _get_facturas
+    _b = facturador.buscar_comprobante("gestor:1:0001-9")
+    check("reconciliación encuentra el comprobante por referencia externa",
+          _b["estado"] == "emitida" and _b["factura"]["cae"] == "111")
+    check("reconciliación: 'no_encontrada' si no hay match",
+          facturador.buscar_comprobante("gestor:1:inexistente")["estado"] == "no_encontrada")
 
     # requiere_confirmacion se propaga tal cual
     facturador.requests.post = lambda *a, **k: _RespFalsa(200, {"estado": "requiere_confirmacion"})

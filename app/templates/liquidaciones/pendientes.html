@@ -6,7 +6,16 @@
     <h1>Liquidaciones pendientes de facturar</h1>
     <p class="sub">Liquidaciones cuya factura de honorarios no quedó emitida (error del facturador, propietario sin CUIT, o todavía sin intentar). Reintentá desde acá para que no se pierdan.</p>
   </div>
-  <a class="btn sec" href="{{ url_for('liquidaciones.index') }}">← Volver a liquidaciones</a>
+  <div class="quick">
+    {% if habilitado %}
+    <form method="post" action="{{ url_for('liquidaciones.reconciliar') }}" style="display:inline"
+          onsubmit="return confirm('Consultar al facturador y actualizar las que ya estén emitidas?')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn sec" type="submit" title="Revisa contra el facturador y sincroniza los CAE ya emitidos">🔄 Reconciliar con el facturador</button>
+    </form>
+    {% endif %}
+    <a class="btn sec" href="{{ url_for('liquidaciones.index') }}">← Volver a liquidaciones</a>
+  </div>
 </div>
 
 {% if not habilitado %}

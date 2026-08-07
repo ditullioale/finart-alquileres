@@ -111,17 +111,28 @@ Respuesta — el campo `estado` manda. Valores que Finart entiende:
 | `error` | Falló la emisión | Deja la liquidación en "pendientes de facturar" con el detalle. |
 | `deshabilitado` | La integración no está configurada | No hace nada. |
 
-Ejemplo de respuesta emitida:
+Ejemplo de respuesta emitida (campos reales de `FacturaOut` del Facturador):
 
 ```json
 {
   "estado": "emitida",
   "factura": {
-    "id": 5, "numero": "0001-00000001", "tipo": "C",
-    "cae": "72608060000001", "cae_vencimiento": "2026-08-16", "fecha": "2026-08-06"
+    "id": 5,
+    "referencia_externa": "gestor:1:0001-00000001",
+    "tipo_comprobante": 11,
+    "punto_venta": 1,
+    "numero": 1,
+    "cae": "72608060000001",
+    "cae_vencimiento": "2026-08-16",
+    "fecha_comprobante": "2026-08-06",
+    "estado": "emitida"
   }
 }
 ```
+
+Notas de mapeo (Finart): el número que se muestra se arma como
+`{punto_venta:04d}-{numero:08d}` (→ `0001-00000001`); `tipo_comprobante` se traduce a
+letra (11 → C, 1 → A, 6 → B); la fecha del comprobante es `fecha_comprobante`.
 
 ### Códigos HTTP
 
@@ -132,24 +143,35 @@ Ejemplo de respuesta emitida:
 - El detalle de error viaja en `detail` (string). Finart lo muestra tal cual (nunca
   `[object Object]`).
 
-### Idempotencia
+### Idempotencia (Fase 5.4 ✅)
 
 - Cada liquidación lleva `referencia_externa = "gestor:{inmobiliaria_id}:{numero_liquidacion}"`,
   única por inmobiliaria y liquidación.
-- **Compromiso del Facturador:** si llega dos veces la misma `referencia_externa`, no
-  emite un segundo comprobante; devuelve el existente. Así un reintento o un doble clic
-  no genera dos facturas.
-- **Pendiente (Fase 5.4/6.3):** formalizar `Idempotency-Key` y la reconciliación
-  (`FECompConsultar` antes de reintentar) para timeouts.
+- **Facturador:** ya es idempotente por `referencia_externa` (si llega dos veces, no
+  emite un segundo comprobante; devuelve el existente).
+- **Finart:** además manda el header `Idempotency-Key: <referencia_externa>` en cada
+  emisión, para blindar el caso de reintentos.
 
-### Timeouts y reintentos
+### Timeouts y reintentos (Fase 5.6 ✅ del lado Finart)
 
 - Timeout por request: `FACTURADOR_TIMEOUT` (default 20 s).
-- La integración es **best-effort**: ante una caída, Finart nunca lanza excepción a la
-  vista; marca la liquidación como pendiente de facturar y ofrece reintento manual.
-- **Pendiente (Fase 5.6):** reintentos automáticos con backoff, diferenciados por tipo
-  de error. Nunca reintentar a ciegas una operación fiscal (primero consultar si ya se
-  emitió).
+- Reintentos: `FACTURADOR_RETRIES` (default 2). Finart reintenta **solo** ante fallas
+  transitorias — error de red / timeout / HTTP 5xx — con backoff exponencial (0.5s, 1s,
+  2s). **Nunca** reintenta un 4xx (p. ej. 422): son deterministas. La `Idempotency-Key`
+  garantiza que un reintento no emita dos veces.
+- La integración sigue siendo **best-effort**: si igual falla, marca la liquidación como
+  pendiente de facturar y ofrece reintento manual.
+
+### Reconciliación (Fase 6.3 ✅ del lado Finart)
+
+- Una liquidación puede quedar en `pendiente`/`error` aunque el comprobante SÍ se haya
+  emitido (típico: timeout tras el cual ARCA devolvió CAE).
+- Finart tiene la acción **"Reconciliar con el facturador"** (en la bandeja de pendientes):
+  para cada liquidación pendiente consulta el Facturador y, si encuentra el comprobante
+  emitido con esa `referencia_externa`, trae el CAE y la marca como emitida.
+- Hoy la búsqueda se hace sobre `GET /facturas` (match por `referencia_externa`).
+  **Mejora sugerida del Facturador:** exponer una consulta directa
+  `GET /integracion/liquidacion/{referencia_externa}` para no traer todo el listado.
 
 ### Estados fiscales (alineados con Fase 6)
 
@@ -163,9 +185,11 @@ estado fiscal completo.
 ## Estado de este contrato
 
 - ✅ Endpoints, auth, request/response y códigos HTTP: documentados y en uso.
-- ✅ Idempotencia por `referencia_externa`: implementada.
-- ✅ Timeouts: implementados.
+- ✅ Idempotencia por `referencia_externa` (Facturador) + `Idempotency-Key` (Finart).
+- ✅ Timeouts + reintentos controlados por tipo de error (Finart).
+- ✅ Reconciliación de pendientes contra el Facturador (Finart, vía `/facturas`).
+- ✅ Mapeo real de `FacturaOut` (numero+punto_venta, tipo_comprobante, fecha_comprobante).
 - ✅ Prefijo versionable desde Finart (`FACTURADOR_API_PREFIX`).
-- 🟡 Versionar el Facturador a `/api/v1`: pendiente del lado del Facturador.
-- ⬜ `Idempotency-Key` formal, reintentos con backoff y reconciliación automática (Fase 5–6).
-- ⬜ Validación de identidad del emisor 100% del lado servidor (Fase 5.1).
+- 🟡 Versionar el Facturador a `/api/v1` y exponer consulta directa por `referencia_externa`.
+- ⬜ Validación de identidad del emisor 100% del lado servidor (Fase 5.1, repo Facturador).
+- ⬜ Estado propio y auditoría fiscal del Facturador expuestos para reconciliación fina (5.3/6.2).
