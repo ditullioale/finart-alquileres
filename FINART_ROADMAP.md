@@ -63,7 +63,7 @@ interfaces que permitan escalar cuando haga falta.
 - ⬜ 9 Auditoría cross-system (correlation IDs) — nota: ya hay auditoría funcional interna.
 - 🟡 10 Documentos (adjuntos de contrato ✅; storage externo S3/R2, URLs firmadas, versionado y hash ⬜).
 - 🟡 11 Performance (índices por `inmobiliaria_id` ✅; paginación general, N+1, agregaciones, cache ⬜).
-- 🟡 12 Observabilidad (health checks `/app-health`, `/database-health`, `/facturador-health` ✅; logging estructurado, error tracking y métricas ⬜).
+- 🟡 12 Observabilidad (health checks ✅; logging estructurado con id de correlación ✅; error tracking con Sentry opcional ✅; métricas ⬜).
 - ⬜ 13 Modelo Persona multi-rol + Inmueble + Operación.
 - ⬜ 14 CRM · ⬜ 15 Ventas · ⬜ 16 Dashboard · ⬜ 17 Automatización.
 - ⬜ 18 SaaS/planes/billing · ⬜ 19 Superadmin avanzado (base ya existe en Plataforma).
@@ -77,6 +77,7 @@ interfaces que permitan escalar cuando haga falta.
 ---
 
 ## Hecho recientemente (changelog)
+- **Observabilidad (Fase 12):** logging estructurado con id de correlación (`X-Request-Id`) por request + monitoreo de errores con Sentry (opcional por `SENTRY_DSN`). Y batería adversarial de aislamiento (93 pruebas) para el checklist de comercialización.
 - **Identidad fiscal por token (5.1) + reconciliación automática (6.3):** Finart dejó de mandar `emisor_cuit` (el token es la única identidad; batería de 7 pruebas en el Facturador). Un timeout/5xx ya no se marca como error sino `requiere_reconciliacion` (estado desconocido), y hay un cron `POST /liquidaciones/reconciliar-cron` (token) que las resuelve solas.
 - **Fase 5 y 6 (lado Facturador):** nuevo endpoint `GET /api/integracion/liquidacion?referencia_externa=...` para reconciliación directa (repo `facturador-arca`, 55 pruebas verdes); confirmado que el 5.1 ya estaba bien (emisor por token, rechazo de `emisor_cuit` ajeno). Finart usa el endpoint directo con respaldo al listado.
 - **Fase 5 y 6 (lado Finart):** Idempotency-Key en la emisión, reintentos controlados por tipo de error (solo transitorios, con backoff), reconciliación de pendientes contra el Facturador, y mapeo real de `FacturaOut` (corrige número/tipo/fecha que antes se adivinaban). El comprobante emitido se ve siempre en la liquidación.

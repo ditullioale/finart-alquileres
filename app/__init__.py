@@ -38,6 +38,11 @@ def create_app(config_class=Config):
     from .seguridad import aplicar_headers_seguridad
     aplicar_headers_seguridad(app)
 
+    # Observabilidad: logging estructurado con id de correlación + Sentry (opcional).
+    from .observabilidad import init_logging, init_sentry
+    init_logging(app)
+    init_sentry(app)
+
     # Multiempresa: asignar inmobiliaria al crear + filtro de aislamiento.
     from .tenant import registrar_eventos
     registrar_eventos()

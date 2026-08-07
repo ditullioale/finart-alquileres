@@ -36,9 +36,10 @@ Que el servicio no se caiga sin aviso y que se pueda recuperar de un desastre.
 - ✅ HTTPS (Railway).
 - ✅ Health checks (`/app-health`, `/database-health`, `/facturador-health`).
 - ✅ CI (corre las pruebas en cada push).
-- 🟡 Logs (básicos; falta logging estructurado).
+- ✅ Logging estructurado con id de correlación (`X-Request-Id`) por request.
+- ✅ Monitoreo de errores con Sentry (se activa con la variable `SENTRY_DSN`). ← falta que cargues el DSN en Railway.
 - ⬜ **Backups automáticos de la base + un restore probado** (un backup que nunca restauraste no es un backup). ← acción tuya en Railway.
-- ⬜ Monitoreo de errores + alertas (tipo Sentry) y aviso si Finart/Facturador se caen.
+- ⬜ Aviso/alerta si Finart o el Facturador se caen (uptime monitor sobre los health checks).
 - ⬜ Entorno de **staging** separado (probar sin tocar producción).
 - ⬜ Rotación de secretos.
 

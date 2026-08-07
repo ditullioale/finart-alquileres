@@ -19,5 +19,7 @@ gunicorn>=22.0.0
 xhtml2pdf>=0.2.17
 cryptography>=42
 requests>=2.31
+# Monitoreo de errores en producción (opcional, se activa con SENTRY_DSN):
+sentry-sdk[flask]>=2.0
 
 requests>=2.31

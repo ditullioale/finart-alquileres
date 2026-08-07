@@ -180,6 +180,8 @@ def run():
               _anon.get("/database-health").status_code == 200)
         check("/facturador-health responde 200",
               _anon.get("/facturador-health").status_code == 200)
+        check("cada respuesta trae un id de correlación (X-Request-Id)",
+              bool(cl.get("/").headers.get("X-Request-Id")))
 
         seccion("Navegacion general")
         for url in ["/", "/personas/", "/personas/telefonos", "/inmuebles/",
