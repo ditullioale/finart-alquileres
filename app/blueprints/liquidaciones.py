@@ -1,8 +1,10 @@
 """Liquidaciones a propietarios: por período, todas juntas o individuales."""
 from datetime import date
 
+import os
+
 from flask import (Blueprint, render_template, redirect, url_for, request,
-                   flash, abort)
+                   flash, abort, jsonify)
 from flask_login import login_required
 
 from .. import db
@@ -82,6 +84,10 @@ def _facturar_honorarios(liq, prop, confirmar=False):
         flash("La liquidación se generó, pero la factura de honorarios no se pudo "
               f"emitir: {resultado.get('mensaje') or 'error del facturador'}. "
               "Quedó en la bandeja de pendientes de facturar.", "error")
+    elif estado == "requiere_reconciliacion":
+        flash("La liquidación se generó. La factura quedó con estado a confirmar "
+              "(no recibimos respuesta del facturador). Se va a reconciliar sola; "
+              "también podés forzarlo desde 'Pendientes de facturar'.", "ok")
     elif estado == "sin_cuit":
         flash("La liquidación se generó, pero no se facturó: el propietario no "
               "tiene CUIT cargado. Quedó en la bandeja de pendientes de facturar.", "error")
@@ -209,6 +215,41 @@ def reconciliar():
         flash("Reconciliación lista: no había comprobantes emitidos pendientes de "
               "sincronizar.", "ok")
     return redirect(url_for("liquidaciones.pendientes_facturar"))
+
+
+@liquidaciones_bp.route("/reconciliar-cron", methods=["POST"])
+def reconciliar_cron():
+    """Reconciliación AUTOMÁTICA para un cron (p. ej. Railway cada 5 min). No requiere
+    login: se autentica con el header X-Reconciliar-Token contra la variable
+    RECONCILIAR_TOKEN. Reconcilia las liquidaciones pendientes de TODAS las inmobiliarias
+    (usa el token del facturador de cada una). Idempotente y seguro: solo lee del
+    Facturador y actualiza a 'emitida' lo que ya tiene CAE."""
+    token_env = os.environ.get("RECONCILIAR_TOKEN")
+    if not token_env:
+        abort(404)   # función deshabilitada si no se configuró el token
+    if request.headers.get("X-Reconciliar-Token") != token_env:
+        abort(403)
+    if not facturador.habilitado():
+        return jsonify(ok=True, reconciliadas=0, revisadas=0,
+                       detalle="facturador no configurado"), 200
+
+    ajustes_por_inmo = {}
+
+    def _ajustes_de(inmo_id):
+        if inmo_id not in ajustes_por_inmo:
+            ajustes_por_inmo[inmo_id] = Ajustes.query.filter_by(
+                inmobiliaria_id=inmo_id).first()
+        return ajustes_por_inmo[inmo_id]
+
+    reconciliadas = revisadas = 0
+    for liq in _pendientes_facturar_query().all():
+        revisadas += 1
+        try:
+            if _reconciliar_liquidacion(liq, _ajustes_de(liq.inmobiliaria_id)):
+                reconciliadas += 1
+        except Exception:
+            db.session.rollback()
+    return jsonify(ok=True, reconciliadas=reconciliadas, revisadas=revisadas), 200
 
 
 # --------------------------------------------------------------------------- #

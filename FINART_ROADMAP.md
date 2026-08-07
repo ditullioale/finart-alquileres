@@ -77,6 +77,7 @@ interfaces que permitan escalar cuando haga falta.
 ---
 
 ## Hecho recientemente (changelog)
+- **Identidad fiscal por token (5.1) + reconciliación automática (6.3):** Finart dejó de mandar `emisor_cuit` (el token es la única identidad; batería de 7 pruebas en el Facturador). Un timeout/5xx ya no se marca como error sino `requiere_reconciliacion` (estado desconocido), y hay un cron `POST /liquidaciones/reconciliar-cron` (token) que las resuelve solas.
 - **Fase 5 y 6 (lado Facturador):** nuevo endpoint `GET /api/integracion/liquidacion?referencia_externa=...` para reconciliación directa (repo `facturador-arca`, 55 pruebas verdes); confirmado que el 5.1 ya estaba bien (emisor por token, rechazo de `emisor_cuit` ajeno). Finart usa el endpoint directo con respaldo al listado.
 - **Fase 5 y 6 (lado Finart):** Idempotency-Key en la emisión, reintentos controlados por tipo de error (solo transitorios, con backoff), reconciliación de pendientes contra el Facturador, y mapeo real de `FacturaOut` (corrige número/tipo/fecha que antes se adivinaban). El comprobante emitido se ve siempre en la liquidación.
 - **Testing con pytest + E2E (Fase 3.1/3.4):** `pytest` corre todo (E2E del circuito completo + las 3 suites históricas, 306+ verificaciones). CI usa pytest.

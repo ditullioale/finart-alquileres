@@ -101,6 +101,8 @@ def create_app(config_class=Config):
 
     # El buzón del robot de gas usa su propio token (X-Gas-Token), no CSRF.
     csrf.exempt(app.view_functions["gas.importar"])
+    # El cron de reconciliación se autentica por token (X-Reconciliar-Token), no CSRF.
+    csrf.exempt(app.view_functions["liquidaciones.reconciliar_cron"])
 
     # Si el usuario debe cambiar su contraseña (p.ej. admin por defecto), se lo
     # obliga a hacerlo antes de usar el resto del sistema.

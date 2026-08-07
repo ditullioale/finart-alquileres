@@ -41,6 +41,7 @@
       <td data-l="Estado">
         {% set e = f.liq.factura_estado %}
         {% if e == 'sin_cuit' %}<span class="badge pendiente">Sin CUIT</span>
+        {% elif e == 'requiere_reconciliacion' %}<span class="badge parcial" title="{{ f.liq.factura_detalle or '' }}">Estado a confirmar</span>
         {% elif e == 'error' %}<span class="badge pendiente" title="{{ f.liq.factura_detalle or '' }}">Error del facturador</span>
         {% elif e == 'requiere_confirmacion' %}<span class="badge parcial">Bajo el mínimo</span>
         {% else %}<span class="badge pendiente">Sin facturar</span>{% endif %}

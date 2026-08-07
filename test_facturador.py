@@ -92,8 +92,8 @@ def run():
     check("payload lleva la comisión como importe", capturado["json"]["importe"] == "120000.00")
     check("payload lleva el CUIT del propietario como receptor",
           capturado["json"]["receptor_cuit"] == "27123456780")
-    check("payload lleva el CUIT de la inmobiliaria como emisor",
-          capturado["json"]["emisor_cuit"] == "20111111112")
+    check("Finart NO manda emisor_cuit (la identidad la da el token, Fase 5.1)",
+          "emisor_cuit" not in capturado["json"])
     check("pega al endpoint de integración",
           capturado["url"].endswith("/api/integracion/liquidacion"))
     # 5.4 — Idempotency-Key formal en la emisión.
@@ -160,12 +160,22 @@ def run():
           facturador.facturar_liquidacion(_liq("30000"), _prop(), _ajustes())["estado"]
           == "requiere_confirmacion")
 
-    # error de red => estado error, nunca excepción
+    # Item 3 — estados precisos: un timeout/caída NO es error definitivo, es DESCONOCIDO.
     def _post_falla(*a, **k):
         raise facturador.requests.RequestException("timeout")
 
     facturador.requests.post = _post_falla
-    check("caída del facturador => estado error (sin excepción)",
+    check("caída/timeout del facturador => 'requiere_reconciliacion' (no error, sin excepción)",
+          facturador.facturar_liquidacion(_liq(), _prop(), _ajustes())["estado"]
+          == "requiere_reconciliacion")
+
+    facturador.requests.post = lambda *a, **k: _RespFalsa(500, {"detail": "boom"})
+    check("5xx tras reintentos => 'requiere_reconciliacion' (estado desconocido)",
+          facturador.facturar_liquidacion(_liq(), _prop(), _ajustes())["estado"]
+          == "requiere_reconciliacion")
+
+    facturador.requests.post = lambda *a, **k: _RespFalsa(422, {"detail": "CUIT inválido"})
+    check("422 (determinista) => 'error' definitivo (no reconciliar)",
           facturador.facturar_liquidacion(_liq(), _prop(), _ajustes())["estado"] == "error")
 
     print("\n" + "=" * 44)

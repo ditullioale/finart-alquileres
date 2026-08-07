@@ -163,23 +163,36 @@ letra (11 → C, 1 → A, 6 → B); la fecha del comprobante es `fecha_comproban
 - La integración sigue siendo **best-effort**: si igual falla, marca la liquidación como
   pendiente de facturar y ofrece reintento manual.
 
-### Reconciliación (Fase 6.3 ✅ del lado Finart)
+### Reconciliación (Fase 6.3 ✅)
 
-- Una liquidación puede quedar en `pendiente`/`error` aunque el comprobante SÍ se haya
-  emitido (típico: timeout tras el cual ARCA devolvió CAE).
-- Finart tiene la acción **"Reconciliar con el facturador"** (en la bandeja de pendientes):
-  para cada liquidación pendiente consulta el Facturador y, si encuentra el comprobante
-  emitido con esa `referencia_externa`, trae el CAE y la marca como emitida.
-- Finart consulta el endpoint directo `GET /integracion/liquidacion?referencia_externa=…`
-  (implementado en el Facturador) y cae al listado `GET /facturas` como respaldo si el
-  Facturador aún no lo tiene desplegado.
+**Estado desconocido, no error.** Un timeout o un 5xx NO significan "no se facturó":
+significan que **no sabemos** si ARCA emitió. Por eso Finart los marca como
+`requiere_reconciliacion` (no `error`). Solo un 4xx determinista (p. ej. 422) es
+`error` definitivo. La `Idempotency-Key` hace que reintentar sea seguro: si ARCA ya
+había emitido, la `referencia_externa` lo deduplica.
+
+**Cómo se resuelve.** Finart consulta el comprobante por su `referencia_externa`
+(endpoint directo `GET /integracion/liquidacion?referencia_externa=…`, con respaldo al
+listado `GET /facturas`). Si aparece emitido, trae el CAE y la marca como `emitida`.
+Tres formas de disparar la reconciliación:
+
+- **Manual:** botón "Reconciliar con el facturador" en la bandeja de pendientes.
+- **Automática (cron):** `POST /liquidaciones/reconciliar-cron` con el header
+  `X-Reconciliar-Token: <RECONCILIAR_TOKEN>`. Sin login, para un cron externo (Railway).
+  Recorre las pendientes de todas las inmobiliarias. Si `RECONCILIAR_TOKEN` no está
+  configurada, el endpoint no existe (404).
+- Al emitir, si quedó `requiere_reconciliacion`, se avisa que se resolverá sola.
 
 ### Estados fiscales (alineados con Fase 6)
 
-Vocabulario común de estados: `PENDIENTE`, `EN_PROCESO`, `EMITIDA`, `ERROR`,
-`REQUIERE_CONFIRMACION`, `CANCELADA`. Cada sistema mantiene su propia fuente de verdad;
-Finart guarda el estado de la factura en cada liquidación y el Facturador guarda el
-estado fiscal completo.
+Vocabulario de estados en Finart (`liquidacion.factura_estado`): `emitida`,
+`error` (definitivo, 4xx), `requiere_reconciliacion` (desconocido: timeout/5xx),
+`requiere_confirmacion` (bajo el mínimo), `sin_cuit`, `deshabilitado`. Cada sistema
+mantiene su fuente de verdad; el Facturador guarda el estado fiscal completo.
+
+**Identidad del emisor (5.1):** Finart **no** manda `emisor_cuit`. El emisor lo
+determina el token del lado del Facturador; si un cliente igual manda un `emisor_cuit`
+que no coincide con el del token, el Facturador lo rechaza.
 
 ---
 

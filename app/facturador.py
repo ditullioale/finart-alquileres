@@ -185,12 +185,14 @@ def facturar_liquidacion(liq, propietario, ajustes, confirmar_bajo_minimo: bool 
     if not (propietario and propietario.cuit):
         return {"estado": "sin_cuit"}
 
+    # La identidad fiscal (emisor) la determina el TOKEN del lado del Facturador
+    # (Fase 5.1). Finart NO manda 'emisor_cuit': no le corresponde elegir bajo qué
+    # CUIT se emite; el token es la única fuente de verdad.
     payload = {
         "receptor_cuit": propietario.cuit,
         "importe": str(Decimal(liq.total_comision or 0)),
         "fecha": (liq.fecha or None).isoformat() if liq.fecha else None,
         "referencia_externa": referencia_externa(liq),
-        "emisor_cuit": (ajustes.cuit if ajustes else None),
         "concepto_descripcion": os.environ.get("FACTURA_CONCEPTO", CONCEPTO_DEFECTO),
         "razon_social": propietario.nombre,
         "domicilio": propietario.domicilio,
@@ -207,16 +209,27 @@ def facturar_liquidacion(liq, propietario, ajustes, confirmar_bajo_minimo: bool 
             headers=headers,
         )
     except requests.RequestException as exc:
-        return {"estado": "error", "mensaje": f"No se pudo contactar al facturador: {exc}"}
+        # No hubo respuesta: NO sabemos si ARCA emitió o no. Estado DESCONOCIDO, no
+        # error definitivo. Se resuelve por reconciliación (consultando la referencia).
+        return {"estado": "requiere_reconciliacion",
+                "mensaje": f"No se pudo contactar al facturador: {exc}"}
 
-    if r.status_code == 422:
-        return {"estado": "error", "mensaje": "Datos inválidos para facturar (revisá el CUIT)."}
-    if not r.ok:
+    if 400 <= r.status_code < 500:
+        # 4xx: respuesta determinista del servidor (p. ej. 422 por datos inválidos).
+        # Es un error de verdad; reintentar no cambiaría nada.
+        if r.status_code == 422:
+            return {"estado": "error", "mensaje": "Datos inválidos para facturar (revisá el CUIT)."}
         return {"estado": "error", "mensaje": f"El facturador respondió {r.status_code}."}
+    if r.status_code >= 500:
+        # 5xx tras agotar reintentos: el servidor falló pero quizá ARCA sí emitió.
+        # Estado desconocido → reconciliación.
+        return {"estado": "requiere_reconciliacion",
+                "mensaje": f"El facturador respondió {r.status_code} (estado a confirmar)."}
     try:
         return r.json()
     except ValueError:
-        return {"estado": "error", "mensaje": "Respuesta inesperada del facturador."}
+        return {"estado": "requiere_reconciliacion",
+                "mensaje": "Respuesta inesperada del facturador (estado a confirmar)."}
 
 
 # --------------------------------------------------------------------------- #

@@ -662,6 +662,38 @@ def run():
         check("reconciliar guarda el CAE que traía el facturador",
               q(lambda: db.session.get(_Liq, _lide).factura_cae) == "55555555555555")
 
+        # Reconciliación AUTOMÁTICA por cron (endpoint protegido por token, sin login).
+        import os as _os
+
+        def _liq_recon():
+            l = _Liq(numero="0001-00000200", propietario_id=ids["prop"], periodo_mes=9,
+                     periodo_anio=2026, fecha=date(2026, 9, 1), total_comision=5000,
+                     factura_estado="requiere_reconciliacion")
+            db.session.add(l); db.session.commit(); return l.id
+        _lrec = q(_liq_recon)
+        _anon2 = app.test_client()
+        _os.environ.pop("RECONCILIAR_TOKEN", None)
+        check("cron sin token configurado responde 404",
+              _anon2.post("/liquidaciones/reconciliar-cron").status_code == 404)
+        _os.environ["RECONCILIAR_TOKEN"] = "cron-secret"
+        check("cron con token equivocado responde 403",
+              _anon2.post("/liquidaciones/reconciliar-cron",
+                          headers={"X-Reconciliar-Token": "mal"}).status_code == 403)
+        _hab2, _bc2 = _F.habilitado, _F.buscar_comprobante
+        _F.habilitado = lambda: True
+        _F.buscar_comprobante = lambda ref, aj=None: {"estado": "emitida", "factura": {
+            "id": 91, "punto_venta": 1, "numero": 200, "tipo_comprobante": 11,
+            "cae": "66666666666666", "cae_vencimiento": "2026-09-15",
+            "fecha_comprobante": "2026-09-01", "estado": "emitida", "referencia_externa": ref}}
+        _rc = _anon2.post("/liquidaciones/reconciliar-cron",
+                          headers={"X-Reconciliar-Token": "cron-secret"})
+        _F.habilitado, _F.buscar_comprobante = _hab2, _bc2
+        _os.environ.pop("RECONCILIAR_TOKEN", None)
+        check("cron con token correcto responde 200 y reconcilia (sin login)",
+              _rc.status_code == 200 and _rc.get_json().get("reconciliadas", 0) >= 1)
+        check("la liquidación 'requiere_reconciliacion' quedó emitida tras el cron",
+              q(lambda: db.session.get(_Liq, _lrec).factura_estado) == "emitida")
+
         seccion("Recibos manuales (CSRF del servidor + retiene datos)")
         from app.models import ReciboManual as _RM
         _form = cl.get("/recibos/manuales/nuevo").get_data(as_text=True)
