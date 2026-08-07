@@ -73,6 +73,7 @@ del emisor debe resolverla el token del lado servidor; nunca confiar ciegamente 
 |---|---|---|---|
 | POST | `/emisores` | X-Admin-Token | Alta/actualización del emisor de una inmobiliaria (cert, clave, punto de venta, modo ARCA). Devuelve `{token, emisor}`. |
 | POST | `/integracion/liquidacion` | Bearer | Emitir la factura de honorarios de una liquidación. **(principal)** |
+| GET | `/integracion/liquidacion?referencia_externa=…` | Bearer | Reconciliación: devuelve el comprobante de esa referencia (404 si no existe). |
 | POST | `/lotes` | Bearer | Subir un resumen bancario (multipart) y detectar transferencias. |
 | GET | `/transferencias` | Bearer | Listar transferencias detectadas. |
 | PATCH | `/transferencias/{id}` | Bearer | Editar una transferencia (p. ej. cargar CUIT, marcar ignorada). |
@@ -169,9 +170,9 @@ letra (11 → C, 1 → A, 6 → B); la fecha del comprobante es `fecha_comproban
 - Finart tiene la acción **"Reconciliar con el facturador"** (en la bandeja de pendientes):
   para cada liquidación pendiente consulta el Facturador y, si encuentra el comprobante
   emitido con esa `referencia_externa`, trae el CAE y la marca como emitida.
-- Hoy la búsqueda se hace sobre `GET /facturas` (match por `referencia_externa`).
-  **Mejora sugerida del Facturador:** exponer una consulta directa
-  `GET /integracion/liquidacion/{referencia_externa}` para no traer todo el listado.
+- Finart consulta el endpoint directo `GET /integracion/liquidacion?referencia_externa=…`
+  (implementado en el Facturador) y cae al listado `GET /facturas` como respaldo si el
+  Facturador aún no lo tiene desplegado.
 
 ### Estados fiscales (alineados con Fase 6)
 
@@ -190,6 +191,7 @@ estado fiscal completo.
 - ✅ Reconciliación de pendientes contra el Facturador (Finart, vía `/facturas`).
 - ✅ Mapeo real de `FacturaOut` (numero+punto_venta, tipo_comprobante, fecha_comprobante).
 - ✅ Prefijo versionable desde Finart (`FACTURADOR_API_PREFIX`).
-- 🟡 Versionar el Facturador a `/api/v1` y exponer consulta directa por `referencia_externa`.
-- ⬜ Validación de identidad del emisor 100% del lado servidor (Fase 5.1, repo Facturador).
-- ⬜ Estado propio y auditoría fiscal del Facturador expuestos para reconciliación fina (5.3/6.2).
+- ✅ Consulta directa por `referencia_externa` (`GET /integracion/liquidacion`) en el Facturador.
+- ✅ Identidad del emisor 100% del lado servidor: el token manda; un `emisor_cuit` ajeno se rechaza.
+- 🟡 Versionar el Facturador a `/api/v1` (refactor de prefijos + frontend; Finart ya lo soporta).
+- ⬜ Credenciales de integración con rotación/revocación/último uso (Fase 5.3, repo Facturador).

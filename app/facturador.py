@@ -283,6 +283,19 @@ def buscar_comprobante(referencia_ext: str, ajustes=None) -> dict:
     en FINART_INTEGRACION_API.md)."""
     if not habilitado():
         return {"estado": "deshabilitado"}
+    # 1) Consulta directa por referencia (endpoint dedicado del Facturador). Si aún no
+    #    está desplegado (404) o falla, se cae al listado como respaldo.
+    try:
+        r = requests.get(_api("/integracion/liquidacion"),
+                         params={"referencia_externa": referencia_ext},
+                         headers=_headers(ajustes), timeout=_timeout())
+        if r.ok:
+            data = r.json()
+            if isinstance(data, dict) and data.get("estado") == "emitida" and data.get("factura"):
+                return {"estado": "emitida", "factura": data["factura"]}
+    except (requests.RequestException, ValueError):
+        pass
+    # 2) Respaldo: buscar en el listado de /facturas y hacer el match acá.
     try:
         r = requests.get(_api("/facturas"), headers=_headers(ajustes), timeout=_timeout())
         if not r.ok:

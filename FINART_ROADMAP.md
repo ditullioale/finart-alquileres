@@ -45,7 +45,7 @@ interfaces que permitan escalar cuando haga falta.
 - ⬜ 4.4 Separar development / staging / production.
 
 ## Fase 5 — Contrato Finart ↔ Facturador
-- 🟡 5.1 Identidad del emisor por token (token por inmobiliaria + `emisor_actual` en el Facturador ✅; endurecer que Finart nunca pueda forzar otro emisor ⬜).
+- ✅ 5.1 Identidad del emisor por token: el Facturador resuelve el emisor por el token (`emisor_actual`), la factura usa siempre el CUIT del token, y si Finart manda otro `emisor_cuit` lo **rechaza** (`EmisorInvalidoError`). Verificado en el repo del Facturador.
 - 🟡 5.2 Autenticación servicio-a-servicio (Bearer del emisor + X-Admin-Token ✅; separar identidades formalmente ⬜).
 - ⬜ 5.3 Credenciales de integración con rotación, revocación y último uso (repo Facturador).
 - ✅ 5.4 Idempotency-Key (referencia_externa idempotente en el Facturador + header `Idempotency-Key` desde Finart).
@@ -54,8 +54,8 @@ interfaces que permitan escalar cuando haga falta.
 
 ## Fase 6 — Estado fiscal
 - ✅ 6.1 Estado en Finart (cada liquidación guarda estado, CAE, número, tipo, vencimiento y PDF, con el mapeo real de `FacturaOut`).
-- 🟡 6.2 Estado propio en el Facturador (lo mantiene; falta exponer una consulta directa por referencia).
-- ✅ 6.3 Reconciliación (acción "Reconciliar con el facturador": consulta los emitidos y actualiza las pendientes con su CAE).
+- ✅ 6.2 Estado propio en el Facturador (mantiene `Factura.estado` y ahora expone `GET /api/integracion/liquidacion?referencia_externa=...` para consultarlo).
+- ✅ 6.3 Reconciliación (acción "Reconciliar con el facturador": usa el endpoint directo del Facturador —con respaldo al listado— y actualiza las pendientes con su CAE).
 
 ## Fases 7–23 (pendientes, según prioridad del roadmap)
 - ⬜ 7 Asincronía (job de facturación, cola, backoff, DLQ).
@@ -77,6 +77,7 @@ interfaces que permitan escalar cuando haga falta.
 ---
 
 ## Hecho recientemente (changelog)
+- **Fase 5 y 6 (lado Facturador):** nuevo endpoint `GET /api/integracion/liquidacion?referencia_externa=...` para reconciliación directa (repo `facturador-arca`, 55 pruebas verdes); confirmado que el 5.1 ya estaba bien (emisor por token, rechazo de `emisor_cuit` ajeno). Finart usa el endpoint directo con respaldo al listado.
 - **Fase 5 y 6 (lado Finart):** Idempotency-Key en la emisión, reintentos controlados por tipo de error (solo transitorios, con backoff), reconciliación de pendientes contra el Facturador, y mapeo real de `FacturaOut` (corrige número/tipo/fecha que antes se adivinaban). El comprobante emitido se ve siempre en la liquidación.
 - **Testing con pytest + E2E (Fase 3.1/3.4):** `pytest` corre todo (E2E del circuito completo + las 3 suites históricas, 306+ verificaciones). CI usa pytest.
 - **Health checks (Fase 12):** `/app-health`, `/database-health` y `/facturador-health` públicos para monitoreo.

@@ -136,16 +136,22 @@ def run():
     check("ante caída total de red, agota los intentos y relanza (3 intentos)",
           _relanzo and _c3["n"] == 3)
 
-    # 6.3 — Reconciliación: buscar un comprobante ya emitido por referencia externa.
-    def _get_facturas(url, headers=None, timeout=None, **kw):
+    # 6.3 — Reconciliación: consulta directa por referencia, con respaldo al listado.
+    def _get_router(url, headers=None, timeout=None, params=None, **kw):
+        if "/integracion/liquidacion" in url:
+            ref = (params or {}).get("referencia_externa")
+            if ref == "gestor:1:0001-9":
+                return _RespFalsa(200, {"estado": "emitida", "factura": {
+                    "id": 9, "cae": "111", "referencia_externa": ref}})
+            return _RespFalsa(404, {"detail": "no hay comprobante"})
+        # Respaldo: listado de /facturas.
         return _RespFalsa(200, [
-            {"referencia_externa": "gestor:1:0001-9", "estado": "emitida", "cae": "111", "id": 9},
-            {"referencia_externa": "gestor:1:otra", "estado": "emitida", "cae": "222", "id": 10}])
-    facturador.requests.get = _get_facturas
+            {"referencia_externa": "gestor:1:0001-9", "estado": "emitida", "cae": "111", "id": 9}])
+    facturador.requests.get = _get_router
     _b = facturador.buscar_comprobante("gestor:1:0001-9")
-    check("reconciliación encuentra el comprobante por referencia externa",
+    check("reconciliación usa el endpoint directo y encuentra el comprobante",
           _b["estado"] == "emitida" and _b["factura"]["cae"] == "111")
-    check("reconciliación: 'no_encontrada' si no hay match",
+    check("reconciliación: 'no_encontrada' si no hay match (ni directo ni en el listado)",
           facturador.buscar_comprobante("gestor:1:inexistente")["estado"] == "no_encontrada")
 
     # requiere_confirmacion se propaga tal cual
