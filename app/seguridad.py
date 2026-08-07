@@ -34,7 +34,8 @@ def _csp() -> str:
         "img-src 'self' data:",
         "style-src 'self' 'unsafe-inline'",
         "script-src 'self' 'unsafe-inline'",
-        "connect-src 'self'",
+        # 'self' para las llamadas propias; las de IA del generador van a estos hosts.
+        "connect-src 'self' https://api.anthropic.com https://api.openai.com",
         "form-action 'self'",
     ])
 

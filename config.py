@@ -107,6 +107,12 @@ class Config:
     # Límite de subida de archivos (documentación de contratos): 10 MB por request.
     MAX_CONTENT_LENGTH = 10 * 1024 * 1024
 
+    # El token CSRF no vence por tiempo (sigue atado a la sesión). Evita que en
+    # formularios largos —como el generador de contratos, que se completa con calma—
+    # el token caduque (1 h por defecto) y falle el guardado. La protección CSRF
+    # se mantiene: el token sigue validándose contra la sesión del usuario.
+    WTF_CSRF_TIME_LIMIT = None
+
     # --- Endurecimiento de la sesión (cookies) ---
     # La cookie de sesión no es accesible por JavaScript (mitiga robo por XSS).
     SESSION_COOKIE_HTTPONLY = True

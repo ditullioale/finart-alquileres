@@ -47,8 +47,11 @@
   .tabs{display:flex;border-bottom:1px solid var(--bd);background:#f7f9fc}
   .tab{padding:10px 14px;font-size:13px;font-weight:600;color:#5a6b86;cursor:pointer;border:0;background:none}
   .tab.active{color:var(--a);box-shadow:inset 0 -2px 0 var(--a)}
-  .doc{padding:30px 36px;font-family:'Times New Roman',Georgia,serif;font-size:13.5px;line-height:1.5;color:#111}
-  .doc h2{text-align:center;font-size:15px;margin:0 0 14px;letter-spacing:.5px}
+  .doc{padding:30px 36px;font-family:'Times New Roman',Georgia,serif;font-size:12pt;line-height:1.5;color:#111}
+  .doc[contenteditable="true"]{outline:none}
+  .doc[contenteditable="true"]:focus{box-shadow:inset 0 0 0 2px #cfe0ff}
+  #printCopies{position:fixed;left:-10000px;top:0;width:210mm}
+  .doc h2{text-align:center;font-size:14pt;margin:0 0 14px;letter-spacing:.5px}
   .doc p{margin:9px 0;text-align:justify}
   .doc ol{padding-left:20px;margin:8px 0}
   .doc ol li{margin:9px 0;text-align:justify}
@@ -73,10 +76,13 @@
   .valPanel .cnt{margin-left:auto;font-size:12px;font-weight:600;opacity:.75}
   @media print{
     body *{visibility:hidden}
-    #printArea,#printArea *{visibility:visible}
-    #printArea{position:absolute;left:0;top:0;width:100%}
+    #printCopies,#printCopies *{visibility:visible}
+    #printCopies{position:absolute;left:0;top:0;width:100%}
+    #printCopies .copia{page-break-after:always}
+    #printCopies .copia:last-child{page-break-after:auto}
     .toolbar,.tabs{display:none!important}
     .pagare{page-break-inside:avoid}
+    @page{size:A4;margin:2cm}
   }
 </style>
 </head>
@@ -275,18 +281,23 @@
       <div id="aiPanel" class="valPanel" style="display:none"></div>
       <div class="out">
         <div class="toolbar">
-          <button class="btn mini" onclick="imprimir()">🖨️ Imprimir / PDF</button>
+          <button class="btn mini" onclick="imprimir()">🖨️ Imprimir 3 copias / PDF</button>
+          <button class="btn sec mini" onclick="descargarWord()">📄 Descargar Word</button>
           <button class="btn sec mini" onclick="copiar()">📋 Copiar texto</button>
-          <button class="btn sec mini" onclick="descargar()">⬇️ Descargar HTML</button>
+          <button class="btn sec mini" onclick="descargar()">⬇️ HTML</button>
+        </div>
+        <div class="hint" style="padding:6px 12px;margin:0;background:#eef4ff;border-bottom:1px solid var(--bd);color:#3a5a86">
+          ✏️ Podés <b>editar el texto directamente</b> acá antes de imprimir o guardar. Al imprimir salen <b>3 copias</b>; en el diálogo de impresión elegí <b>“Doble faz / Two-sided”</b>.
         </div>
         <div class="tabs">
           <button class="tab active" id="tabC" onclick="verTab('contrato')">Contrato</button>
           <button class="tab" id="tabP" onclick="verTab('pagares')">Pagarés</button>
         </div>
         <div id="printArea">
-          <div id="contrato" class="doc"><p style="text-align:center;color:#889">Completá el formulario y presioná <b>Generar documentos</b>.</p></div>
-          <div id="pagares" class="doc" style="display:none"></div>
+          <div id="contrato" class="doc" contenteditable="true"><p style="text-align:center;color:#889">Completá el formulario y presioná <b>Generar documentos</b>.</p></div>
+          <div id="pagares" class="doc" contenteditable="true" style="display:none"></div>
         </div>
+        <div id="printCopies"></div>
       </div>
     </div>
   </div>
@@ -608,7 +619,50 @@ function verTab(t){
   document.getElementById('tabC').classList.toggle('active',t==='contrato');
   document.getElementById('tabP').classList.toggle('active',t==='pagares');
 }
-function imprimir(){window.print()}
+function _tieneTexto(html){return (html||'').replace(/<[^>]*>/g,'').trim().length>0}
+function _unaCopia(){
+  const c=document.getElementById('contrato').innerHTML;
+  const p=document.getElementById('pagares').innerHTML;
+  return `<div class="doc">${c}</div>`
+    + (_tieneTexto(p)?`<div class="doc" style="page-break-before:always">${p}</div>`:'');
+}
+function _armarCopias(){
+  const set=_unaCopia();
+  let all='';
+  for(let i=0;i<3;i++) all+=`<div class="copia">${set}</div>`;
+  document.getElementById('printCopies').innerHTML=all;
+}
+// Siempre 3 copias, tanto con el botón como con Ctrl+P.
+function imprimir(){_armarCopias();window.print();}
+window.addEventListener('beforeprint',function(){
+  const pc=document.getElementById('printCopies');
+  if(!pc.innerHTML.trim()) _armarCopias();
+});
+window.addEventListener('afterprint',function(){
+  document.getElementById('printCopies').innerHTML='';
+});
+function descargarWord(){
+  const c=document.getElementById('contrato').innerHTML;
+  const p=document.getElementById('pagares').innerHTML;
+  const cuerpo=`<div>${c}</div>`
+    + (_tieneTexto(p)?`<br clear=all style='mso-special-character:line-break;page-break-before:always'><div>${p}</div>`:'');
+  const html=`<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>`
+    +`<head><meta charset='utf-8'><title>Contrato de locación</title>`
+    +`<style>`
+    +`@page{size:A4;margin:2cm}`
+    +`body{font-family:'Times New Roman',serif;font-size:12pt;line-height:1.5;text-align:justify}`
+    +`h2{text-align:center;font-size:14pt}`
+    +`ol li{margin:9pt 0;text-align:justify}`
+    +`.firmas{margin-top:50pt}`
+    +`.firma{border-top:1px solid #333;text-align:center;padding-top:6pt}`
+    +`.pagare{border:2px solid #333;padding:12pt 16pt;margin:16pt 0}`
+    +`.tt{font-weight:bold;border-bottom:1px solid #999;padding-bottom:6pt;margin-bottom:10pt}`
+    +`</style></head><body>${cuerpo}</body></html>`;
+  const b=new Blob(['﻿'+html],{type:'application/msword'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);
+  a.download='contrato-de-locacion.doc';a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+}
 function copiar(){const el=document.getElementById(document.getElementById('contrato').style.display!=='none'?'contrato':'pagares');navigator.clipboard.writeText(el.innerText).then(()=>alert('Texto copiado.'))}
 function descargar(){
   const html=`<!doctype html><meta charset="utf-8"><title>Contrato y pagarés</title>

@@ -514,9 +514,15 @@ def _generador_html():
       box.textContent='Guardando en el sistema…';
       fetch(SAVE_URL,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':SYS_CSRF},
             credentials:'same-origin',body:JSON.stringify(data)})
-        .then(r=>r.json()).then(d=>{
-          if(!d.ok){ box.style.background='#fdecec'; box.style.color='#9c2020';
-            box.textContent='⚠️ '+(d.mensaje||'No se pudo guardar.'); return; }
+        .then(function(r){return r.text().then(function(txt){return {status:r.status,ok:r.ok,txt:txt};});})
+        .then(function(res){
+          var d=null; try{ d=JSON.parse(res.txt); }catch(_e){}
+          if(!res.ok || !d || !d.ok){
+            box.style.background='#fdecec'; box.style.color='#9c2020';
+            var extra = (d&&d.mensaje) ? d.mensaje
+              : (res.status===400||res.status===403 ? 'Recargá la página (F5) e intentá de nuevo: venció la sesión de seguridad.'
+              : (res.status>=500 ? 'Error del servidor. Probá de nuevo en un momento.' : 'Probá recargar la página.'));
+            box.textContent='⚠️ No se pudo guardar (código '+res.status+'). '+extra; return; }
           function exito(extra){ box.style.background='#eefaf1'; box.style.color='#14663a';
             box.innerHTML='✅ '+d.mensaje+(extra||'')+' <a href="'+d.ver_url+'" style="color:#14663a;font-weight:700">Ver contrato ▸</a>'; }
           var docs = (typeof getDocsGen==='function') ? getDocsGen() : [];
