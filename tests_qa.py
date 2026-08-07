@@ -506,6 +506,17 @@ def run():
         check("mes ya cobrado: 'A cobrar' queda congelado en lo cobrado (bug C4)",
               _ei["esperado"] == 310000 and _ei["estado"] == "Pagado")
 
+        # BUG cobranzas: contrato con precio actualizado pero SIN fila de aumento
+        # (importado / editado a mano). Cobranzas debe mostrar el precio ACTUAL, no
+        # el inicial (antes caía al inicial y se veía desactualizado).
+        _cs = _Ct(); _cs.precio_inicial = 100000; _cs.precio_actual = 185000
+        _cs.dia_vencimiento = 10; _cs.pagos = []; _cs.aumentos = []
+        check("sin historial de aumentos, el período usa el precio ACTUAL",
+              canon_vigente(_cs, 8, 2026) == 185000)
+        _eis = estado_periodo(_cs, 8, 2026, hoy=_d(2026, 8, 20))
+        check("cobranzas 'A cobrar' coincide con el precio actual (no el inicial)",
+              _eis["esperado"] == 185000)
+
         # Deuda real: cuenta los meses vencidos sin cobrar, no solo saldos parciales.
         from app.calculos import deuda_real, periodos_impagos
         _cd = _Ct(); _cd.precio_inicial=200000; _cd.precio_actual=200000

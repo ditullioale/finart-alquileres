@@ -98,17 +98,26 @@ def canon_vigente(contrato, mes=None, anio=None):
     - Con (mes, anio): el precio que regía en ESE período, según el historial de
       aumentos: el precio_nuevo del aumento con la mayor fecha_vigencia cuyo mes
       sea <= el mes del período. Así un aumento retroactivo o futuro no altera el
-      importe esperado de un mes anterior. Si ningún aumento aplica todavía a ese
-      período, cae al precio inicial del contrato."""
+      importe esperado de un mes anterior.
+      Casos sin aumento aplicable a ese período:
+        · Si el contrato TIENE aumentos pero todos son posteriores → precio inicial
+          (así es como el mes quedó antes del primer aumento).
+        · Si el contrato NO tiene historial de aumentos → precio actual. Es el caso
+          de los contratos importados o editados a mano: el precio vigente es el
+          actual, no el inicial (si no, cobranzas mostraría un precio viejo)."""
     if mes and anio:
         ref = anio * 12 + (mes - 1)
-        candidatos = [a for a in (getattr(contrato, "aumentos", None) or [])
-                      if a.fecha_vigencia and a.precio_nuevo is not None
-                      and _ym(a.fecha_vigencia) <= ref]
+        aumentos = [a for a in (getattr(contrato, "aumentos", None) or [])
+                    if a.fecha_vigencia and a.precio_nuevo is not None]
+        candidatos = [a for a in aumentos if _ym(a.fecha_vigencia) <= ref]
         if candidatos:
             elegido = max(candidatos, key=lambda a: (a.fecha_vigencia, a.id or 0))
             return float(elegido.precio_nuevo)
-        return float(contrato.precio_inicial or contrato.precio_actual or 0)
+        if aumentos:
+            # Hay aumentos, pero todos posteriores a este período.
+            return float(contrato.precio_inicial or contrato.precio_actual or 0)
+        # Sin historial de aumentos: el precio vigente es el actual.
+        return float(contrato.precio_actual or contrato.precio_inicial or 0)
     return float(contrato.precio_actual or contrato.precio_inicial or 0)
 
 
