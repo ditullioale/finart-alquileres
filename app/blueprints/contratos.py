@@ -485,7 +485,7 @@ def _generador_html():
       const cont = document.getElementById('contrato');
       const generado = cont && cont.querySelector('ol');
       if(!generado){
-        const r = confirm('Todavía no generaste el documento. Sin él, el contrato se guarda pero no vas a poder verlo/imprimirlo después.\n\nAceptar: generar y guardar ahora.\nCancelar: guardar igual (sin documento).');
+        const r = confirm('Todavía no generaste el documento. Sin él, el contrato se guarda pero no vas a poder verlo/imprimirlo después.\\n\\nAceptar: generar y guardar ahora.\\nCancelar: guardar igual (sin documento).');
         if(r){ generar(); }
       }
       const g = id => (document.getElementById(id)?.value || '').trim();
@@ -615,8 +615,17 @@ def _generador_html():
     </script>
     """ % (api_url, api_inm)
 
-    html = html.replace("<body>", "<body>\n" + barra, 1)
-    html = html.replace("</body>", script + autocomplete + "\n</body>", 1)
+    # OJO: el generador incluye, dentro del JS de descargarWord(), un string con
+    # "<body>...</body></html>" (para exportar a Word). Por eso NO se puede usar
+    # replace() del primer/​cualquier "<body>"/"</body>": hay que apuntar SIEMPRE
+    # a las etiquetas reales del documento, que son la ÚLTIMA aparición.
+    ib = html.rfind("<body>")
+    if ib != -1:
+        fin = ib + len("<body>")
+        html = html[:fin] + "\n" + barra + html[fin:]
+    ie = html.rfind("</body>")
+    if ie != -1:
+        html = html[:ie] + script + autocomplete + "\n" + html[ie:]
     return html
 
 
