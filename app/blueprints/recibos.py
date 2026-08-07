@@ -152,20 +152,27 @@ def manual_nuevo():
         descs = request.form.getlist("concepto_desc")
         montos = request.form.getlist("concepto_monto")
         lineas, total = [], 0.0
+        conceptos = []   # para redibujar el formulario si hay un error
         for i, desc in enumerate(descs):
-            m = parse_num(montos[i]) if i < len(montos) else None
+            monto_txt = montos[i] if i < len(montos) else ""
+            if desc.strip() or (monto_txt or "").strip():
+                conceptos.append({"desc": desc.strip(), "monto": monto_txt})
+            m = parse_num(monto_txt)
             if desc.strip() and m is not None:
                 lineas.append(f"{desc.strip()} | {m}")
                 total += m
         cliente = request.form.get("cliente", "").strip()
+
+        def _volver_con_error(msg):
+            flash(msg, "error")
+            return render_template("recibos/manual_form.html", formas=FORMAS_PAGO,
+                                   hoy=date.today(), datos=request.form,
+                                   conceptos=conceptos)
         if not cliente:
-            flash("Indicá el nombre del cliente.", "error")
-            return render_template("recibos/manual_form.html", formas=FORMAS_PAGO,
-                                   hoy=date.today())
+            return _volver_con_error("Indicá el nombre del cliente.")
         if not lineas:
-            flash("Agregá al menos un concepto con monto.", "error")
-            return render_template("recibos/manual_form.html", formas=FORMAS_PAGO,
-                                   hoy=date.today())
+            return _volver_con_error("Agregá al menos un concepto con su monto "
+                                     "(la descripción y el importe).")
         a = Ajustes.get()
         r = ReciboManual(
             numero=a.siguiente_recibo(),

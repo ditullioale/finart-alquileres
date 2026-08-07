@@ -4,25 +4,35 @@
 <div class="pagehead"><h1>Nuevo recibo manual</h1></div>
 
 <form method="post" class="cardform">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% set datos = datos or {} %}
   <h2>Cliente</h2>
   <div class="grid2">
-    <div><label>Nombre y apellido *</label><input name="cliente" required autofocus></div>
-    <div><label>DNI / CUIT</label><input name="cliente_dni"></div>
-    <div class="full"><label>Domicilio</label><input name="cliente_domicilio"></div>
+    <div><label>Nombre y apellido *</label><input name="cliente" required autofocus value="{{ datos.cliente or '' }}"></div>
+    <div><label>DNI / CUIT</label><input name="cliente_dni" value="{{ datos.cliente_dni or '' }}"></div>
+    <div class="full"><label>Domicilio</label><input name="cliente_domicilio" value="{{ datos.cliente_domicilio or '' }}"></div>
   </div>
 
   <h2 style="margin-top:18px">Recibo</h2>
   <div class="grid2">
-    <div><label>Fecha</label><input type="date" name="fecha" value="{{ hoy.isoformat() }}"></div>
-    <div><label>En concepto de</label><input name="concepto_general" placeholder="ej. Seña reserva depto Belgrano 639"></div>
-    <div><label>Moneda</label><select name="moneda"><option>Pesos</option><option>Dólares</option></select></div>
+    <div><label>Fecha</label><input type="date" name="fecha" value="{{ datos.fecha or hoy.isoformat() }}"></div>
+    <div><label>En concepto de</label><input name="concepto_general" placeholder="ej. Seña reserva depto Belgrano 639" value="{{ datos.concepto_general or '' }}"></div>
+    <div><label>Moneda</label><select name="moneda">{% for m in ['Pesos','Dólares'] %}<option {{ 'selected' if datos.moneda==m }}>{{ m }}</option>{% endfor %}</select></div>
     <div><label>Forma de pago</label>
-      <select name="forma_pago">{% for f in formas %}<option>{{ f }}</option>{% endfor %}</select></div>
+      <select name="forma_pago">{% for f in formas %}<option {{ 'selected' if datos.forma_pago==f }}>{{ f }}</option>{% endfor %}</select></div>
   </div>
 
   <h2 style="margin-top:18px">Conceptos</h2>
   <p class="hint">Detalle de lo cobrado. Para un descuento, monto en negativo.</p>
-  <div id="conceptos"></div>
+  <div id="conceptos">
+    {% for c in conceptos or [] %}
+    <div class="gasto-row">
+      <input placeholder="Descripción" name="concepto_desc" style="flex:2" value="{{ c.desc }}">
+      <input placeholder="Monto" name="concepto_monto" style="flex:1" oninput="recalc()" value="{{ c.monto }}">
+      <button type="button" class="btn sec" onclick="this.parentNode.remove();recalc()">✕</button>
+    </div>
+    {% endfor %}
+  </div>
   <button type="button" class="btn sec" style="margin-top:8px" onclick="addConcepto()">+ Agregar concepto</button>
 
   <div class="panel" style="background:#f7f9fc;margin-top:14px">
@@ -52,6 +62,8 @@ function recalc(){
   let t=0; document.querySelectorAll('input[name=concepto_monto]').forEach(i=>t+=num(i.value));
   document.getElementById('total').textContent=t.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
-addConcepto();
+// Si el servidor no dejó filas (alta nueva), arrancamos con una vacía.
+if(!document.querySelector('input[name=concepto_monto]')) addConcepto();
+recalc();
 </script>
 {% endblock %}

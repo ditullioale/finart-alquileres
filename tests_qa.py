@@ -626,6 +626,30 @@ def run():
         check("la liquidación emitida NO aparece en la bandeja",
               "0001-00000099" not in _band.get_data(as_text=True))
 
+        seccion("Recibos manuales (CSRF del servidor + retiene datos)")
+        from app.models import ReciboManual as _RM
+        _form = cl.get("/recibos/manuales/nuevo").get_data(as_text=True)
+        check("el formulario trae el token CSRF renderizado por el servidor",
+              'name="csrf_token"' in _form)
+        _n0 = q(lambda: _RM.query.count())
+        # Falta el cliente: NO crea y DEVUELVE lo cargado (no se pierde el concepto).
+        _err = cl.post("/recibos/manuales/nuevo", data={
+            "cliente": "", "concepto_desc": "Seña reserva",
+            "concepto_monto": "50000"}, follow_redirects=True).get_data(as_text=True)
+        check("sin cliente no crea el recibo",
+              q(lambda: _RM.query.count()) == _n0)
+        check("ante el error, el formulario retiene el concepto cargado",
+              "Seña reserva" in _err and "50000" in _err)
+        # Alta correcta: crea y redirige al recibo.
+        _ok = cl.post("/recibos/manuales/nuevo", data={
+            "cliente": "Juan Pérez", "fecha": "2026-08-07",
+            "concepto_general": "Reserva", "moneda": "Pesos", "forma_pago": "Efectivo",
+            "concepto_desc": "Seña", "concepto_monto": "50.000"}, follow_redirects=False)
+        check("recibo manual válido se crea y redirige (302)",
+              _ok.status_code in (301, 302) and q(lambda: _RM.query.count()) == _n0 + 1)
+        check("el recibo manual toma el importe es-AR correcto (50.000 = 50000)",
+              q(lambda: float(_RM.query.order_by(_RM.id.desc()).first().total)) == 50000)
+
         seccion("Anti-doble-cobro (pago a cuenta)")
 
         def _pago_parcial():

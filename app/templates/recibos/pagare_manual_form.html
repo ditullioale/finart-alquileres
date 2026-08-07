@@ -4,6 +4,7 @@
 <div class="pagehead"><h1>Nuevo pagaré manual</h1></div>
 
 <form method="post" class="cardform">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <h2>Deudor (quien firma / paga)</h2>
   <div class="grid2">
     <div><label>Nombre y apellido *</label><input name="deudor" required autofocus></div>

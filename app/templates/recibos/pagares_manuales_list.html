@@ -31,6 +31,7 @@
         <a href="{{ url_for('recibos.pagare_manual_ver', pmid=pm.id) }}" target="_blank">Imprimir</a>
         <form method="post" action="{{ url_for('recibos.pagare_manual_eliminar', pmid=pm.id) }}"
               onsubmit="return confirm('¿Eliminar este pagaré?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="link-danger" type="submit">Eliminar</button>
         </form>
       </td>
