@@ -378,6 +378,8 @@ def run():
               co.get("/plataforma/").status_code == 403)
         check("admin de inmobiliaria NO accede a la plataforma (403)",
               cl.get("/plataforma/").status_code == 403)
+        check("el botón de prueba de Sentry es solo superadmin (admin → 403)",
+              cl.get("/plataforma/test-sentry").status_code == 403)
         lista_a = cl.get("/personas/").data.decode("utf-8", "ignore")
         check("A no ve el cliente de B", "Cliente Solo B" not in lista_a)
         check("A sí ve sus propios datos", "Santamaria Guido" in lista_a)

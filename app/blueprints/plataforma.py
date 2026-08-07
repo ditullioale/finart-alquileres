@@ -28,6 +28,16 @@ def superadmin_required(f):
     return wrapper
 
 
+@plataforma_bp.route("/test-sentry")
+@login_required
+@superadmin_required
+def test_sentry():
+    """Genera un error a propósito para confirmar que Sentry captura los errores.
+    Solo el superadmin puede dispararlo. Si Sentry NO está configurado, igual verás
+    la página de error del servidor (500); si SÍ está, el error aparece en Sentry."""
+    raise RuntimeError("Prueba de Sentry desde /plataforma/test-sentry (ignorar).")
+
+
 @plataforma_bp.route("/")
 @login_required
 @superadmin_required

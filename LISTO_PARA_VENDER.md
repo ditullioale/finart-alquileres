@@ -57,7 +57,7 @@ No es código, pero vender sin esto es un riesgo real.
 ## Por dónde empezar
 
 1. ✅ **Hecho:** Pilar 2 — batería adversarial de aislamiento (93 pruebas de aislamiento).
-2. **Acción tuya (Pilar 1):** dar de alta el emisor en **homologación de ARCA** y emitir un comprobante real de prueba. Te preparo la guía cuando quieras.
-3. **Acción tuya (Pilar 3):** activar backups del Postgres en Railway y **probar un restore** al menos una vez.
-4. **Puedo hacer yo (Pilar 3):** sumar monitoreo de errores (Sentry) y logging estructurado.
+2. ✅ **Hecho:** Pilar 3 — logging estructurado + Sentry (queda que cargues el `SENTRY_DSN`).
+3. **Acción tuya, con guía (Pilar 3):** activar backups del Postgres y probar el restore → ver `GUIA_BACKUPS.md`.
+4. **Acción tuya, con guía (Pilar 1):** emitir un CAE real en homologación de ARCA → ver `GUIA_HOMOLOGACION_ARCA.md` (en el repo del Facturador). ⚠️ Lo que emitiste hasta ahora fue en modo `mock` = CAE simulado, sin validez fiscal.
 5. **Antes de cobrar (Pilar 4):** lo legal (con un contador/abogado).
