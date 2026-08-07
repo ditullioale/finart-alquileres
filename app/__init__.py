@@ -67,6 +67,7 @@ def create_app(config_class=Config):
     from .blueprints.api import api_bp
     from .blueprints.facturador_web import facturador_bp
     from .blueprints.plataforma import plataforma_bp
+    from .blueprints.health import health_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -82,6 +83,7 @@ def create_app(config_class=Config):
     app.register_blueprint(gas_bp)
     app.register_blueprint(api_bp)
     app.register_blueprint(facturador_bp)
+    app.register_blueprint(health_bp)
 
     @app.context_processor
     def _inject_facturador():

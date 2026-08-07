@@ -170,6 +170,17 @@ def run():
               cl.post("/logout").status_code in (301, 302))
         cl = login(app)   # re-login para el resto de las pruebas
 
+        seccion("Health checks (Fase 12)")
+        _anon = app.test_client()
+        check("/app-health responde 200 sin login",
+              _anon.get("/app-health").status_code == 200)
+        check("/app-health devuelve status ok",
+              _anon.get("/app-health").get_json().get("status") == "ok")
+        check("/database-health responde 200 con la base ok",
+              _anon.get("/database-health").status_code == 200)
+        check("/facturador-health responde 200",
+              _anon.get("/facturador-health").status_code == 200)
+
         seccion("Navegacion general")
         for url in ["/", "/personas/", "/personas/telefonos", "/inmuebles/",
                     "/contratos/", f"/contratos/{ids['c']}", "/cobros/",

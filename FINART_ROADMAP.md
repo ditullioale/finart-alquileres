@@ -33,10 +33,10 @@ interfaces que permitan escalar cuando haga falta.
 - ✅ 2.4 Tests de escalamiento de privilegios (operador no crea usuarios; admin no puede crear ni ascender a superadmin; admin de A no edita usuarios de B; nadie salvo superadmin entra a la plataforma). Rol validado en el servidor.
 
 ## Fase 3 — Testing profesional
-- ⬜ 3.1 pytest como framework central (hoy hay suite propia que anda; se migrará de a poco, no como milestone).
+- ✅ 3.1 pytest como framework central (carpeta `tests/`; envuelve las 3 suites históricas + pruebas nativas; `pytest` corre todo).
 - ✅ 3.2 Unit tests de dinero, mora, aumentos, comisiones y numeración (cubiertos en la suite QA).
-- 🟡 3.3 Integración Finart → Facturador con doble de prueba (`test_facturador`); falta homologación.
-- ⬜ 3.4 E2E completo (inmobiliaria → contrato → liquidación → facturador → CAE).
+- 🟡 3.3 Integración Finart → Facturador con doble de prueba (`test_facturador` + E2E mockeado); falta homologación real.
+- ✅ 3.4 E2E completo (`tests/test_e2e.py`: contrato → cobro → liquidación → facturador mock → CAE guardado y visible).
 
 ## Fase 4 — CI/CD
 - ✅ 4.1 GitHub Actions para Finart (corre las 3 suites en cada push/PR + ruff informativo).
@@ -63,7 +63,7 @@ interfaces que permitan escalar cuando haga falta.
 - ⬜ 9 Auditoría cross-system (correlation IDs) — nota: ya hay auditoría funcional interna.
 - 🟡 10 Documentos (adjuntos de contrato ✅; storage externo S3/R2, URLs firmadas, versionado y hash ⬜).
 - 🟡 11 Performance (índices por `inmobiliaria_id` ✅; paginación general, N+1, agregaciones, cache ⬜).
-- ⬜ 12 Observabilidad (logging estructurado, error tracking, health checks, métricas).
+- 🟡 12 Observabilidad (health checks `/app-health`, `/database-health`, `/facturador-health` ✅; logging estructurado, error tracking y métricas ⬜).
 - ⬜ 13 Modelo Persona multi-rol + Inmueble + Operación.
 - ⬜ 14 CRM · ⬜ 15 Ventas · ⬜ 16 Dashboard · ⬜ 17 Automatización.
 - ⬜ 18 SaaS/planes/billing · ⬜ 19 Superadmin avanzado (base ya existe en Plataforma).
@@ -77,6 +77,8 @@ interfaces que permitan escalar cuando haga falta.
 ---
 
 ## Hecho recientemente (changelog)
+- **Testing con pytest + E2E (Fase 3.1/3.4):** `pytest` corre todo (E2E del circuito completo + las 3 suites históricas, 306+ verificaciones). CI usa pytest.
+- **Health checks (Fase 12):** `/app-health`, `/database-health` y `/facturador-health` públicos para monitoreo.
 - **Contrato de integración (Fase 0):** documento formal `FINART_INTEGRACION_API.md` (responsabilidades, endpoints, auth, errores, idempotencia) + API del Facturador versionable desde Finart.
 - **Verificación de email en el registro (Fase 1.4):** la solicitud no llega al superadmin hasta que el interesado confirma su email por enlace (con resguardo si no hay correo saliente configurado).
 - **Escalamiento de privilegios (Fase 2.4):** rol validado en el servidor (un admin no puede fabricar un superadmin), + 6 pruebas negativas.
@@ -87,7 +89,7 @@ interfaces que permitan escalar cuando haga falta.
 - **UX (24.4):** feedback de facturación/ICL, `[object Object]` corregido, ficha de contrato con teléfono y deuda real.
 
 ## Próximo sugerido
-**Fase 5.1 + 5.4** (identidad del emisor 100% del lado servidor + `Idempotency-Key` formal)
-o **Fase 6.3** (reconciliación automática con `FECompConsultar`): ambas apoyan sobre el
-contrato ya documentado y blindan lo fiscal antes de emitir en serio. Requieren coordinar
-cambios en el repo del Facturador.
+Completar el resto de la **Fase 12** (logging estructurado con `correlation_id` + error
+tracking tipo Sentry) o avanzar **Fase 11** (paginación de los listados grandes y revisar
+consultas N+1): ambas son 100% dentro de Finart. Lo fiscal profundo (5.1/5.4/6.3) queda
+para cuando trabajemos también el repo del Facturador.

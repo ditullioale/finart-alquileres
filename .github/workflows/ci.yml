@@ -18,15 +18,14 @@ jobs:
           cache: pip
 
       - name: Instalar dependencias
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
 
-      - name: Pruebas (QA + aislamiento + facturador)
+      - name: Pruebas (pytest: E2E + QA + aislamiento + facturador)
         env:
           TESTING: "1"
-        run: |
-          python tests_qa.py
-          python test_aislamiento.py
-          python test_facturador.py
+        run: python -m pytest
 
       - name: Lint (informativo, no bloquea)
         continue-on-error: true
