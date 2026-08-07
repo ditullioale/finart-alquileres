@@ -206,6 +206,37 @@ def main():
     check("A NO pudo borrar una persona de B (sigue existiendo)",
           sigue is not None and sigue.nombre == "Propietario B")
 
+    seccion("Ataques deliberados: A intenta tocar plata y comprobantes de B por ID")
+    bp = B["pago"][0]; bc = B["contrato"][0]; bi = B["inmueble"][0]
+    br = B["recibo"][0]; bpe = B["persona"][0]
+    check("A no ve el detalle de cobros del contrato de B (404)",
+          cA.get(f"/cobros/contrato/{bc}").status_code == 404)
+    check("A no ve el recibo de un pago de B (404)",
+          cA.get(f"/recibos/pago/{bp}").status_code == 404)
+    check("A no descarga el PDF del recibo de un pago de B (404)",
+          cA.get(f"/recibos/pago/{bp}/pdf").status_code == 404)
+    check("A no ve la liquidación de un pago de B (404)",
+          cA.get(f"/recibos/liquidacion/pago/{bp}").status_code == 404)
+    check("A no ve el recibo manual de B (404)",
+          cA.get(f"/recibos/manuales/{br}").status_code == 404)
+    check("A no abre la pantalla de aumento del contrato de B (404)",
+          cA.get(f"/aumentos/contrato/{bc}/aplicar").status_code == 404)
+    check("A no edita un inmueble de B (404)",
+          cA.get(f"/inmuebles/{bi}/editar").status_code == 404)
+    check("A no imprime la liquidación de un propietario de B (404)",
+          cA.get(f"/liquidaciones/imprimir/{bpe}").status_code == 404)
+    # Mutaciones de plata: intentar cobrar sobre el contrato de B y anular su pago.
+    _cob = cA.post("/cobros/rapido", json={"cid": bc, "mes": 3, "anio": 2030,
+                                           "precio": 1000, "pagado": 1000})
+    check("A no puede registrar un cobro sobre el contrato de B (404)",
+          _cob.status_code == 404)
+    cA.post(f"/cobros/pago/{bp}/anular", data={"motivo": "hackeo"})
+    with app.app_context():
+        db.session.expire_all()
+        _pb = db.session.get(Pago, bp)
+    check("A no pudo anular el pago de B (sigue 'Pagado')",
+          _pb is not None and _pb.estado == "Pagado")
+
     seccion("Auditoría: cada inmobiliaria ve solo su bitácora")
     with app.app_context():
         uA = db.session.get(Usuario, db.session.query(Usuario).filter_by(username="user_A").first().id)
