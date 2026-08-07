@@ -3,7 +3,7 @@ from datetime import date
 from io import BytesIO
 
 from flask import (Blueprint, render_template, redirect, url_for, request, flash,
-                   abort, make_response)
+                   abort, make_response, jsonify)
 from flask_login import login_required
 from sqlalchemy.exc import IntegrityError
 
@@ -65,13 +65,9 @@ def recibo(pid):
                            hoy=date.today())
 
 
-@recibos_bp.route("/pago/<int:pid>/pdf")
-@login_required
-def recibo_pdf(pid):
-    """Genera el recibo en PDF (para descargar y enviar por WhatsApp/mail)."""
+def _recibo_pdf_bytes(pago):
+    """Genera el recibo en PDF y devuelve (bytes, nombre_archivo)."""
     from xhtml2pdf import pisa
-
-    pago = db.session.get(Pago, pid) or abort(404)
     a, conceptos = _datos_recibo(pago)
     html = render_template("recibos/recibo_pdf.html", pago=pago, c=pago.contrato, a=a,
                            conceptos=conceptos, meses=MESES_ES, venc=_venc_pago(pago),
@@ -80,16 +76,65 @@ def recibo_pdf(pid):
     buf = BytesIO()
     pisa.CreatePDF(html, dest=buf, encoding="utf-8")
     buf.seek(0)
-
     inq = (pago.contrato.inquilino.nombre if pago.contrato and pago.contrato.inquilino
            else "inquilino")
     inq = "".join(ch if ch.isalnum() else "_" for ch in inq)
     nombre = f"Recibo_{(pago.recibo_numero or pago.id)}_{inq}.pdf".replace("__", "_")
+    return buf.read(), nombre
 
-    resp = make_response(buf.read())
+
+@recibos_bp.route("/pago/<int:pid>/pdf")
+@login_required
+def recibo_pdf(pid):
+    """Genera el recibo en PDF (para descargar y enviar por WhatsApp/mail)."""
+    pago = db.session.get(Pago, pid) or abort(404)
+    datos, nombre = _recibo_pdf_bytes(pago)
+    resp = make_response(datos)
     resp.headers["Content-Type"] = "application/pdf"
     resp.headers["Content-Disposition"] = f'attachment; filename="{nombre}"'
     return resp
+
+
+@recibos_bp.route("/pago/<int:pid>/email", methods=["POST"])
+@login_required
+def recibo_email(pid):
+    """Envía el recibo (PDF adjunto) por email al inquilino. Si no tiene email cargado,
+    devuelve need_email para que la UI lo pida; si viene un email nuevo, lo guarda."""
+    from ..emailer import enviar_email
+    pago = db.session.get(Pago, pid) or abort(404)
+    contrato = pago.contrato
+    inq = contrato.inquilino if contrato else None
+    d = request.get_json(silent=True) or {}
+    email = ((d.get("email") or "").strip()
+             or ((inq.email or "").strip() if inq else ""))
+    if not email:
+        return jsonify(ok=False, need_email=True,
+                       mensaje="El inquilino no tiene email cargado."), 200
+    from ..blueprints.auth import _email_valido
+    if not _email_valido(email):
+        return jsonify(ok=False, error="El email no parece válido."), 200
+    # Guardar el email en el inquilino si es nuevo o cambió.
+    if inq and inq.email != email:
+        inq.email = email
+        db.session.commit()
+
+    datos, nombre = _recibo_pdf_bytes(pago)
+    a = Ajustes.get()
+    inmo = (a.nombre if a and a.nombre else "la inmobiliaria")
+    nombre_inq = (inq.nombre if inq else "")
+    periodo = f"{MESES_ES[pago.periodo_mes]} {pago.periodo_anio}" if pago.periodo_mes else ""
+    cuerpo = (f"Hola {nombre_inq}!\n\nTe adjuntamos el recibo del alquiler"
+              + (f" correspondiente a {periodo}" if periodo else "")
+              + (f" de {contrato.inmueble.direccion}" if contrato and contrato.inmueble else "")
+              + f".\n\nSaludos,\n{inmo}")
+    enviado = enviar_email(email, f"Recibo de alquiler{(' - ' + periodo) if periodo else ''}",
+                           cuerpo, adjunto=(nombre, datos, "application/pdf"))
+    if enviado:
+        return jsonify(ok=True, email=email,
+                       mensaje=f"Recibo enviado a {email}."), 200
+    return jsonify(ok=False,
+                   error="No se pudo enviar el email (revisá la configuración de correo "
+                         "del servidor).", email=email), 200
 
 
 @recibos_bp.route("/liquidacion/pago/<int:pid>")

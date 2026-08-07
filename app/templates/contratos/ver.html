@@ -15,6 +15,14 @@
   </div>
 </div>
 
+{% if resumen.contrato_vencido %}
+<div class="aviso" style="background:#fdecec;border:1px solid #f0b4b4;color:#9c2020;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+  <b>⛔ Contrato vencido el {{ c.fecha_fin.strftime('%d/%m/%Y') }}.</b>
+  <span>Sigue figurando como vigente. Renovalo o rescindilo para mantener todo al día.</span>
+  <a class="btn sec sm" href="{{ url_for('contratos.renovar', cid=c.id) }}" style="margin-left:auto">🔁 Renovar</a>
+</div>
+{% endif %}
+
 <div class="resumen-contrato">
   <div class="rc-item">
     <div class="rc-lbl">Canon actual</div>

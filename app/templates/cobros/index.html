@@ -56,7 +56,8 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
     <tr data-cid="{{ f.c.id }}">
       <td data-l="Inquilino"><b>{{ f.c.inquilino.nombre if f.c.inquilino else '—' }}</b></td>
       <td data-l="Inmueble">{{ f.c.inmueble.direccion }}
-        {% if f.c.inmueble.localidad %}<div class="hint" style="margin:0">{{ f.c.inmueble.localidad }}</div>{% endif %}</td>
+        {% if f.c.inmueble.localidad %}<div class="hint" style="margin:0">{{ f.c.inmueble.localidad }}</div>{% endif %}
+        {% if f.contrato_vencido %}<div class="hint" style="margin:2px 0 0;color:var(--err);font-weight:600">⛔ Contrato vencido {{ f.c.fecha_fin.strftime('%d/%m/%Y') }}</div>{% endif %}</td>
       <td data-l="A cobrar" class="r">{{ f.c.moneda|simbolo }} {{ f.esperado|money }}
         {% if f.aum_pendiente and f.estado != 'Pagado' %}<div class="hint" style="margin:0;color:#8a5a00;font-weight:600">⬆ aumenta este mes</div>{% endif %}</td>
       <td data-l="Vence">{% if f.venc %}<span class="{{ 'txt-danger' if (f.estado != 'Pagado' and f.venc < hoy) }}">{{ f.venc.strftime('%d/%m/%Y') }}</span>
@@ -90,6 +91,9 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
             data-morapct="{{ f.c.mora_diaria_pct or 0 }}"
             data-aumenta="{{ '1' if f.aum_pendiente else '' }}"
             data-aplicar="{{ url_for('aumentos.aplicar', cid=f.c.id, volver=url_for('cobros.index', mes=mes, anio=anio)) }}"
+            data-vencido="{{ '1' if f.contrato_vencido else '' }}"
+            data-fechafin="{{ f.c.fecha_fin.strftime('%d/%m/%Y') if f.c.fecha_fin else '' }}"
+            data-renovar="{{ url_for('contratos.renovar', cid=f.c.id) }}"
             data-detalle="{{ url_for('cobros.nuevo', cid=f.c.id, mes=mes, anio=anio) }}">Cobrar</button>
         {% endif %}
       </td>
@@ -121,7 +125,31 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
     <div class="modal-btns">
       <a class="btn ok" id="ask-recibo" href="#" target="_blank">Abrir recibo</a>
       <a class="btn sec" id="ask-pdf" href="#">Descargar PDF</a>
+      <button type="button" class="btn sec" id="ask-email" onclick="enviarReciboEmail()">✉️ Enviar por email</button>
       <button type="button" class="btn sec" onclick="cerrarAsk()">Ahora no</button>
+    </div>
+    <div id="ask-email-box" style="display:none;margin-top:12px;border-top:1px solid var(--bd);padding-top:12px">
+      <label style="font-size:13px">Email del inquilino</label>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <input type="email" id="ask-email-input" placeholder="correo@ejemplo.com" style="flex:1">
+        <button type="button" class="btn ok sm" onclick="enviarReciboEmail(true)">Enviar</button>
+      </div>
+      <div class="hint" id="ask-email-msg" style="margin:6px 0 0"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-ov" id="vencModal" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <h3>⛔ Contrato vencido</h3>
+      <button type="button" class="modal-x" aria-label="Cerrar" onclick="cerrarVenc()">✕</button>
+    </div>
+    <p class="modal-sub" id="venc-txt">Este contrato venció. Podés renovarlo o cobrar igual el período.</p>
+    <div class="modal-btns">
+      <a class="btn ok" id="venc-renovar" href="#">Renovar contrato</a>
+      <button type="button" class="btn sec" id="venc-seguir">Cobrar igual</button>
+      <button type="button" class="btn sec" onclick="cerrarVenc()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -296,22 +324,72 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
   window.cerrarAsk = function(){ ask.setAttribute('hidden',''); };
   ask.addEventListener('click', function(e){ if(e.target === ask) cerrarAsk(); });
 
+  // Enviar el recibo por email. Si el inquilino no tiene mail, se pide y se guarda.
+  window.enviarReciboEmail = function(conInput){
+    var pid = ask._pid; if(!pid) return;
+    var box = document.getElementById('ask-email-box');
+    var msg = document.getElementById('ask-email-msg');
+    var btn = document.getElementById('ask-email');
+    var body = {};
+    if(conInput){
+      var val = (document.getElementById('ask-email-input').value || '').trim();
+      if(!val){ msg.style.color='var(--err)'; msg.textContent='Escribí un email.'; return; }
+      body.email = val;
+    }
+    msg.style.color='var(--muted)'; msg.textContent='Enviando…';
+    btn.disabled = true;
+    fetch('/recibos/pago/'+pid+'/email', {
+      method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':(document.querySelector('meta[name=csrf-token]')||{}).content||''},
+      credentials:'same-origin', body: JSON.stringify(body)
+    }).then(function(r){ return r.json(); }).then(function(d){
+      btn.disabled = false;
+      if(d.ok){
+        box.style.display='none';
+        btn.textContent='✅ Enviado'; btn.disabled=true;
+        (window.showToast||alert)(d.mensaje||'Recibo enviado por email.', 'ok');
+      } else if(d.need_email){
+        box.style.display='block'; msg.style.color='var(--muted)';
+        msg.textContent='El inquilino no tiene email. Cargá uno y lo guardamos.';
+        document.getElementById('ask-email-input').focus();
+      } else {
+        box.style.display='block'; msg.style.color='var(--err)';
+        msg.textContent = d.error || 'No se pudo enviar.';
+      }
+    }).catch(function(){ btn.disabled=false; msg.style.color='var(--err)'; msg.textContent='Error de conexión.'; });
+  };
+
   var aumOv = document.getElementById('aumModal');
   window.cerrarAum = function(){ aumOv.setAttribute('hidden',''); };
   aumOv.addEventListener('click', function(e){ if(e.target === aumOv) cerrarAum(); });
   document.addEventListener('keydown', function(e){ if(e.key==='Escape' && !aumOv.hasAttribute('hidden')) cerrarAum(); });
 
+  var vencOv = document.getElementById('vencModal');
+  window.cerrarVenc = function(){ vencOv.setAttribute('hidden',''); };
+  vencOv.addEventListener('click', function(e){ if(e.target === vencOv) cerrarVenc(); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape' && !vencOv.hasAttribute('hidden')) cerrarVenc(); });
+
+  // Sigue el flujo normal de cobro: primero el aviso de aumento (si aplica), luego el modal.
+  function seguirCobro(b){
+    if(b.dataset.aumenta === '1'){
+      document.getElementById('aum-calc').href = b.dataset.aplicar;
+      document.getElementById('aum-seguir').onclick = function(){ cerrarAum(); abrirCobro(b); };
+      aumOv.removeAttribute('hidden');
+    } else {
+      abrirCobro(b);
+    }
+  }
+
   document.querySelectorAll('.js-cobrar').forEach(function(b){
     b.addEventListener('click', function(){
-      // Si a este alquiler le corresponde un aumento este mes y no está aplicado,
-      // primero preguntamos: calcular el aumento o cobrar con el precio actual.
-      if(b.dataset.aumenta === '1'){
-        document.getElementById('aum-calc').href = b.dataset.aplicar;
-        var seguir = document.getElementById('aum-seguir');
-        seguir.onclick = function(){ cerrarAum(); abrirCobro(b); };
-        aumOv.removeAttribute('hidden');
+      // 1) Si el contrato está vencido, avisamos primero (renovar o cobrar igual).
+      if(b.dataset.vencido === '1'){
+        document.getElementById('venc-txt').textContent =
+          'Este contrato venció el ' + (b.dataset.fechafin || '') + '. Podés renovarlo o cobrar igual el período.';
+        document.getElementById('venc-renovar').href = b.dataset.renovar;
+        document.getElementById('venc-seguir').onclick = function(){ cerrarVenc(); seguirCobro(b); };
+        vencOv.removeAttribute('hidden');
       } else {
-        abrirCobro(b);
+        seguirCobro(b);
       }
     });
   });
@@ -365,6 +443,12 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
         cerrarCobro();
         document.getElementById('ask-recibo').href = j.recibo_url;
         document.getElementById('ask-pdf').href = j.pdf_url;
+        ask._pid = j.pago_id;
+        // Reset del bloque de email para este recibo.
+        document.getElementById('ask-email-box').style.display = 'none';
+        document.getElementById('ask-email-msg').textContent = '';
+        document.getElementById('ask-email-input').value = '';
+        var be = document.getElementById('ask-email'); be.disabled = false; be.textContent = '✉️ Enviar por email';
         ask.removeAttribute('hidden');
       }).catch(function(){
         btn.disabled = false; btn.textContent = 'Asentar pago';

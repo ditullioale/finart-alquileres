@@ -722,6 +722,35 @@ def run():
         check("el recibo manual toma el importe es-AR correcto (50.000 = 50000)",
               q(lambda: float(_RM.query.order_by(_RM.id.desc()).first().total)) == 50000)
 
+        seccion("Contrato vencido (aviso al cobrar)")
+        from datetime import date as _dv
+        def _vencer():
+            c = _Con.query.get(ids["c2"]); c.fecha_fin = _dv(2024, 1, 1); db.session.commit()
+        q(_vencer)
+        _cv = cl.get(f"/cobros/?mes={date.today().month}&anio={date.today().year}").get_data(as_text=True)
+        check("cobranzas marca el contrato vencido (badge + data)",
+              "Contrato vencido" in _cv and 'data-vencido="1"' in _cv)
+        check("la ficha del contrato avisa que está vencido",
+              "Contrato vencido" in cl.get(f"/contratos/{ids['c2']}").get_data(as_text=True))
+
+        seccion("Enviar recibo por email")
+        from app.models import Persona as _Per
+        # Pago en c2 (su inquilino no tiene email cargado).
+        cl.post("/cobros/rapido", json={"cid": ids["c2"], "mes": 8, "anio": 2097,
+                "precio": 1000, "pagado": 1000})
+        _pe = q(lambda: Pago.query.filter_by(contrato_id=ids["c2"], periodo_mes=8,
+                                             periodo_anio=2097).first().id)
+        _r1 = cl.post(f"/recibos/pago/{_pe}/email", json={}).get_json()
+        check("sin email cargado, pide cargarlo (need_email)",
+              _r1.get("need_email") is True)
+        cl.post(f"/recibos/pago/{_pe}/email", json={"email": "ana@correo.com"})
+        check("al enviar con un email nuevo, se guarda en el inquilino",
+              q(lambda: _Per.query.get(ids["inq2"]).email) == "ana@correo.com")
+        _r3 = cl.post(f"/recibos/pago/{_pe}/email", json={"email": "sinArroba"}).get_json()
+        check("rechaza un email inválido", _r3.get("ok") is False and "válido" in (_r3.get("error") or ""))
+        check("un pago de B no se puede enviar por email desde A (404)",
+              clB.post(f"/recibos/pago/{_pe}/email", json={}).status_code == 404)
+
         seccion("Anti-doble-cobro (pago a cuenta)")
 
         def _pago_parcial():

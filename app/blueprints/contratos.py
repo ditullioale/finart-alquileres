@@ -125,6 +125,8 @@ def ver(cid):
                    impagos_txt=impagos_txt, prox_aumento=prox_aumento,
                    aumento_vencido=bool(prox_aumento and prox_aumento <= hoy),
                    wa=wa, telefono=tel,
+                   contrato_vencido=bool(contrato.estado == "Vigente"
+                                         and contrato.fecha_fin and contrato.fecha_fin < hoy),
                    email=(contrato.inquilino.email if contrato.inquilino else None))
     return render_template("contratos/ver.html", c=contrato,
                            indice_nombre=INDICE_NOMBRE, cat_docs=CATEGORIAS_DOC,

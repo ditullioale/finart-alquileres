@@ -118,9 +118,12 @@ def index():
         # y todavía no se registró? Sirve para avisar antes de cobrar al precio viejo.
         f_aum = aumento_en_mes(c, anio, mes)
         aum_pendiente = bool(f_aum) and not aumento_registrado_en_mes(c, anio, mes)
+        # Contrato vencido: pasó su fecha de fin pero sigue Vigente (no se renovó).
+        contrato_vencido = bool(c.fecha_fin and c.fecha_fin < hoy)
         filas.append(dict(c=c, pago=pago, esperado=esperado, estado=estado,
                           cobrado=cobrado, saldo=saldo, prox_nro=prox_nro,
-                          venc=venc, aum_pendiente=aum_pendiente))
+                          venc=venc, aum_pendiente=aum_pendiente,
+                          contrato_vencido=contrato_vencido))
 
     if filtro == "pendiente":
         filas = [f for f in filas if f["estado"] not in ("Pagado",)]

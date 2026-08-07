@@ -8,6 +8,8 @@ Variables de entorno:
 """
 import os
 import smtplib
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 
@@ -16,14 +18,26 @@ def smtp_configurado():
                 and os.environ.get("SMTP_PASS"))
 
 
-def enviar_email(destino, asunto, cuerpo):
-    """Devuelve True si se envió por SMTP; False si no hay SMTP (queda en log)."""
+def enviar_email(destino, asunto, cuerpo, adjunto=None):
+    """Devuelve True si se envió por SMTP; False si no hay SMTP (queda en log).
+
+    adjunto opcional: tupla (nombre_archivo, datos_bytes, mimetype) — p. ej. el PDF
+    del recibo."""
     remitente = os.environ.get("EMAIL_FROM") or os.environ.get("SMTP_USER")
     if not smtp_configurado() or not destino:
         print(f"[EMAIL sin SMTP] Para: {destino} | {asunto}\n{cuerpo}")
         return False
     try:
-        msg = MIMEText(cuerpo, "plain", "utf-8")
+        if adjunto:
+            msg = MIMEMultipart()
+            msg.attach(MIMEText(cuerpo, "plain", "utf-8"))
+            nombre, datos, mime = adjunto
+            subtipo = (mime or "application/octet-stream").split("/", 1)[-1]
+            parte = MIMEApplication(datos, _subtype=subtipo)
+            parte.add_header("Content-Disposition", "attachment", filename=nombre)
+            msg.attach(parte)
+        else:
+            msg = MIMEText(cuerpo, "plain", "utf-8")
         msg["Subject"] = asunto
         msg["From"] = remitente
         msg["To"] = destino
