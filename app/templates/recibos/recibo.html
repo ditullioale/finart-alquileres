@@ -51,10 +51,16 @@
   <span style="flex:1"></span>
   <a class="tb-btn" href="{{ url_for('recibos.recibo_pdf', pid=pago.id) }}">📄 Descargar PDF</a>
   {% if wa %}<a class="tb-btn wa" href="{{ wa }}" target="_blank">🟢 WhatsApp</a>{% endif %}
-  {% if c.inquilino and c.inquilino.email %}<a class="tb-btn mail" href="mailto:{{ c.inquilino.email }}?subject={{ asunto|urlencode }}&body={{ msj|urlencode }}">✉️ Email</a>{% endif %}
+  <button class="tb-btn mail" id="btnEmail" type="button" onclick="enviarEmailRecibo()">✉️ Enviar por email</button>
   <button class="tb-btn grey" onclick="window.print()">🖨️ Imprimir</button>
 </div>
-<div class="aviso-adj">Descargá el PDF y adjuntalo al abrir WhatsApp o el correo. El botón deja el mensaje escrito; vos sumás el archivo.</div>
+<div class="aviso-adj">Para <b>WhatsApp</b>: descargá el PDF y adjuntalo (el botón deja el mensaje escrito, vos sumás el archivo). El botón <b>Enviar por email</b> manda el recibo en PDF automáticamente al inquilino.</div>
+<div class="aviso-adj" id="emailBox" style="display:none;background:#eef3fb;color:#12263f">
+  El inquilino no tiene email cargado. Escribilo y lo guardamos para la próxima:
+  <input type="email" id="emailInput" placeholder="correo@ejemplo.com" style="padding:5px 8px;border:1px solid #b9c6da;border-radius:6px">
+  <button type="button" onclick="enviarEmailRecibo(true)" style="background:#1f9d55;color:#fff;border:0;border-radius:6px;padding:6px 12px;font-weight:600;cursor:pointer">Enviar</button>
+  <div id="emailMsg" style="margin-top:5px"></div>
+</div>
 
 {% macro copia(rotulo) %}
 <div class="recibo">
@@ -124,5 +130,46 @@
   <div class="corte">- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -</div>
   {{ copia('DUPLICADO') }}
 </div>
+<script>
+(function(){
+  var CSRF = "{{ csrf_token() }}";
+  var URL_EMAIL = "{{ url_for('recibos.recibo_email', pid=pago.id) }}";
+  window.enviarEmailRecibo = function(conInput){
+    var btn = document.getElementById('btnEmail');
+    var box = document.getElementById('emailBox');
+    var msg = document.getElementById('emailMsg');
+    var body = {};
+    if(conInput){
+      var v = (document.getElementById('emailInput').value || '').trim();
+      if(!v){ msg.textContent = 'Escribí un email.'; return; }
+      body.email = v;
+    }
+    btn.disabled = true; btn.textContent = 'Enviando…';
+    fetch(URL_EMAIL, {method:'POST', credentials:'same-origin',
+          headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},
+          body: JSON.stringify(body)})
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        btn.disabled = false; btn.textContent = '✉️ Enviar por email';
+        if(j && j.need_email){
+          box.style.display = 'block';
+          document.getElementById('emailInput').focus();
+          return;
+        }
+        if(j && j.ok){
+          box.style.display = 'none';
+          btn.textContent = '✓ Enviado'; btn.disabled = true;
+          alert(j.mensaje || 'Recibo enviado.');
+        } else {
+          msg.textContent = (j && j.error) || 'No se pudo enviar.';
+          alert((j && j.error) || 'No se pudo enviar el email.');
+        }
+      }).catch(function(){
+        btn.disabled = false; btn.textContent = '✉️ Enviar por email';
+        alert('Error de conexión. Probá de nuevo.');
+      });
+  };
+})();
+</script>
 </body>
 </html>
