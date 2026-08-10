@@ -311,6 +311,29 @@ def listar_facturas():
     return requests.get(_api("/facturas"), headers=_headers(), timeout=_timeout())
 
 
+def reconciliar_pendientes_en_facturador(ajustes=None) -> int:
+    """Le pide al Facturador que retome sus comprobantes en estado 'revisar'.
+
+    Son las emisiones que quedaron con resultado desconocido por un timeout de ARCA: el
+    comprobante puede existir allá y no estar registrado acá. El Facturador consulta con
+    FECompConsultar antes de reemitir, así que llamarlo de más no duplica nada. Devuelve
+    cuántos quedaron resueltos (0 ante cualquier problema: es best-effort, como el resto
+    de la integración)."""
+    if not habilitado():
+        return 0
+    try:
+        r = requests.post(
+            _api("/facturas/reconciliar"),
+            headers=_headers(ajustes),
+            timeout=_timeout(),
+        )
+        if r.status_code != 200:
+            return 0
+        return sum(1 for f in r.json() if f.get("estado") == "emitida")
+    except (requests.RequestException, ValueError):
+        return 0
+
+
 def buscar_comprobante(referencia_ext: str, ajustes=None) -> dict:
     """Reconciliación (Fase 6.3): busca en el Facturador un comprobante ya emitido
     para esa referencia externa. Sirve para resolver liquidaciones que quedaron

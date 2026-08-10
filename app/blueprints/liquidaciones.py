@@ -201,6 +201,7 @@ def reconciliar():
         flash("El facturador no está configurado, no hay nada que reconciliar.", "error")
         return redirect(url_for("liquidaciones.pendientes_facturar"))
     ajustes = Ajustes.get()
+    facturador.reconciliar_pendientes_en_facturador(ajustes)
     reconciliadas = 0
     for liq in _pendientes_facturar_query().all():
         try:
@@ -241,15 +242,27 @@ def reconciliar_cron():
                 inmobiliaria_id=inmo_id).first()
         return ajustes_por_inmo[inmo_id]
 
+    pendientes = _pendientes_facturar_query().all()
+
+    # Primero el Facturador resuelve lo suyo: los comprobantes que quedaron en
+    # "revisar" por un timeout de ARCA pueden estar autorizados allá sin CAE registrado.
+    # Recién después tiene sentido preguntarle por cada liquidación.
+    resueltas_en_facturador = 0
+    for inmo_id in {liq.inmobiliaria_id for liq in pendientes}:
+        resueltas_en_facturador += facturador.reconciliar_pendientes_en_facturador(
+            _ajustes_de(inmo_id)
+        )
+
     reconciliadas = revisadas = 0
-    for liq in _pendientes_facturar_query().all():
+    for liq in pendientes:
         revisadas += 1
         try:
             if _reconciliar_liquidacion(liq, _ajustes_de(liq.inmobiliaria_id)):
                 reconciliadas += 1
         except Exception:
             db.session.rollback()
-    return jsonify(ok=True, reconciliadas=reconciliadas, revisadas=revisadas), 200
+    return jsonify(ok=True, reconciliadas=reconciliadas, revisadas=revisadas,
+                   resueltas_en_facturador=resueltas_en_facturador), 200
 
 
 # --------------------------------------------------------------------------- #
