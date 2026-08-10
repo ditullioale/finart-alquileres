@@ -37,7 +37,9 @@ algunas pantallas.
   de la liquidación pregunta si se factura igual.
 - **Comprobantes imprimibles** (HTML → PDF del navegador): recibos de alquiler
   (con vencimiento y fecha de pago), **recibos manuales**, liquidaciones, pagarés
-  de contrato y **pagarés manuales**.
+  de contrato y **pagarés manuales**. El recibo de alquiler puede **enviarse por
+  email en PDF** al inquilino (desde la pantalla del recibo o al registrar el cobro);
+  si el inquilino no tiene email, se pide y se guarda en el momento.
 - **Recordatorios por WhatsApp** — avisos de deuda a inquilinos.
 - **Importador** de datos exportados de Inmosoft (Excel).
 - **PWA** — instalable en Android/escritorio.
@@ -62,8 +64,14 @@ algunas pantallas.
 - **Seguridad** — protección **CSRF**, cookies de sesión endurecidas, **forzar
   cambio de contraseña** por defecto, **límite de intentos de login**, y montos en
   **Decimal** exacto (`q2()` en `utils.py`).
-- **Recuperación de contraseña** — enlace con token temporal (itsdangerous) y
-  envío de mail (`app/emailer.py`, SMTP o log si no está configurado).
+- **Envío de emails** (`app/emailer.py`) — recuperación de contraseña, verificación
+  de email en el registro y **recibos en PDF al inquilino**. Usa la **API HTTP de
+  Brevo** (`BREVO_API_KEY`, recomendada en la nube porque no depende de los puertos
+  SMTP que bloquea Railway) o SMTP clásico; si no hay nada configurado, deja el
+  mensaje en el log.
+- **Observabilidad** — health checks (`/app-health`, `/database-health`,
+  `/facturador-health`), logging estructurado con id de correlación (`X-Request-Id`)
+  por request y monitoreo de errores con **Sentry** (se activa con `SENTRY_DSN`).
 - **Backup por inmobiliaria** — exportación de los datos de cada inmobiliaria.
 
 ---
@@ -103,8 +111,12 @@ La app lee la configuración desde variables de entorno (ver `.env.ejemplo`):
 - **`COOKIE_SECURE`** — `1` en producción (cookies solo por HTTPS).
 - **`SUPERADMIN_USER` / `SUPERADMIN_PASS`** — si se definen, se crea el superadmin
   de plataforma en el arranque (una sola vez).
-- **SMTP** (opcional, para recuperación de contraseña): `SMTP_HOST`, `SMTP_PORT`,
-  `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`.
+- **Email** (opcional; recuperación de contraseña, verificación de registro y envío
+  de recibos). Recomendado: **`BREVO_API_KEY`** (API HTTP de Brevo, funciona donde el
+  hosting bloquea SMTP) + **`EMAIL_FROM`** (remitente verificado en Brevo) y
+  **`EMAIL_FROM_NAME`** (nombre visible). Alternativa por SMTP: `SMTP_HOST`,
+  `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` (con `EMAIL_FROM`).
+- **`SENTRY_DSN`** (opcional) — activa el monitoreo de errores con Sentry.
 - **`GAS_IMPORT_TOKEN`** — token del robot de Litoral Gas.
 
 > El archivo `.env` guarda secretos y **no debe subirse** al repositorio
@@ -145,7 +157,9 @@ python importar_inmosoft.py --reset    # recrea las tablas antes de importar
      los dos correrían Alembic a la vez. Las migraciones las aplica el
      `release: flask db upgrade` del `Procfile` (en Railway, Settings → Deploy →
      Pre-deploy Command), una sola vez y antes de levantar los workers.
-   - *(Opcional)* variables SMTP para recuperación de contraseña.
+   - *(Opcional)* `BREVO_API_KEY` + `EMAIL_FROM` (+ `EMAIL_FROM_NAME`) para el envío
+     de emails (recuperación de contraseña, verificación de registro y recibos).
+   - *(Opcional)* `SENTRY_DSN` para el monitoreo de errores.
 5. El arranque usa `Procfile` (`gunicorn run:app`); las migraciones van en el
    comando de release (ver `MIGRATE_ON_BOOT` arriba).
 6. **Dominio propio** (opcional): Settings → Networking → Custom Domain, y cargar
@@ -183,7 +197,7 @@ gestion-alquileres/
 │  ├─ models.py            # modelos (incluye Inmobiliaria, auditoría, documentos, solicitudes)
 │  ├─ tenant.py            # aislamiento multiempresa (filtro + asignación)
 │  ├─ auditoria.py         # registro de acciones
-│  ├─ emailer.py           # envío de mails (SMTP o log)
+│  ├─ emailer.py           # envío de mails (API de Brevo / SMTP o log)
 │  ├─ utils.py             # fechas, montos (Decimal), importe en letras, índices
 │  ├─ indices_oficiales.py # consulta ICL (BCRA)
 │  ├─ blueprints/          # auth, personas, inmuebles, contratos, cobros, aumentos,

@@ -21,6 +21,23 @@ def _solo_digitos(v) -> str:
     return "".join(ch for ch in str(v or "") if ch.isdigit())
 
 
+def _condicion_iva_arca(propietario) -> int:
+    """Traduce la condición de IVA del receptor (texto libre en la persona) al código
+    de ARCA (CondicionIVAReceptorId): 1 Responsable Inscripto, 4 Exento,
+    5 Consumidor Final, 6 Monotributo. Ante la duda, Consumidor Final (5), que es el
+    receptor más común y siempre válido."""
+    txt = (getattr(propietario, "cond_iva", "") or "").strip().lower()
+    if not txt:
+        return 5
+    if "inscript" in txt:          # Responsable Inscripto
+        return 1
+    if "monotrib" in txt:          # Responsable Monotributo / monotributista
+        return 6
+    if "exent" in txt:             # IVA Sujeto Exento
+        return 4
+    return 5                       # Consumidor Final (default seguro)
+
+
 def _base_url() -> str:
     return (os.environ.get("FACTURADOR_URL") or "").rstrip("/")
 
@@ -96,15 +113,27 @@ def habilitado() -> bool:
 
 
 def _headers(ajustes=None) -> dict:
-    """Header de autenticación con el token del emisor de la inmobiliaria actual."""
+    """Headers de autenticación hacia el facturador.
+
+    - Token del emisor de la inmobiliaria (Authorization: Bearer ...), si tiene uno propio.
+    - Secreto compartido de integración (X-Integracion-Token), si está configurado en el
+      servidor. Con él, el facturador rechaza pedidos anónimos al "emisor por defecto"
+      (protege el endpoint público). Si no se configura, el comportamiento no cambia.
+    """
+    headers: dict = {}
+    secreto = os.environ.get("FACTURADOR_INTEGRACION_TOKEN")
+    if secreto:
+        headers["X-Integracion-Token"] = secreto
     try:
         if ajustes is None:
             from .models import Ajustes
             ajustes = Ajustes.get()
         token = ajustes.get_facturador_token() if ajustes else None
-        return {"Authorization": f"Bearer {token}"} if token else {}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
     except Exception:
-        return {}
+        pass
+    return headers
 
 
 def inmobiliaria_autorizada(ajustes) -> bool:
@@ -196,6 +225,7 @@ def facturar_liquidacion(liq, propietario, ajustes, confirmar_bajo_minimo: bool 
         "concepto_descripcion": os.environ.get("FACTURA_CONCEPTO", CONCEPTO_DEFECTO),
         "razon_social": propietario.nombre,
         "domicilio": propietario.domicilio,
+        "condicion_iva_receptor": _condicion_iva_arca(propietario),
         "confirmar_bajo_minimo": confirmar_bajo_minimo,
     }
     # Idempotency-Key formal (Fase 5.4): identifica la operación fiscal de forma
