@@ -69,6 +69,18 @@ def transferencias():
         return jsonify([]), 200
 
 
+@facturador_bp.route("/pendientes-produccion")
+@login_required
+def pendientes_produccion():
+    """Lista las transferencias que se facturaron en prueba (mock) y hay que re-emitir real."""
+    if not _autorizada() or not facturador.habilitado():
+        return jsonify([]), 200
+    try:
+        return _reenviar(facturador.listar_pendientes_produccion())
+    except facturador.requests.RequestException:
+        return jsonify([]), 200
+
+
 @facturador_bp.route("/transferencias/<int:tid>", methods=["POST"])
 @login_required
 def actualizar(tid):

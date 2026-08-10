@@ -280,6 +280,14 @@ def listar_transferencias():
     )
 
 
+def listar_pendientes_produccion():
+    """Transferencias facturadas en un modo de prueba (mock/homologación) que hay que
+    re-emitir en producción."""
+    return requests.get(
+        _api("/transferencias/pendientes-produccion"), headers=_headers(), timeout=_timeout()
+    )
+
+
 def actualizar_transferencia(transferencia_id: int, payload: dict):
     return requests.patch(
         _api(f"/transferencias/{transferencia_id}"),

@@ -35,6 +35,10 @@
     <button type="button" class="btn ok" id="btnFacturar" disabled>{{ icon('receipt', 16) }} Facturar (<span id="nSel">0</span>)</button>
   </div>
   <div id="msg" class="hint" style="margin-top:8px" hidden></div>
+  <div class="hint" style="margin-top:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#eef3fb;border:1px solid #cfe0f5;border-radius:8px;padding:8px 10px">
+    <span>¿Habías facturado transferencias en modo <b>prueba</b> y ahora pasaste a <b>producción</b>? Emitilas de verdad:</span>
+    <button type="button" class="btn sec sm" id="btnRefacturarPrueba">↻ Re-facturar las de prueba</button>
+  </div>
   <div class="table-wrap" style="margin-top:10px">
     <table class="grid card-collapse">
       <thead><tr>
@@ -260,6 +264,50 @@
     datos = datos.filter(function(t){ return okIds.indexOf(t.id)===-1; });
     seleccion.clear();
     render();
+    btn.disabled = false;
+  });
+
+  document.getElementById('btnRefacturarPrueba').addEventListener('click', async function(){
+    var btn = this;
+    btn.disabled = true;
+    aviso('Buscando facturas de prueba…');
+    var lista;
+    try{
+      var r = await fetch('/facturador/pendientes-produccion');
+      lista = await r.json();
+    }catch(e){ aviso('No se pudo contactar al facturador.','error'); btn.disabled=false; return; }
+    if(!Array.isArray(lista) || !lista.length){
+      aviso('No hay facturas de prueba para re-emitir: ya está todo en producción.','ok');
+      btn.disabled=false; return;
+    }
+    if(!confirm('Se van a emitir '+lista.length+' factura(s) REALES en producción (las que habías probado en modo mock).\n\nGeneran comprobantes fiscales de verdad en ARCA. ¿Continuar?')){
+      btn.disabled=false; return;
+    }
+    var resultados = [];
+    for(var i=0;i<lista.length;i++){
+      var t = lista[i];
+      var receptor = t.razon_social || t.cuit || t.descripcion || '—';
+      aviso('Re-emitiendo '+(i+1)+'/'+lista.length+'…');
+      try{
+        var rr = await fetch('/facturador/transferencias/'+t.id+'/facturar?confirmar=true', {method:'POST'});
+        var j = await rr.json();
+        if(rr.ok){
+          resultados.push({transferencia_id:t.id, estado:j.estado, mensaje:j.error, factura:j,
+            receptor:(j.razon_social||j.cuit_receptor||receptor), importe:(j.importe!=null?j.importe:t.importe)});
+        } else {
+          var est = rr.status===422 ? 'sin_cuit' : (rr.status===409 ? 'requiere_confirmacion' : 'error');
+          resultados.push({transferencia_id:t.id, estado:est, mensaje:detalleError(j,''), factura:null,
+            receptor:receptor, importe:t.importe});
+        }
+      }catch(e){
+        resultados.push({transferencia_id:t.id, estado:'error', mensaje:'No se pudo contactar al facturador.',
+          factura:null, receptor:receptor, importe:t.importe});
+      }
+    }
+    var emitidas = resultados.filter(function(r){return r.estado==='emitida';}).length;
+    var otros = resultados.length - emitidas;
+    aviso(emitidas+' emitida(s) en producción'+(otros? ' · '+otros+' con observaciones (ver abajo)':'')+'. Descargá los PDF.', otros? 'error':'ok');
+    renderResultado(resultados);
     btn.disabled = false;
   });
 
