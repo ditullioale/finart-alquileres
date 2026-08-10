@@ -55,6 +55,16 @@
       <a class="btn sec sm" style="margin-left:10px" target="_blank"
          href="{{ url_for('facturador.factura_pdf', fid=liq.factura_id) }}">Ver PDF</a>
     {% endif %}
+    {% if facturador_habilitado %}
+      <form method="post"
+            action="{{ url_for('liquidaciones.facturar_honorarios', liq_id=liq.id) }}"
+            style="display:inline;margin-left:10px"
+            onsubmit="return confirm('Re-emitir la factura de honorarios.\n\nSi la que figura es de una PRUEBA (mock/homologación), se emite una factura REAL en producción. Si ya es real, no pasa nada: no se duplica.\n\n¿Continuar?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn sec sm" title="Emitir una factura real si la actual era de prueba">↻ Re-emitir</button>
+      </form>
+      <div class="hint" style="margin-top:6px">¿Esta factura era de una prueba (mock)? Usá <b>Re-emitir</b> para generar la real en producción.</div>
+    {% endif %}
   </div>
 {% elif liq and facturador_habilitado %}
   {% if fact == 'requiere_confirmacion' or liq.factura_estado == 'requiere_confirmacion' %}
