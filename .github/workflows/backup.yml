@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       verifypg:
-        image: postgres:17
+        image: postgres:18
         env:
           POSTGRES_PASSWORD: verify
         ports:
@@ -28,12 +28,14 @@ jobs:
           --health-cmd "pg_isready -U postgres"
           --health-interval 5s --health-timeout 5s --health-retries 20
     steps:
-      - name: Instalar pg_dump / pg_restore (Postgres 17)
+      - name: Instalar pg_dump / pg_restore (Postgres 18)
         run: |
           sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
           sudo apt-get update
-          sudo apt-get install -y postgresql-client-17
+          sudo apt-get install -y postgresql-client-18
+          # Forzar que los pasos siguientes usen el binario 18 (el runner ya trae el 16).
+          echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
 
       - name: Backup + verificación del GESTOR
         env:
