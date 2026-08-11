@@ -25,7 +25,7 @@ from .models import Contrato
 from .utils import MESES_ES
 
 API_URL = "https://api.anthropic.com/v1/messages"
-MODELO_DEFECTO = "claude-3-5-haiku-latest"
+MODELO_DEFECTO = "claude-haiku-4-5-20251001"
 MAX_VUELTAS = 6  # tope de llamadas a herramientas por pregunta (evita loops/costos)
 
 
@@ -217,7 +217,14 @@ def preguntar(pregunta: str) -> dict:
         except requests.RequestException as exc:
             return {"ok": False, "error": f"No se pudo contactar al servicio de IA: {exc}"}
         if r.status_code != 200:
-            return {"ok": False, "error": f"El servicio de IA respondió {r.status_code}."}
+            detalle = ""
+            try:
+                detalle = (r.json().get("error") or {}).get("message", "")
+            except ValueError:
+                detalle = r.text[:200]
+            return {"ok": False,
+                    "error": f"El servicio de IA respondió {r.status_code}"
+                             + (f": {detalle}" if detalle else ".")}
         data = r.json()
         contenido = data.get("content", [])
         mensajes.append({"role": "assistant", "content": contenido})
