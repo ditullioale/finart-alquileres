@@ -39,6 +39,12 @@
     <span>¿Habías facturado transferencias en modo <b>prueba</b> y ahora pasaste a <b>producción</b>? Emitilas de verdad:</span>
     <button type="button" class="btn sec sm" id="btnRefacturarPrueba">↻ Re-facturar las de prueba</button>
   </div>
+  <div id="progreso" style="margin-top:10px;display:none">
+    <div style="height:12px;background:#e6ecf5;border-radius:6px;overflow:hidden">
+      <div id="progresoBar" style="height:100%;width:0%;background:#1f9d55;transition:width .2s"></div>
+    </div>
+    <div id="progresoTxt" class="hint" style="margin-top:5px"></div>
+  </div>
   <div class="table-wrap" style="margin-top:10px">
     <table class="grid card-collapse">
       <thead><tr>
@@ -75,6 +81,16 @@
     msg.style.color = tipo === 'error' ? '#b00' : '#14663a';
   }
   function limpiarAviso(){ msg.hidden = true; msg.textContent = ''; }
+  function setProgreso(hechos, total, etiqueta){
+    var box = document.getElementById('progreso');
+    if(!total || total <= 0){ box.style.display = 'none'; return; }
+    box.style.display = 'block';
+    var pct = Math.round(hechos / total * 100);
+    document.getElementById('progresoBar').style.width = pct + '%';
+    document.getElementById('progresoTxt').textContent =
+      (etiqueta || 'Emitiendo') + ' ' + hechos + ' de ' + total + ' (' + pct + '%)';
+  }
+  function ocultarProgreso(){ document.getElementById('progreso').style.display = 'none'; }
   // El backend (FastAPI) a veces manda 'detail' como lista de objetos de validación.
   // Lo convertimos a texto legible en vez de mostrar "[object Object]".
   function detalleError(j, porDefecto){
@@ -239,6 +255,7 @@
       var receptor = t ? (t.razon_social || t.cuit || t.descripcion || '—') : '—';
       var importe = t ? t.importe : null;
       aviso('Facturando '+(i+1)+'/'+ids.length+'…');
+      setProgreso(i, ids.length, 'Facturando');
       var conf = (t && t.supera_minimo===false) ? confirmar : false;
       try{
         var r = await fetch('/facturador/transferencias/'+id+'/facturar?confirmar='+conf, {method:'POST'});
@@ -288,6 +305,7 @@
       var t = lista[i];
       var receptor = t.razon_social || t.cuit || t.descripcion || '—';
       aviso('Re-emitiendo '+(i+1)+'/'+lista.length+'…');
+      setProgreso(i, lista.length, 'Re-emitiendo');
       try{
         var rr = await fetch('/facturador/transferencias/'+t.id+'/facturar?confirmar=true', {method:'POST'});
         var j = await rr.json();
@@ -306,8 +324,10 @@
     }
     var emitidas = resultados.filter(function(r){return r.estado==='emitida';}).length;
     var otros = resultados.length - emitidas;
+    setProgreso(lista.length, lista.length, 'Re-emitiendo');
     aviso(emitidas+' emitida(s) en producción'+(otros? ' · '+otros+' con observaciones (ver abajo)':'')+'. Descargá los PDF.', otros? 'error':'ok');
     renderResultado(resultados);
+    setTimeout(ocultarProgreso, 1500);
     btn.disabled = false;
   });
 
