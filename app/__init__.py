@@ -104,6 +104,17 @@ def create_app(config_class=Config):
             return {"facturador_disponible": disponible}
         except Exception:
             return {"facturador_disponible": False}
+
+    @app.context_processor
+    def _inject_asistente():
+        from flask_login import current_user
+        try:
+            if not current_user.is_authenticated:
+                return {"asistente_disponible": False}
+            from . import asistente
+            return {"asistente_disponible": asistente.configurado()}
+        except Exception:
+            return {"asistente_disponible": False}
     app.register_blueprint(plataforma_bp)
 
     # El buzón del robot de gas usa su propio token (X-Gas-Token), no CSRF.
