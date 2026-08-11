@@ -47,7 +47,7 @@ jobs:
           echo "Dump del gestor: $(du -h "$FILE" | cut -f1)"
           # Restaurar en una base temporal para PROBAR que el backup sirve
           psql "postgresql://postgres:verify@localhost:5432/postgres" -v ON_ERROR_STOP=1 \
-            -c "DROP DATABASE IF EXISTS v_gestor; CREATE DATABASE v_gestor;"
+            -c "DROP DATABASE IF EXISTS v_gestor" -c "CREATE DATABASE v_gestor"
           pg_restore --no-owner --no-privileges \
             -d "postgresql://postgres:verify@localhost:5432/v_gestor" "$FILE" \
             || echo "(pg_restore terminó con avisos; la validez se comprueba con el conteo)"
@@ -63,7 +63,7 @@ jobs:
           pg_dump "$URL" --no-owner --no-privileges -Fc -f "$FILE"
           echo "Dump del facturador: $(du -h "$FILE" | cut -f1)"
           psql "postgresql://postgres:verify@localhost:5432/postgres" -v ON_ERROR_STOP=1 \
-            -c "DROP DATABASE IF EXISTS v_fact; CREATE DATABASE v_fact;"
+            -c "DROP DATABASE IF EXISTS v_fact" -c "CREATE DATABASE v_fact"
           pg_restore --no-owner --no-privileges \
             -d "postgresql://postgres:verify@localhost:5432/v_fact" "$FILE" \
             || echo "(pg_restore terminó con avisos; la validez se comprueba con el conteo)"
