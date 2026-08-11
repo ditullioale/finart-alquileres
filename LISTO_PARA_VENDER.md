@@ -40,7 +40,7 @@ Que el servicio no se caiga sin aviso y que se pueda recuperar de un desastre.
 - ✅ CI (corre las pruebas en cada push).
 - ✅ Logging estructurado con id de correlación (`X-Request-Id`) por request.
 - ✅ Monitoreo de errores con Sentry (se activa con la variable `SENTRY_DSN`). ← falta que cargues el DSN en Railway.
-- ⬜ **Backups automáticos de la base + un restore probado** (un backup que nunca restauraste no es un backup). ← acción tuya en Railway.
+- ✅ **Backups automáticos diarios + restore verificado** (11/08/2026) — GitHub Actions hace `pg_dump` de las dos bases todos los días, **las restaura en un Postgres de prueba y cuenta filas** (si el backup estuviera roto, el workflow falla y avisa), y guarda las copias 90 días. Ver `.github/workflows/backup.yml` y `GUIA_BACKUPS.md`.
 - ⬜ Aviso/alerta si Finart o el Facturador se caen (uptime monitor sobre los health checks) **y aviso de vencimiento del certificado de ARCA** (`/api/emisores/diagnostico`).
 - ⬜ Entorno de **staging** separado (probar sin tocar producción).
 - ⬜ Rotación de secretos.
@@ -61,5 +61,7 @@ No es código, pero vender sin esto es un riesgo real.
 1. ✅ **Hecho:** Pilar 1 — emisión real en producción de ARCA (CAE válido, 11/08/2026).
 2. ✅ **Hecho:** Pilar 2 — aislamiento entre inmobiliarias (93 pruebas).
 3. ✅ **Hecho:** Pilar 3 (parcial) — logging + Sentry (queda cargar `SENTRY_DSN`).
-4. **Siguiente (Pilar 3, acción tuya con guía):** (a) backups del Postgres + un **restore probado** (`GUIA_BACKUPS.md`); (b) **uptime monitor** sobre los health checks + aviso de vencimiento del certificado (`/api/emisores/diagnostico`); (c) **staging** separado.
+4. **Pilar 3, en curso:** ✅ backups diarios + restore verificado (hecho, 11/08/2026). Falta:
+   (a) **uptime monitor** sobre los health checks + aviso de vencimiento del certificado
+   (`/api/emisores/diagnostico`); (b) **staging** separado; (c) cargar el `SENTRY_DSN`.
 5. **Antes de cobrarle a otras inmobiliarias (Pilar 4):** términos, privacidad, responsabilidad y forma de cobro (con contador/abogado).

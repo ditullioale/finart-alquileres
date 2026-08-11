@@ -1,0 +1,47 @@
+name: Aviso de vencimiento del certificado ARCA
+
+# Consulta cada semana el /api/emisores/diagnostico del facturador. Si a algún certificado
+# le quedan menos de 45 días (o ya venció, o hay advertencias operativas), el workflow FALLA
+# y GitHub te manda un mail. Complementa al monitor de uptime (UptimeRobot).
+#
+# Secrets necesarios (Settings -> Secrets and variables -> Actions):
+#   FACTURADOR_URL          -> https://facturador-arca-production-XXXX.up.railway.app (sin barra final)
+#   FACTURADOR_ADMIN_TOKEN  -> el mismo valor que FACTURADOR_ADMIN_TOKEN en Railway
+
+on:
+  schedule:
+    - cron: "0 12 * * 1"   # lunes 12:00 UTC = 09:00 Argentina
+  workflow_dispatch: {}
+
+jobs:
+  cert-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Consultar diagnóstico del facturador
+        env:
+          URL: ${{ secrets.FACTURADOR_URL }}
+          TOKEN: ${{ secrets.FACTURADOR_ADMIN_TOKEN }}
+        run: |
+          set -e
+          curl -fsS -H "X-Admin-Token: $TOKEN" "$URL/api/emisores/diagnostico" -o resp.json
+          echo "Respuesta del facturador:"; cat resp.json; echo
+          python3 - resp.json <<'PY'
+          import sys, json
+          UMBRAL = 45   # días de aviso anticipado
+          d = json.load(open(sys.argv[1]))
+          problemas = []
+          for e in d.get("emisores", []):
+              dias = e.get("dias_para_vencer")
+              if e.get("certificado_vencido"):
+                  problemas.append(f"VENCIDO: {e.get('cuit')} (venció el {e.get('certificado_vence')})")
+              elif dias is not None and dias < UMBRAL:
+                  problemas.append(f"{e.get('cuit')}: al certificado le quedan {dias} días (vence {e.get('certificado_vence')})")
+          problemas += list(d.get("advertencias", []))
+          if problemas:
+              print("::error::Atención con el facturador / certificado:")
+              for p in problemas:
+                  print("  -", p)
+              sys.exit(1)
+          dias = [e["dias_para_vencer"] for e in d.get("emisores", []) if e.get("dias_para_vencer") is not None]
+          print(f"OK: sin advertencias. Días mínimos para el vencimiento del certificado: {min(dias) if dias else 'n/d'}")
+          PY
