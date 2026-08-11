@@ -56,6 +56,7 @@
     <div class="brand"><a href="{{ url_for('main.index') }}"><span class="logo">🏠</span> <span>Gestión de<br>Alquileres</span></a></div>
     <nav class="nav">
       <a class="nav-item {{ 'active' if bp=='main' }}" href="{{ url_for('main.index') }}"><span class="i">{{ icon('home') }}</span> Inicio</a>
+      <a class="nav-item {{ 'active' if bp=='asistente' }}" href="{{ url_for('asistente.index') }}"><span class="i">{{ icon('bot') }}</span> Asistente</a>
       <a class="nav-item {{ 'active' if bp=='contratos' and ep not in ('contratos.generador','contratos.crear') }}" href="{{ url_for('contratos.listar') }}"><span class="i">{{ icon('file-text') }}</span> Contratos</a>
       <a class="nav-item {{ 'active' if bp=='cobros' }}" href="{{ url_for('cobros.index') }}"><span class="i">{{ icon('banknote') }}</span> Cobranzas</a>
       <a class="nav-item {{ 'active' if bp=='liquidaciones' }}" href="{{ url_for('liquidaciones.index') }}"><span class="i">{{ icon('receipt') }}</span> Liquidaciones</a>

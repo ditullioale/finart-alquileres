@@ -26,6 +26,7 @@ def _correr(script):
     "tests_qa.py",
     "test_aislamiento.py",
     "test_facturador.py",
+    "test_asistente.py",
 ])
 def test_suite_historica(script):
     _correr(script)

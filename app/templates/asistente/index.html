@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Asistente{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1>Asistente</h1>
+  <p class="sub">Preguntá en lenguaje natural sobre tus alquileres: quién debe, cuándo vence un contrato, cuánto cobraste, y más. Consulta tus datos reales (solo lectura).</p>
+</div>
+
+{% if not configurado %}
+<div class="panel" style="border-left:4px solid #d08700;background:#fff8e6">
+  <b>El asistente todavía no está configurado.</b> Falta cargar la variable <code>IA_API_KEY</code> en el servidor.
+</div>
+{% else %}
+
+<div class="panel" style="margin-bottom:14px">
+  <div id="chat" style="display:flex;flex-direction:column;gap:12px;margin-bottom:12px"></div>
+  <div class="hint" id="ejemplos" style="margin-bottom:10px">
+    Ejemplos:
+    <button type="button" class="btn sec sm chip">¿Quién me debe?</button>
+    <button type="button" class="btn sec sm chip">¿Qué contratos vencen en los próximos 60 días?</button>
+    <button type="button" class="btn sec sm chip">¿Cuánto cobré este mes?</button>
+    <button type="button" class="btn sec sm chip">Dame un resumen general</button>
+  </div>
+  <form id="formAsk" style="display:flex;gap:8px;align-items:flex-end">
+    <textarea id="pregunta" rows="2" placeholder="Escribí tu pregunta…"
+              style="flex:1;resize:vertical" required></textarea>
+    <button type="submit" class="btn" id="btnAsk">Preguntar</button>
+  </form>
+</div>
+
+<script>
+(function(){
+  var chat = document.getElementById('chat');
+  var form = document.getElementById('formAsk');
+  var input = document.getElementById('pregunta');
+  var btn = document.getElementById('btnAsk');
+
+  function burbuja(texto, quien){
+    var d = document.createElement('div');
+    d.style.maxWidth = '85%';
+    d.style.padding = '10px 13px';
+    d.style.borderRadius = '12px';
+    d.style.whiteSpace = 'pre-wrap';
+    d.style.lineHeight = '1.45';
+    if(quien === 'user'){
+      d.style.alignSelf = 'flex-end';
+      d.style.background = '#2f6fed'; d.style.color = '#fff';
+    } else {
+      d.style.alignSelf = 'flex-start';
+      d.style.background = '#eef3fb'; d.style.color = '#12263f';
+    }
+    d.textContent = texto;
+    chat.appendChild(d);
+    chat.scrollTop = chat.scrollHeight;
+    return d;
+  }
+
+  function preguntar(texto){
+    if(!texto.trim()) return;
+    burbuja(texto, 'user');
+    input.value = '';
+    btn.disabled = true;
+    var pensando = burbuja('Pensando…', 'bot');
+    fetch('/asistente/preguntar', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({pregunta: texto})
+    }).then(function(r){ return r.json(); })
+      .then(function(j){
+        pensando.textContent = j.ok ? (j.respuesta || 'Sin respuesta.') : ('⚠️ ' + (j.error || 'No se pudo responder.'));
+        if(!j.ok){ pensando.style.background = '#fdecec'; pensando.style.color = '#9c2020'; }
+        btn.disabled = false; chat.scrollTop = chat.scrollHeight;
+      }).catch(function(){
+        pensando.textContent = '⚠️ Error de conexión. Probá de nuevo.';
+        pensando.style.background = '#fdecec'; pensando.style.color = '#9c2020';
+        btn.disabled = false;
+      });
+  }
+
+  form.addEventListener('submit', function(e){ e.preventDefault(); preguntar(input.value); });
+  document.querySelectorAll('.chip').forEach(function(c){
+    c.addEventListener('click', function(){ preguntar(c.textContent); });
+  });
+  // Enter envía, Shift+Enter hace salto de línea.
+  input.addEventListener('keydown', function(e){
+    if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); form.requestSubmit(); }
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}
