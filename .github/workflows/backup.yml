@@ -1,0 +1,77 @@
+name: Backup diario de Postgres
+
+# Hace pg_dump de las DOS bases (gestor y facturador) todos los días, VERIFICA que el
+# backup se pueda restaurar (lo restaura en un Postgres temporal y cuenta filas) y guarda
+# las copias como artifacts privados del repo (retención 90 días).
+# Gratis, sin depender del plan Pro de Railway.
+#
+# Requiere dos "secrets" en el repo (Settings -> Secrets and variables -> Actions):
+#   GESTOR_DATABASE_URL       -> connection string PÚBLICA de la base del gestor (Railway)
+#   FACTURADOR_DATABASE_URL   -> connection string PÚBLICA de la base del facturador (Railway)
+
+on:
+  schedule:
+    - cron: "0 6 * * *"    # 06:00 UTC = 03:00 Argentina, todos los días
+  workflow_dispatch: {}     # permite correrlo a mano desde la pestaña Actions
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    services:
+      verifypg:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: verify
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - name: Instalar pg_dump / pg_restore (Postgres 17)
+        run: |
+          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+
+      - name: Backup + verificación del GESTOR
+        env:
+          URL: ${{ secrets.GESTOR_DATABASE_URL }}
+        run: |
+          set -e
+          FILE="gestor-$(date +%F).dump"
+          pg_dump "$URL" --no-owner --no-privileges -Fc -f "$FILE"
+          echo "Dump del gestor: $(du -h "$FILE" | cut -f1)"
+          # Restaurar en una base temporal para PROBAR que el backup sirve
+          psql "postgresql://postgres:verify@localhost:5432/postgres" -v ON_ERROR_STOP=1 \
+            -c "DROP DATABASE IF EXISTS v_gestor; CREATE DATABASE v_gestor;"
+          pg_restore --no-owner --no-privileges \
+            -d "postgresql://postgres:verify@localhost:5432/v_gestor" "$FILE" \
+            || echo "(pg_restore terminó con avisos; la validez se comprueba con el conteo)"
+          psql "postgresql://postgres:verify@localhost:5432/v_gestor" -v ON_ERROR_STOP=1 \
+            -c "SELECT 'GESTOR restaurado OK -> '||count(*)||' contratos' FROM contratos;"
+
+      - name: Backup + verificación del FACTURADOR
+        env:
+          URL: ${{ secrets.FACTURADOR_DATABASE_URL }}
+        run: |
+          set -e
+          FILE="facturador-$(date +%F).dump"
+          pg_dump "$URL" --no-owner --no-privileges -Fc -f "$FILE"
+          echo "Dump del facturador: $(du -h "$FILE" | cut -f1)"
+          psql "postgresql://postgres:verify@localhost:5432/postgres" -v ON_ERROR_STOP=1 \
+            -c "DROP DATABASE IF EXISTS v_fact; CREATE DATABASE v_fact;"
+          pg_restore --no-owner --no-privileges \
+            -d "postgresql://postgres:verify@localhost:5432/v_fact" "$FILE" \
+            || echo "(pg_restore terminó con avisos; la validez se comprueba con el conteo)"
+          psql "postgresql://postgres:verify@localhost:5432/v_fact" -v ON_ERROR_STOP=1 \
+            -c "SELECT 'FACTURADOR restaurado OK -> '||count(*)||' facturas' FROM facturas;"
+
+      - name: Guardar las copias (artifact privado, 90 días)
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-postgres-${{ github.run_id }}
+          path: "*.dump"
+          retention-days: 90
+          if-no-files-found: error

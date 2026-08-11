@@ -1,7 +1,7 @@
 # FINART — Checklist "listo para vender"
 
 > Lo imprescindible antes del primer cliente pago. ✅ hecho · 🟡 parcial · ⬜ falta.
-> Última actualización: 2026-08-07.
+> Última actualización: 2026-08-11.
 
 ---
 
@@ -16,7 +16,9 @@ El circuito Finart → Facturador → ARCA → CAE → Finart tiene que ser a pr
 - ✅ Reconciliación automática ante timeouts (cron corriendo).
 - ✅ Sin doble facturación (garantizado por idempotencia).
 - ✅ Test E2E del escenario completo (con Facturador mockeado).
-- ⬜ **Emitir al menos 1 comprobante REAL en homologación de ARCA** (hoy todo es `mock`). ← acción tuya (certificados + alta en ARCA homologación).
+- ✅ **Emisión REAL en producción de ARCA** (11/08/2026) — certificado de producción cargado, punto de venta Web Services (7), **CAE válido** emitido y verificable en "Mis Comprobantes". Superados mock y homologación.
+- ✅ Handshake SSL con ARCA producción (`DH_KEY_TOO_SMALL`) resuelto; condición de IVA real del receptor; re-emisión de comprobantes de prueba → producción (liquidaciones y transferencias).
+- 🟡 **Vencimiento del certificado de ARCA**: caducan (~1–2 años) y al vencer la facturación se corta **sin aviso**. `GET /api/emisores/diagnostico` (header `X-Admin-Token`) informa los días restantes por emisor (avisa a 30 días). ← engancharlo al monitor de uptime.
 - ⬜ CI de integración real (Postgres + Finart + Facturador juntos).
 
 ## Pilar 2 — Aislamiento entre inmobiliarias, probado con ataques (riesgo #2)
@@ -39,7 +41,7 @@ Que el servicio no se caiga sin aviso y que se pueda recuperar de un desastre.
 - ✅ Logging estructurado con id de correlación (`X-Request-Id`) por request.
 - ✅ Monitoreo de errores con Sentry (se activa con la variable `SENTRY_DSN`). ← falta que cargues el DSN en Railway.
 - ⬜ **Backups automáticos de la base + un restore probado** (un backup que nunca restauraste no es un backup). ← acción tuya en Railway.
-- ⬜ Aviso/alerta si Finart o el Facturador se caen (uptime monitor sobre los health checks).
+- ⬜ Aviso/alerta si Finart o el Facturador se caen (uptime monitor sobre los health checks) **y aviso de vencimiento del certificado de ARCA** (`/api/emisores/diagnostico`).
 - ⬜ Entorno de **staging** separado (probar sin tocar producción).
 - ⬜ Rotación de secretos.
 
@@ -56,8 +58,8 @@ No es código, pero vender sin esto es un riesgo real.
 
 ## Por dónde empezar
 
-1. ✅ **Hecho:** Pilar 2 — batería adversarial de aislamiento (93 pruebas de aislamiento).
-2. ✅ **Hecho:** Pilar 3 — logging estructurado + Sentry (queda que cargues el `SENTRY_DSN`).
-3. **Acción tuya, con guía (Pilar 3):** activar backups del Postgres y probar el restore → ver `GUIA_BACKUPS.md`.
-4. **Acción tuya, con guía (Pilar 1):** emitir un CAE real en homologación de ARCA → ver `GUIA_HOMOLOGACION_ARCA.md` (en el repo del Facturador). ⚠️ Lo que emitiste hasta ahora fue en modo `mock` = CAE simulado, sin validez fiscal.
-5. **Antes de cobrar (Pilar 4):** lo legal (con un contador/abogado).
+1. ✅ **Hecho:** Pilar 1 — emisión real en producción de ARCA (CAE válido, 11/08/2026).
+2. ✅ **Hecho:** Pilar 2 — aislamiento entre inmobiliarias (93 pruebas).
+3. ✅ **Hecho:** Pilar 3 (parcial) — logging + Sentry (queda cargar `SENTRY_DSN`).
+4. **Siguiente (Pilar 3, acción tuya con guía):** (a) backups del Postgres + un **restore probado** (`GUIA_BACKUPS.md`); (b) **uptime monitor** sobre los health checks + aviso de vencimiento del certificado (`/api/emisores/diagnostico`); (c) **staging** separado.
+5. **Antes de cobrarle a otras inmobiliarias (Pilar 4):** términos, privacidad, responsabilidad y forma de cobro (con contador/abogado).

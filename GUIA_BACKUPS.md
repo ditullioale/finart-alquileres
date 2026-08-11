@@ -26,36 +26,41 @@ En la misma pestaña **Backups** suele haber un botón para crear un backup **ma
 snapshot** al instante. Tomá uno ahora en cada base. Así tenés una copia fresca antes de
 seguir.
 
-## 3. Probar un restore (el paso que casi todos saltean)
+## 3. Probar un restore SIN riesgo (el paso que casi todos saltean)
 
-Esto es lo importante: comprobar que el backup **sirve**, no solo que existe.
+Lo importante es comprobar que el backup **sirve**, no solo que existe. Y en Railway se puede
+hacer **sin tocar producción**, porque el restore **no pisa** la base en uso: crea una copia.
 
-1. En la pestaña **Backups**, buscá un backup por su fecha.
-2. Al lado tiene un botón **Restore**.
-3. Railway te va a pedir confirmación porque el restore **reemplaza los datos actuales**
-   de esa base por los del backup.
+1. En el servicio de base → pestaña **Backups** (o **PITR / Point-in-Time Recovery**, si tu
+   plan lo incluye).
+2. Elegí un backup (o un momento puntual, en PITR) y dale **Restore**.
+3. Railway **provisiona un Postgres NUEVO** con los datos restaurados y **deja intacta** la
+   base original. (En backups normales, el cambio queda "en borrador": lo revisás y recién ahí
+   lo confirmás; con PITR siempre nace una base nueva.)
+4. **Verificá que los datos están** (este es el hito): abrí el servicio nuevo → pestaña
+   **Data** y mirá que las tablas tengan filas —por ejemplo `contratos`, `pagos`,
+   `liquidaciones` en la base del gestor; `facturas`, `emisores` en la del facturador—. Si ves
+   los registros, **el restore funciona de verdad**.
+5. Cuando lo confirmaste, **borrá el servicio nuevo** (era solo para el ensayo) para no pagar
+   de más.
 
-⚠️ **Cuidado:** un restore sobre la base de producción PISA los datos actuales. Para
-*probar* sin riesgo, lo ideal es hacerlo en un momento tranquilo y sabiendo que vas a
-volver a un estado anterior. Si querés cero riesgo, la forma más segura de "ensayar" es:
-tomar el backup, y hacer el restore recién cuando tengas un entorno de **staging** (una
-copia separada de producción). Mientras no tengas staging, al menos **confirmá que el
-botón Restore está disponible y entendés el flujo** — eso ya te da la tranquilidad de que
-la copia existe y es restaurable.
+Con esto tenés un restore **probado**, no solo la teoría. Anotá la fecha del ensayo y repetilo
+cada tanto (p. ej. cada 3–6 meses).
 
-## 4. (Opcional, más avanzado) Point-in-Time Recovery
+## 4. Point-in-Time Recovery (el nivel más alto)
 
-Railway ofrece **PITR**: en vez de volver solo al último backup diario, te deja restaurar
-la base a **cualquier momento** dentro de la ventana de retención (por ejemplo "ayer a las
-15:42, justo antes del problema"). Si tu plan lo permite, activalo en la configuración de
-la base. Es el nivel más alto de protección.
+Railway ofrece **PITR**: en vez de volver solo al último backup diario, restaura la base a
+**cualquier momento** dentro de la ventana de retención (por ejemplo "ayer a las 15:42, justo
+antes del problema"), y **siempre sobre una base nueva** (ideal para el ensayo del punto 3).
+Si tu plan lo permite, activalo. Es la mejor protección.
 
 ## Resumen mínimo para vender
 
 - ✅ Backups **diarios activados** en las dos bases.
 - ✅ Un backup **manual tomado** al menos una vez.
-- ✅ Sabés **dónde está el botón Restore** y qué hace.
-- 🎯 Ideal a futuro: un entorno de **staging** para ensayar el restore sin tocar producción.
+- ✅ Un **restore ENSAYADO** en una base nueva, con los datos verificados (no solo "sé dónde
+  está el botón"). Fecha del último ensayo: __ / __ / ____.
+- 🎯 Ideal a futuro: un entorno de **staging** para ensayar sin pensar.
 
 ---
 
