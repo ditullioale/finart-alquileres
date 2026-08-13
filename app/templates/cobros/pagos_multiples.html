@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Registrar pagos anteriores{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1>Registrar pagos anteriores</h1>
+  <p class="sub">{{ (c.inmueble.codigo ~ ' · ' if c.inmueble.codigo else '') }}{{ c.inmueble.direccion }} ·
+    {{ c.inquilino.nombre if c.inquilino else '—' }}</p>
+</div>
+
+{% if not pendientes %}
+<div class="panel">Este contrato no tiene meses pendientes. 🎉
+  <a href="{{ url_for('cobros.detalle', cid=c.id) }}">Volver al detalle</a>.</div>
+{% else %}
+<form method="post" class="cardform">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="panel" style="margin-bottom:14px">
+    <div class="grid2">
+      <div>
+        <label>Fecha de cada pago</label>
+        <label class="chk"><input type="radio" name="fecha_modo" value="venc" checked> La del vencimiento de cada mes (recomendado)</label>
+        <label class="chk"><input type="radio" name="fecha_modo" value="hoy"> Hoy ({{ hoy.strftime('%d/%m/%Y') }})</label>
+        <label class="chk"><input type="radio" name="fecha_modo" value="fija"> Una fecha fija:
+          <input type="date" name="fecha_fija" style="width:auto"></label>
+      </div>
+      <div>
+        <label>Forma de pago</label>
+        <select name="forma_pago">{% for f in formas %}<option>{{ f }}</option>{% endfor %}</select>
+        <label class="chk" style="margin-top:10px"><input type="checkbox" name="con_mora"> Cobrar con mora (si estaban atrasados)</label>
+        <span class="hint">Por defecto se registran sin mora (pagos hechos en fecha).</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="grid">
+      <thead><tr>
+        <th style="width:34px"><input type="checkbox" id="chkAll" checked></th>
+        <th>Período</th><th>Vencimiento</th><th class="r">Alquiler</th>
+      </tr></thead>
+      <tbody>
+        {% for p in pendientes %}
+        <tr>
+          <td><input type="checkbox" class="chk-p" name="periodo" value="{{ p.mes }}-{{ p.anio }}"
+                     data-monto="{{ p.esperado }}" checked></td>
+          <td>{{ meses[p.mes] }} {{ p.anio }}</td>
+          <td>{{ p.venc.strftime('%d/%m/%Y') }}</td>
+          <td class="r">{{ c.moneda|simbolo }} {{ p.esperado|money }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="formbtns" style="align-items:center">
+    <button class="btn ok" type="submit">💵 Registrar los seleccionados (<span id="nSel">0</span>)</button>
+    <span style="margin-left:12px">Total: <b>{{ c.moneda|simbolo }} <span id="totSel">0</span></b></span>
+    <a class="btn sec" href="{{ url_for('cobros.detalle', cid=c.id) }}" style="margin-left:auto">Cancelar</a>
+  </div>
+</form>
+
+<script>
+(function(){
+  var chkAll = document.getElementById('chkAll');
+  var items = Array.prototype.slice.call(document.querySelectorAll('.chk-p'));
+  function fmt(n){ return n.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+  function recalc(){
+    var n=0, tot=0;
+    items.forEach(function(c){ if(c.checked){ n++; tot += parseFloat(c.dataset.monto)||0; } });
+    document.getElementById('nSel').textContent = n;
+    document.getElementById('totSel').textContent = fmt(tot);
+  }
+  chkAll.addEventListener('change', function(){ items.forEach(function(c){ c.checked = chkAll.checked; }); recalc(); });
+  items.forEach(function(c){ c.addEventListener('change', recalc); });
+  recalc();
+})();
+</script>
+{% endif %}
+{% endblock %}

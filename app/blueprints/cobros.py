@@ -293,7 +293,78 @@ def detalle(cid):
     pagos = sorted(contrato.pagos,
                    key=lambda p: (p.periodo_anio or 0, p.periodo_mes or 0), reverse=True)
     return render_template("cobros/detalle.html", c=contrato, pagos=pagos,
-                           resumen=_resumen(contrato), meses=MESES_ES)
+                           resumen=_resumen(contrato), meses=MESES_ES,
+                           pendientes=len(_periodos_pendientes(contrato, date.today())))
+
+
+def _periodos_pendientes(contrato, hoy):
+    """Períodos del contrato (de inicio a hoy, sin pasar el fin) SIN un pago activo.
+    Sirve para el alta múltiple de un contrato que arrancó hace meses."""
+    inicio = contrato.fecha_inicio
+    if not inicio:
+        return []
+    fin_ym = hoy.year * 12 + (hoy.month - 1)
+    if contrato.fecha_fin:
+        fin_ym = min(fin_ym, contrato.fecha_fin.year * 12 + (contrato.fecha_fin.month - 1))
+    ini_ym = inicio.year * 12 + (inicio.month - 1)
+    pagados = {(p.periodo_anio, p.periodo_mes) for p in contrato.pagos if p.estado != "Anulado"}
+    out = []
+    for ym in range(ini_ym, fin_ym + 1):
+        a, m = ym // 12, ym % 12 + 1
+        if (a, m) in pagados:
+            continue
+        out.append({"mes": m, "anio": a,
+                    "esperado": canon_vigente(contrato, m, a),
+                    "venc": vencimiento(a, m, contrato.dia_vencimiento or 10)})
+    return out
+
+
+@cobros_bp.route("/contrato/<int:cid>/pagos-multiples", methods=["GET", "POST"])
+@login_required
+def pagos_multiples(cid):
+    """Registrar de una sola vez varios períodos (típico al cargar un contrato viejo)."""
+    contrato = db.session.get(Contrato, cid) or abort(404)
+    hoy = date.today()
+    if request.method == "POST":
+        fecha_modo = request.form.get("fecha_modo", "venc")   # venc | hoy | fija
+        fecha_fija = parse_fecha(request.form.get("fecha_fija"))
+        forma = (request.form.get("forma_pago") or "").strip()
+        con_mora = bool(request.form.get("con_mora"))
+        pagados = {(p.periodo_anio, p.periodo_mes) for p in contrato.pagos if p.estado != "Anulado"}
+        nro = (max((p.numero or 0) for p in contrato.pagos) + 1) if contrato.pagos else 1
+        creados, omitidos = 0, 0
+        for token in request.form.getlist("periodo"):
+            try:
+                m, a = (int(x) for x in token.split("-"))
+            except ValueError:
+                continue
+            if (a, m) in pagados:
+                omitidos += 1
+                continue
+            esperado = canon_vigente(contrato, m, a)
+            venc = vencimiento(a, m, contrato.dia_vencimiento or 10)
+            fpago = hoy if fecha_modo == "hoy" else (fecha_fija if (fecha_modo == "fija" and fecha_fija) else venc)
+            mora = calcular_mora(esperado, contrato.mora_diaria_pct, venc, fpago) if con_mora else 0
+            total = q2(esperado) + q2(mora)
+            db.session.add(Pago(
+                contrato_id=contrato.id, numero=nro, periodo_mes=m, periodo_anio=a,
+                fecha_pago=fpago, precio_alquiler=esperado, moneda=contrato.moneda or "Pesos",
+                forma_pago=forma, mora=mora, total=total, pagado=total, saldo=q2(0), estado="Pagado"))
+            pagados.add((a, m))
+            nro += 1
+            creados += 1
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash("Algún período ya tenía un pago. Volvé a intentar.", "error")
+            return redirect(url_for("cobros.pagos_multiples", cid=cid))
+        flash(f"Se registraron {creados} pago(s)."
+              + (f" ({omitidos} ya existían y se saltearon.)" if omitidos else ""), "ok")
+        return redirect(url_for("cobros.detalle", cid=cid))
+    return render_template("cobros/pagos_multiples.html", c=contrato, meses=MESES_ES,
+                           formas=FORMAS_PAGO, hoy=hoy,
+                           pendientes=_periodos_pendientes(contrato, hoy))
 
 
 # --------------------------------------------------------------------------- #
