@@ -168,11 +168,19 @@ function calcularMora(){
   const d = diasAtraso();
   const hint = document.getElementById('mora_hint');
   if(!precio || !d){ alert('Completá alquiler, mes, año y fecha de pago.'); return; }
-  const mora = d.dias>0 ? Math.round(precio*(MORA_PCT/100)*d.dias*100)/100 : 0;
+  // Gracia hasta el vencimiento; si paga tarde, la mora cuenta desde el día 1 del mes.
+  let mora = 0, diasM = 0;
+  if(d.dias > 0){
+    const fpParts = document.getElementById('fecha_pago').value.split('-');
+    const fp = new Date(+fpParts[0], +fpParts[1]-1, +fpParts[2]);
+    const dia1 = new Date(d.venc.getFullYear(), d.venc.getMonth(), 1);
+    diasM = Math.max(0, Math.floor((fp - dia1)/86400000));
+    mora = Math.round(precio*(MORA_PCT/100)*diasM*100)/100;
+  }
   document.getElementById('mora').value = mora;
-  hint.textContent = d.dias>0 ? (d.dias + ' día(s) × ' + MORA_PCT + '%/día sobre el alquiler')
-                              : 'Sin atraso: mora 0';
-  hint.style.color = d.dias>0 ? 'var(--err)' : 'var(--muted)';
+  hint.textContent = mora>0 ? (diasM + ' día(s) desde el 1° × ' + MORA_PCT + '%/día sobre el alquiler')
+                            : 'Pagó dentro del vencimiento: mora 0';
+  hint.style.color = mora>0 ? 'var(--err)' : 'var(--muted)';
   recalc();
   actualizarVenc();
 }

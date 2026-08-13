@@ -281,8 +281,8 @@ def run():
         from app.utils import q2 as _q2, calcular_mora as _mora
         check("q2 suma exacta (0.1+0.2=0.30)", str(_q2(0.1) + _q2(0.2)) == "0.30")
         check("q2 redondea a 2 decimales (2.005->2.01)", str(_q2(2.005)) == "2.01")
-        check("mora exacta 3 dias 0.4% s/100000 = 1200.00",
-              float(_mora(100000, 0.4, date(2025, 1, 10), date(2025, 1, 13))) == 1200.00)
+        check("mora desde el 1° (vence 10, paga 13 = 12 días) 0.4% s/100000 = 4800.00",
+              float(_mora(100000, 0.4, date(2025, 1, 10), date(2025, 1, 13))) == 4800.00)
         parc2 = cl.post("/cobros/rapido", json={
             "cid": ids["c2"], "mes": 9, "anio": 2026, "precio": "100000.005",
             "pagado": "50000.01"}).get_json()
@@ -494,10 +494,12 @@ def run():
               _info["saldo"] == 100000 and _info["estado"] == "Sin registrar")
         check("período viejo impago: vencido con días de atraso",
               _info["vencido"] and _info["dias_atraso"] > 0)
-        check("mora = 10 días × 1% × 100000 = 10000",
-              float(calcular_mora(100000, 1, _d(2026, 7, 10), _d(2026, 7, 20))) == 10000.0)
-        check("mora 0 si paga en fecha o antes",
+        check("mora desde el 1° (vence 10, paga 20 = 19 días) × 1% × 100000 = 19000",
+              float(calcular_mora(100000, 1, _d(2026, 7, 10), _d(2026, 7, 20))) == 19000.0)
+        check("mora 0 si paga en fecha o antes del vencimiento",
               float(calcular_mora(100000, 1, _d(2026, 7, 10), _d(2026, 7, 5))) == 0.0)
+        check("mora 0 si paga justo el día del vencimiento",
+              float(calcular_mora(100000, 1, _d(2026, 7, 10), _d(2026, 7, 10))) == 0.0)
 
         # canon_vigente por período: elige el aumento con mayor fecha <= el período.
         class _Au2:

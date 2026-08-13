@@ -122,10 +122,17 @@ def vencimiento(anio, mes, dia):
 
 
 def calcular_mora(precio, mora_diaria_pct, venc, fecha_pago):
-    """Mora = precio × (%/100) × días de atraso. 0 si se paga en fecha o antes."""
+    """Mora = precio × (%/100) × días.
+
+    Hay gracia hasta el vencimiento: si se paga en fecha o antes, la mora es 0. Si se paga
+    tarde, los días se cuentan **desde el día 1 del mes** del período (no desde el
+    vencimiento). Ej.: vence el día 10 y paga el 15 → 15 días de mora."""
     if not (precio and mora_diaria_pct and venc and fecha_pago):
         return 0.0
-    dias = (fecha_pago - venc).days
+    if fecha_pago <= venc:               # dentro del plazo de pago → sin mora
+        return 0.0
+    dia1 = date(venc.year, venc.month, 1)
+    dias = (fecha_pago - dia1).days
     if dias <= 0:
         return 0.0
     # Mora con aritmética decimal exacta.
