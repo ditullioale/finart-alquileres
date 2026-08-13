@@ -123,13 +123,14 @@
     </div>
     <table>
       <thead>
-        <tr><th>Inmueble</th><th>Inquilino</th><th class="r">Alquiler</th><th class="r">Comisión</th><th class="r">Neto</th></tr>
+        <tr><th>Inmueble</th><th>Inquilino</th><th>Período</th><th class="r">Alquiler</th><th class="r">Comisión</th><th class="r">Neto</th></tr>
       </thead>
       <tbody>
         {% for it in items %}
         <tr>
           <td>{{ it.inmueble.codigo or '' }} {{ it.inmueble.direccion }}</td>
           <td>{{ it.inquilino.nombre if it.inquilino else '—' }}</td>
+          <td>{{ meses[it.pago.periodo_mes] if it.pago.periodo_mes }} {{ it.pago.periodo_anio }}</td>
           <td class="r">{{ it.alquiler|money }}</td>
           <td class="r neg">- {{ it.comision|money }} <span style="color:#999">({{ it.pct }}%)</span></td>
           <td class="r">{{ it.neto|money }}</td>

@@ -33,7 +33,7 @@
 
 <table class="grid">
   <thead>
-    <tr><th>Inmueble</th><th>Inquilino</th><th class="r">Alquiler</th>
+    <tr><th>Inmueble</th><th>Inquilino</th><th>Período</th><th class="r">Alquiler</th>
         <th class="r">Comisión</th><th class="r">Neto</th><th>Estado</th><th></th></tr>
   </thead>
   <tbody>
@@ -41,6 +41,7 @@
     <tr>
       <td><b>{{ it.inmueble.direccion }}</b></td>
       <td>{{ it.inquilino.nombre if it.inquilino else '—' }}</td>
+      <td>{{ meses[it.pago.periodo_mes] if it.pago.periodo_mes }} {{ it.pago.periodo_anio }}</td>
       <td class="r">{{ it.alquiler|money }}</td>
       <td class="r">- {{ it.comision|money }} <span class="hint" style="display:inline">({{ it.pct }}%)</span></td>
       <td class="r"><b>{{ it.neto|money }}</b></td>
