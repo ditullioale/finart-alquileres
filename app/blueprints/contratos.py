@@ -303,7 +303,7 @@ def nuevo():
         _leer_fiadores(c)   # cargar fiadores antes de validar, para no perderlos si falla
         _leer_copartes(c)
         renovar_de = parse_num(request.form.get("renovar_de"), entero=True)
-        error = _validar(c)
+        error = _validar(c, excluir_id=renovar_de)
         if error:
             flash(error, "error")
             return render_template("contratos/form.html", c=c, renovar_de=renovar_de,
@@ -411,7 +411,7 @@ def eliminar(cid):
     return redirect(url_for("contratos.listar"))
 
 
-def _validar(c: Contrato):
+def _validar(c: Contrato, excluir_id=None):
     if not c.inmueble_id:
         return "Elegí un inmueble."
     if not c.inquilino_id:
@@ -435,6 +435,9 @@ def _validar(c: Contrato):
                                   Contrato.estado == "Vigente")
         if c.id:
             q = q.filter(Contrato.id != c.id)
+        if excluir_id:
+            # Renovación: no contar el contrato anterior, que se va a finalizar.
+            q = q.filter(Contrato.id != excluir_id)
         otro = q.first()
         if otro:
             inq = otro.inquilino.nombre if otro.inquilino else "otro inquilino"
