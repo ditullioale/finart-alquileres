@@ -2,12 +2,36 @@
 from flask import (Blueprint, render_template, redirect, url_for, request,
                    flash, abort, jsonify)
 from flask_login import login_required
+from sqlalchemy.exc import IntegrityError
 
 from .. import db
 from ..models import Persona
 from ..utils import normalizar_whatsapp, whatsapp_valido
 
 personas_bp = Blueprint("personas", __name__, url_prefix="/personas")
+
+
+@personas_bp.route("/nueva-rapida", methods=["POST"])
+@login_required
+def nueva_rapida():
+    """Alta rápida (JSON) desde el formulario de contrato: crea la persona con lo mínimo
+    (nombre y, opcional, DNI) y la marca como inquilino o propietario según 'rol'."""
+    d = request.get_json(silent=True) or {}
+    nombre = (d.get("nombre") or "").strip()
+    if not nombre:
+        return jsonify(ok=False, error="El nombre es obligatorio."), 200
+    p = Persona(nombre=nombre, dni=((d.get("dni") or "").strip() or None))
+    if d.get("rol") == "propietario":
+        p.es_propietario = True
+    else:
+        p.es_inquilino = True
+    db.session.add(p)
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify(ok=False, error="No se pudo crear (¿DNI ya cargado?)."), 200
+    return jsonify(ok=True, id=p.id, nombre=p.nombre)
 
 
 @personas_bp.route("/")

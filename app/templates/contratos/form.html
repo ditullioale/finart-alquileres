@@ -23,14 +23,14 @@
           {{ (i.codigo ~ ' · ' if i.codigo else '') }}{{ i.direccion }}</option>
         {% endfor %}
       </select>
-      <span class="hint">¿No está? <a href="{{ url_for('inmuebles.nuevo') }}" target="_blank">Cargá el inmueble</a>.</span></div>
+      <span class="hint">¿No está? <a href="#" onclick="abrirAlta('inmueble');return false;"><b>+ cargalo acá</b></a> sin salir, o <a href="{{ url_for('inmuebles.nuevo') }}" target="_blank">en detalle</a>.</span></div>
     <div><label>Número de contrato</label><input name="numero" value="{{ c.numero or '' }}" placeholder="opcional"></div>
     <div><label>Inquilino *</label>
       <select name="inquilino_id" class="js-search" data-ph="Buscar inquilino…" required>
         <option value="">— elegí —</option>
         {% for p in inquilinos %}<option value="{{ p.id }}" {{ 'selected' if c.inquilino_id==p.id }}>{{ p.nombre }}</option>{% endfor %}
       </select>
-      <span class="hint">¿No está? <a href="{{ url_for('personas.nueva') }}" target="_blank">Cargá la persona</a> como inquilino.</span></div>
+      <span class="hint">¿No está? <a href="#" onclick="abrirAlta('inquilino');return false;"><b>+ cargalo acá</b></a> sin salir, o <a href="{{ url_for('personas.nueva') }}" target="_blank">en detalle</a>.</span></div>
     <div><label>Propietario</label>
       <select name="propietario_id" id="propietario_id" class="js-search" data-ph="Buscar propietario…">
         <option value="">— (toma el del inmueble) —</option>
@@ -108,6 +108,28 @@
     <a class="btn sec" href="{{ url_for('contratos.listar') }}">Cancelar</a>
   </div>
 </form>
+
+<style>
+  .alta-ov{position:fixed;inset:0;background:rgba(18,38,63,.45);z-index:1300;display:flex;
+    align-items:center;justify-content:center;padding:16px}
+  .alta-ov[hidden]{display:none}
+  .alta-box{background:#fff;border-radius:14px;padding:18px;width:390px;max-width:100%;
+    box-shadow:0 20px 50px rgba(0,0,0,.30)}
+  .alta-box h3{margin:0 0 10px}
+  .alta-box label{display:block;font-size:13px;color:#334;font-weight:600;margin-top:8px}
+  .alta-box input,.alta-box select{width:100%;padding:8px 10px;border:1px solid #cfd8e3;border-radius:8px;margin-top:3px}
+</style>
+<div id="altaModal" class="alta-ov" hidden>
+  <div class="alta-box">
+    <h3 id="altaTitulo">Nuevo</h3>
+    <div id="altaCampos"></div>
+    <div id="altaMsg" class="hint" style="color:#9c2020;margin-top:8px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button type="button" class="btn sec" onclick="cerrarAlta()">Cancelar</button>
+      <button type="button" class="btn" id="altaGuardar">Guardar</button>
+    </div>
+  </div>
+</div>
 
 <script>
 function toggleAjuste(){
@@ -202,6 +224,14 @@ document.querySelectorAll('select.js-search').forEach(function(sel){
   function syncInput(){ var o = opciones.find(function(x){ return x.v === sel.value; }); inp.value = (o && o.v) ? o.t : ''; }
   syncInput();
   sel.addEventListener('change', syncInput);
+  // Alta rápida: agrega una opción nueva (creada sin salir del form) y la selecciona.
+  sel._addOption = function(o){
+    opciones.push({v:o.v, t:o.t, prop:o.prop});
+    var opt = document.createElement('option'); opt.value = o.v; opt.textContent = o.t;
+    if(o.prop != null && o.prop !== '') opt.dataset.prop = o.prop;
+    sel.appendChild(opt); sel.value = o.v; inp.value = o.t;
+    sel.dispatchEvent(new Event('change'));
+  };
   function pintar(filtro){
     var f = (filtro||'').toLowerCase();
     list.innerHTML='';
@@ -220,6 +250,54 @@ document.querySelectorAll('select.js-search').forEach(function(sel){
   inp.addEventListener('focus', function(){ pintar(''); });
   inp.addEventListener('input', function(){ pintar(inp.value); });
   inp.addEventListener('blur', function(){ setTimeout(function(){ list.style.display='none'; }, 150); });
+});
+
+// ===== Alta rápida de inmueble / inquilino (sin salir del formulario) =====
+var ALTA_TIPO = null;
+function abrirAlta(tipo){
+  ALTA_TIPO = tipo;
+  var camp = document.getElementById('altaCampos');
+  document.getElementById('altaMsg').textContent = '';
+  if(tipo === 'inmueble'){
+    document.getElementById('altaTitulo').textContent = 'Nuevo inmueble';
+    var propOpts = document.getElementById('propietario_id').innerHTML;
+    camp.innerHTML =
+      '<label>Dirección *</label><input id="al_dir" placeholder="Calle 123, Localidad">' +
+      '<label>Código (opcional)</label><input id="al_cod" placeholder="ej. DE17">' +
+      '<label>Propietario (opcional)</label><select id="al_prop">' + propOpts + '</select>';
+  } else {
+    document.getElementById('altaTitulo').textContent = 'Nuevo inquilino';
+    camp.innerHTML =
+      '<label>Nombre y apellido *</label><input id="al_nom" placeholder="Nombre Apellido">' +
+      '<label>DNI (opcional)</label><input id="al_dni">';
+  }
+  document.getElementById('altaModal').hidden = false;
+  var first = camp.querySelector('input'); if(first) first.focus();
+}
+function cerrarAlta(){ document.getElementById('altaModal').hidden = true; }
+document.getElementById('altaGuardar').addEventListener('click', function(){
+  var msg = document.getElementById('altaMsg'); msg.textContent = '';
+  var btn = this; btn.disabled = true;
+  var url, payload, aplicar;
+  if(ALTA_TIPO === 'inmueble'){
+    var dir = document.getElementById('al_dir').value.trim();
+    if(!dir){ msg.textContent = 'La dirección es obligatoria.'; btn.disabled = false; return; }
+    url = '/inmuebles/nuevo-rapido';
+    payload = {direccion: dir, codigo: document.getElementById('al_cod').value.trim(),
+               propietario_id: document.getElementById('al_prop').value};
+    aplicar = function(j){ document.getElementById('inmueble_id')._addOption({v:String(j.id), t:j.texto, prop:j.propietario_id}); };
+  } else {
+    var nom = document.getElementById('al_nom').value.trim();
+    if(!nom){ msg.textContent = 'El nombre es obligatorio.'; btn.disabled = false; return; }
+    url = '/personas/nueva-rapida';
+    payload = {nombre: nom, dni: document.getElementById('al_dni').value.trim(), rol: 'inquilino'};
+    aplicar = function(j){ document.querySelector('select[name="inquilino_id"]')._addOption({v:String(j.id), t:j.nombre}); };
+  }
+  fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)})
+    .then(function(r){ return r.json(); })
+    .then(function(j){ btn.disabled = false;
+      if(j.ok){ aplicar(j); cerrarAlta(); } else { msg.textContent = j.error || 'No se pudo crear.'; } })
+    .catch(function(){ btn.disabled = false; msg.textContent = 'Error de conexión.'; });
 });
 </script>
 {% endblock %}

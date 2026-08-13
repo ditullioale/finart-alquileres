@@ -1,11 +1,25 @@
 """ABM de Inmuebles."""
 from flask import (Blueprint, render_template, redirect, url_for, request,
-                   flash, abort)
+                   flash, abort, jsonify)
 from flask_login import login_required
 from sqlalchemy.orm import aliased
+from sqlalchemy.exc import IntegrityError
 
 from .. import db
 from ..models import Inmueble, Persona
+
+
+def _guardar_o_avisar(inmueble, propietarios):
+    """Commit; si el código choca (único), avisa en vez de romper. Devuelve la respuesta
+    a renderizar en caso de error, o None si guardó bien."""
+    try:
+        db.session.commit()
+        return None
+    except IntegrityError:
+        db.session.rollback()
+        flash("Ya existe un inmueble con ese código. Usá otro (o dejalo vacío).", "error")
+        return render_template("inmuebles/form.html", inmueble=inmueble,
+                               propietarios=propietarios, estados=ESTADOS, tipos=TIPOS)
 
 inmuebles_bp = Blueprint("inmuebles", __name__, url_prefix="/inmuebles")
 
@@ -67,7 +81,8 @@ def react_editar(iid):
 
 
 def _leer_form(inmueble):
-    inmueble.codigo = request.form.get("codigo", "").strip()
+    # Vacío -> None (no ""), porque 'codigo' es único: dos inmuebles con "" chocarían.
+    inmueble.codigo = request.form.get("codigo", "").strip() or None
     inmueble.tipo = request.form.get("tipo", "").strip()
     inmueble.direccion = request.form.get("direccion", "").strip()
     inmueble.localidad = request.form.get("localidad", "").strip()
@@ -108,11 +123,40 @@ def nuevo():
             return render_template("inmuebles/form.html", inmueble=inmueble,
                                    propietarios=propietarios, estados=ESTADOS, tipos=TIPOS)
         db.session.add(inmueble)
-        db.session.commit()
+        err = _guardar_o_avisar(inmueble, propietarios)
+        if err:
+            return err
         flash("Inmueble creado correctamente.", "ok")
         return redirect(url_for("inmuebles.listar"))
     return render_template("inmuebles/form.html", inmueble=Inmueble(),
                            propietarios=propietarios, estados=ESTADOS, tipos=TIPOS)
+
+
+@inmuebles_bp.route("/nuevo-rapido", methods=["POST"])
+@login_required
+def nuevo_rapido():
+    """Alta rápida (JSON) desde el formulario de contrato: crea el inmueble con lo mínimo
+    y lo devuelve para agregarlo al selector sin recargar la página."""
+    d = request.get_json(silent=True) or {}
+    direccion = (d.get("direccion") or "").strip()
+    if not direccion:
+        return jsonify(ok=False, error="La dirección es obligatoria."), 200
+    inm = Inmueble(direccion=direccion, estado="Disponible", moneda="Pesos",
+                   codigo=((d.get("codigo") or "").strip() or None))
+    pid = d.get("propietario_id")
+    if pid:
+        try:
+            inm.propietario_id = int(pid)
+        except (TypeError, ValueError):
+            pass
+    db.session.add(inm)
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify(ok=False, error="Ya existe un inmueble con ese código."), 200
+    texto = (f"{inm.codigo} · " if inm.codigo else "") + inm.direccion
+    return jsonify(ok=True, id=inm.id, texto=texto, propietario_id=inm.propietario_id or "")
 
 
 @inmuebles_bp.route("/<int:iid>/editar", methods=["GET", "POST"])
@@ -126,7 +170,9 @@ def editar(iid):
             flash("La dirección es obligatoria.", "error")
             return render_template("inmuebles/form.html", inmueble=inmueble,
                                    propietarios=propietarios, estados=ESTADOS, tipos=TIPOS)
-        db.session.commit()
+        err = _guardar_o_avisar(inmueble, propietarios)
+        if err:
+            return err
         flash("Inmueble actualizado.", "ok")
         return redirect(url_for("inmuebles.listar"))
     return render_template("inmuebles/form.html", inmueble=inmueble,
