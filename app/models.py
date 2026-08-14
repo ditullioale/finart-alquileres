@@ -708,10 +708,34 @@ class Liquidacion(db.Model):
     factura_detalle = db.Column(db.Text)        # mensaje de error si no se pudo emitir
 
     propietario = db.relationship("Persona")
+    conceptos = db.relationship("ConceptoLiquidacion", back_populates="liquidacion",
+                                cascade="all, delete-orphan", order_by="ConceptoLiquidacion.id")
 
     @property
     def facturada(self):
         return self.factura_estado == "emitida"
+
+    @property
+    def conceptos_total(self):
+        """Suma de los conceptos extra (+ suma / − resta al neto del propietario)."""
+        return float(sum(float(c.monto or 0) for c in self.conceptos))
+
+
+class ConceptoLiquidacion(db.Model):
+    """Línea extra en una liquidación: un concepto libre con importe (+ suma / − resta
+    al neto que se le paga al propietario). Ej.: reparación, expensas, reintegro."""
+    __tablename__ = "conceptos_liquidacion"
+
+    id = db.Column(db.Integer, primary_key=True)
+    inmobiliaria_id = db.Column(db.Integer, db.ForeignKey("inmobiliarias.id"),
+                                index=True, nullable=False)
+    liquidacion_id = db.Column(db.Integer,
+                               db.ForeignKey("liquidaciones.id", ondelete="CASCADE"),
+                               index=True, nullable=False)
+    descripcion = db.Column(db.String(200), nullable=False)
+    monto = db.Column(db.Numeric(14, 2), nullable=False, default=0)
+
+    liquidacion = db.relationship("Liquidacion", back_populates="conceptos")
 
 
 class OperacionIdem(db.Model):

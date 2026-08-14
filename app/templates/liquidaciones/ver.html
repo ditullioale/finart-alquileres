@@ -141,7 +141,10 @@
     <div class="tot">
       <div class="l"><span>Total cobrado</span><span>{{ ingresos|money }}</span></div>
       <div class="l neg"><span>Comisión por administración</span><span>- {{ comision|money }}</span></div>
-      <div class="l neto"><span>Neto a pagar al propietario</span><span>{{ neto|money }}</span></div>
+      {% for c in conceptos %}
+      <div class="l{{ ' neg' if c.monto < 0 }}"><span>{{ c.descripcion }}</span><span>{{ c.monto|money }}</span></div>
+      {% endfor %}
+      <div class="l neto"><span>Neto a pagar al propietario</span><span>{{ neto_final|money }}</span></div>
     </div>
     <div class="letras">Son: {{ neto_letras }}.</div>
     <div class="firma">Firma y aclaración</div>

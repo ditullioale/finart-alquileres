@@ -9,7 +9,7 @@ from flask_login import login_required
 
 from .. import db
 from .. import facturador
-from ..models import Contrato, Pago, Persona, Liquidacion, Ajustes
+from ..models import Contrato, Pago, Persona, Liquidacion, Ajustes, ConceptoLiquidacion
 from ..utils import parse_num, pesos_letras, MESES_ES
 
 liquidaciones_bp = Blueprint("liquidaciones", __name__, url_prefix="/liquidaciones")
@@ -336,10 +336,13 @@ def ver(pid):
     items, ingresos, comision, neto = _detalle(pagos)
     liq = Liquidacion.query.filter_by(propietario_id=pid, periodo_mes=mes,
                                       periodo_anio=anio, contrato_id=contrato_id).first()
+    conceptos = list(liq.conceptos) if liq else []
+    neto_final = round(neto + float(sum(float(c.monto or 0) for c in conceptos)), 2)
     a = Ajustes.get()
     return render_template("liquidaciones/ver.html", prop=prop, items=items,
                            ingresos=ingresos, comision=comision, neto=neto,
-                           neto_letras=pesos_letras(neto), mes=mes, anio=anio,
+                           conceptos=conceptos, neto_final=neto_final,
+                           neto_letras=pesos_letras(neto_final), mes=mes, anio=anio,
                            meses=MESES_ES, a=a, liq=liq, hoy=hoy,
                            individual=bool(contrato_id),
                            fact=request.args.get("fact"),
@@ -360,6 +363,25 @@ def facturar_honorarios(liq_id):
                             mes=liq.periodo_mes, anio=liq.periodo_anio))
 
 
+def _leer_conceptos():
+    """Lee las líneas de 'Otros conceptos' del form → lista de (descripción, monto).
+    El signo lo da 'concepto_signo' (+/-); el monto se ingresa positivo."""
+    descs = request.form.getlist("concepto_desc")
+    montos = request.form.getlist("concepto_monto")
+    signos = request.form.getlist("concepto_signo")
+    out = []
+    for i, d in enumerate(descs):
+        d = (d or "").strip()
+        m = parse_num(montos[i]) if i < len(montos) else None
+        if not d or m is None:
+            continue
+        m = abs(float(m))
+        if i < len(signos) and signos[i] == "-":
+            m = -m
+        out.append((d, round(m, 2)))
+    return out
+
+
 @liquidaciones_bp.route("/generar", methods=["POST"])
 @login_required
 def generar():
@@ -375,13 +397,18 @@ def generar():
         return redirect(url_for("liquidaciones.gestionar", pid=pid, mes=mes, anio=anio))
 
     _, ingresos, comision, neto = _detalle(pagos)
+    conceptos = _leer_conceptos()
+    neto_final = round(neto + sum(m for _d, m in conceptos), 2)
     a = Ajustes.get()
     liq = Liquidacion(numero=a.siguiente_liquidacion(), propietario_id=pid,
                       periodo_mes=mes, periodo_anio=anio, contrato_id=contrato_id,
                       fecha=date.today(), total_ingresos=ingresos,
-                      total_comision=comision, total_neto=neto,
+                      total_comision=comision, total_neto=neto_final,
                       moneda=pagos[0].moneda or "Pesos")
     db.session.add(liq)
+    db.session.flush()
+    for desc, monto in conceptos:
+        db.session.add(ConceptoLiquidacion(liquidacion_id=liq.id, descripcion=desc, monto=monto))
     for p in pagos:
         p.pagado_al_propietario = date.today()
     db.session.commit()

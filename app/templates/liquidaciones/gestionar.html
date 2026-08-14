@@ -16,20 +16,29 @@
   <div class="card"><div class="ic">✅</div><div class="num" style="font-size:22px;color:var(--ok)">$ {{ neto|money }}</div><div class="lbl">Neto a pagar</div></div>
 </div>
 
-<div class="panel" style="margin-bottom:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-  <b>Liquidar todo junto:</b>
-  <span class="hint" style="display:inline;margin:0">{{ pendientes }} inmueble(s) pendiente(s) de liquidar</span>
-  <span style="flex:1"></span>
-  <a class="btn sec" href="{{ url_for('liquidaciones.ver', pid=prop.id, mes=mes, anio=anio) }}" target="_blank">Ver / Imprimir todo</a>
-  {% if pendientes > 0 %}
-  <form method="post" action="{{ url_for('liquidaciones.generar') }}" style="margin:0"
-        onsubmit="return confirm('¿Liquidar TODAS las propiedades pendientes de {{ prop.nombre }} juntas?')">
-    <input type="hidden" name="propietario_id" value="{{ prop.id }}">
-    <input type="hidden" name="mes" value="{{ mes }}"><input type="hidden" name="anio" value="{{ anio }}">
-    <button class="btn ok" type="submit">✓ Liquidar todas juntas</button>
-  </form>
-  {% endif %}
-</div>
+<form method="post" action="{{ url_for('liquidaciones.generar') }}" id="formTodas"
+      onsubmit="return confirm('¿Liquidar TODAS las propiedades pendientes de {{ prop.nombre }} juntas?');">
+  <input type="hidden" name="propietario_id" value="{{ prop.id }}">
+  <input type="hidden" name="mes" value="{{ mes }}"><input type="hidden" name="anio" value="{{ anio }}">
+  <div class="panel" style="margin-bottom:16px">
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <b>Liquidar todo junto</b>
+      <span class="hint" style="display:inline;margin:0">{{ pendientes }} inmueble(s) pendiente(s)</span>
+      <span style="flex:1"></span>
+      <a class="btn sec" href="{{ url_for('liquidaciones.ver', pid=prop.id, mes=mes, anio=anio) }}" target="_blank">Ver / Imprimir</a>
+    </div>
+    <div style="margin-top:12px">
+      <label style="font-weight:600">Otros conceptos (opcional)</label>
+      <span class="hint" style="display:block">Sumá o descontá al propietario: reparaciones, expensas, reintegros… (− resta / + suma).</span>
+      <div id="conceptos" style="margin-top:8px"></div>
+      <button type="button" class="btn sec sm" onclick="addConcepto()">+ Agregar concepto</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;margin-top:14px;flex-wrap:wrap">
+      {% if pendientes > 0 %}<button class="btn ok" type="submit">✓ Liquidar todas juntas</button>{% endif %}
+      <span>Neto a pagar: <b>$ <span id="netoPrev">{{ neto|money }}</span></b></span>
+    </div>
+  </div>
+</form>
 
 <table class="grid">
   <thead>
@@ -62,6 +71,31 @@
     {% endfor %}
   </tbody>
 </table>
+<script>
+var NETO_BASE = {{ neto|default(0) }};
+function fmtN(n){ return n.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function recalcNeto(){
+  var extra = 0;
+  document.querySelectorAll('#conceptos .cn-row').forEach(function(r){
+    var v = (r.querySelector('.cn-monto').value || '').replace(/\./g,'').replace(',','.');
+    var m = Math.abs(parseFloat(v) || 0);
+    extra += (r.querySelector('.cn-signo').value === '-' ? -m : m);
+  });
+  var el = document.getElementById('netoPrev'); if(el) el.textContent = fmtN(NETO_BASE + extra);
+}
+function addConcepto(){
+  var div = document.createElement('div');
+  div.className = 'cn-row';
+  div.style.cssText = 'display:flex;gap:8px;align-items:center;margin-top:6px';
+  div.innerHTML =
+    '<input name="concepto_desc" placeholder="Descripción (ej. Reparación caño roto)" style="flex:2" required>' +
+    '<select name="concepto_signo" class="cn-signo" style="width:auto"><option value="-">− Restar</option><option value="+">+ Sumar</option></select>' +
+    '<input name="concepto_monto" class="cn-monto" placeholder="Importe" style="flex:1" oninput="recalcNeto()">' +
+    '<button type="button" class="btn sec sm" onclick="this.closest(\'.cn-row\').remove();recalcNeto()">✕</button>';
+  document.getElementById('conceptos').appendChild(div);
+  div.querySelector('.cn-signo').addEventListener('change', recalcNeto);
+}
+</script>
 {% else %}
 <div class="empty-state">
   <div class="em">🧾</div>
