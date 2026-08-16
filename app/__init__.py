@@ -92,6 +92,9 @@ def create_app(config_class=Config):
     app.register_blueprint(health_bp)
     app.register_blueprint(asistente_bp)
 
+    from . import ui as ui_mod
+    ui_mod.registrar(app)
+
     @app.context_processor
     def _inject_facturador():
         from flask_login import current_user

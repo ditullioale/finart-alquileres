@@ -1,0 +1,152 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+{% set titulo_mes = cobranzas.mes_nombre ~ ' ' ~ cobranzas.anio %}
+{% block title %}Hoy — Gestión de Alquileres{% endblock %}
+
+{% block crumb %}<b>Hoy</b><span class="sep">·</span>{{ hoy.strftime('%d/%m/%Y') }}{% endblock %}
+
+{% block acciones %}
+<a class="btn ghost sm" href="{{ url_for('cobros.recordatorios') }}">{{ icon('message-circle', 14) }} Recordatorios</a>
+<a class="btn pri sm" href="{{ url_for('cobros.index') }}">{{ icon('zap', 14) }} Ir a cobranzas <kbd>B</kbd></a>
+{% endblock %}
+
+{% block content %}
+{% set total_pendiente = cobranzas.pendientes_n + pendientes.aumentos + sin_facturar|length + gas_deuda|length %}
+
+<div class="pagehead">
+  <div>
+    <h1>Hola, {{ (current_user.nombre or current_user.username).split(' ')[0] }}</h1>
+    <p class="sub">
+      {% if total_pendiente %}
+        Tenés <b style="color:var(--tx)">{{ total_pendiente }}</b>
+        {{ 'cosas' if total_pendiente != 1 else 'cosa' }} para resolver. Empezá por arriba.
+      {% else %}
+        No hay nada pendiente. {{ titulo_mes }} está al día.
+      {% endif %}
+    </p>
+  </div>
+</div>
+
+<div class="kpis">
+  <a class="kpi" href="{{ url_for('cobros.index', f='pendiente') }}">
+    <div class="l">{{ icon('banknote', 13) }} Por cobrar en {{ cobranzas.mes_nombre|lower }}</div>
+    <div class="v num">$ {{ '{:,.0f}'.format(cobranzas.monto_pend).replace(',', '.') }}</div>
+    <div class="d">{{ cobranzas.pendientes_n }} alquileres
+      {%- if cobranzas.vencen_hoy %} · <b class="bad">{{ cobranzas.vencen_hoy }} vencen hoy</b>{% endif %}</div>
+  </a>
+  <a class="kpi" href="{{ url_for('cobros.index', f='cobrado') }}">
+    <div class="l">{{ icon('check-circle', 13) }} Cobrados</div>
+    <div class="v num">{{ cobranzas.cobrados }}<small style="font-size:14px;color:var(--tx-3)"> / {{ cobranzas.total }}</small></div>
+    {% set pct = (cobranzas.cobrados * 100 // cobranzas.total) if cobranzas.total else 0 %}
+    <div class="d" style="margin-bottom:6px">{{ pct }} % del mes</div>
+    <div class="bar"><i style="width:{{ pct }}%"></i></div>
+  </a>
+  <a class="kpi" href="{{ url_for('aumentos.index') }}">
+    <div class="l">{{ icon('trending-up', 13) }} Aumentos por aplicar</div>
+    <div class="v num">{{ pendientes.aumentos }}</div>
+    <div class="d">contratos esperando ajuste</div>
+  </a>
+  <a class="kpi" href="{{ url_for('liquidaciones.pendientes_facturar') }}">
+    <div class="l">{{ icon('receipt', 13) }} Comisiones sin facturar</div>
+    <div class="v num" {% if sin_facturar %}style="color:var(--err)"{% endif %}>{{ sin_facturar|length }}</div>
+    <div class="d">liquidaciones sin comprobante</div>
+  </a>
+</div>
+
+<div class="split" style="margin-bottom:12px">
+  <h2 class="secn">Para resolver</h2>
+  <div class="sp" style="flex:1"></div>
+  <span class="mut" style="font-size:12px"><kbd>Ctrl K</kbd> buscar · <kbd>B</kbd> cobranzas · <kbd>L</kbd> liquidaciones</span>
+</div>
+
+<div class="rows">
+  {% for m in cobranzas.morosos %}
+  <div class="row" data-fila="{{ m.cid }}-{{ cobranzas.mes }}-{{ cobranzas.anio }}">
+    <div class="avatar {{ 'err' if m.vencido else 'warn' }}">
+      {{ icon('alert-triangle', 14) if m.vencido else icon('clock', 14) }}</div>
+    <a class="who" href="{{ url_for('contratos.ver', cid=m.cid) }}">
+      <b>{{ m.inquilino }}</b><span>{{ m.inmueble }}</span></a>
+    <div class="mid">
+      Alquiler {{ cobranzas.mes_nombre|lower }} ·
+      {% if m.vencido %}venció hace {{ m.dias }} {{ 'días' if m.dias != 1 else 'día' }}
+      {% else %}vence el {{ m.vto.strftime('%d/%m') if m.vto }}{% endif %}
+      {%- if m.etiqueta == 'Parcial' %} · <span class="tag warn">pago parcial</span>{% endif %}
+    </div>
+    <div class="amt num">$ {{ '{:,.0f}'.format(m.saldo).replace(',', '.') }}
+      {% if m.mora %}<small>+ $ {{ '{:,.0f}'.format(m.mora).replace(',', '.') }} de mora</small>{% endif %}</div>
+    <div class="act">
+      {% if m.registrable %}
+      <button class="btn ok sm" onclick='Peek.cobro({{ {
+          "cid": m.cid, "quien": m.inquilino, "monto": m.esperado, "mora": m.mora,
+          "mes": cobranzas.mes, "anio": cobranzas.anio,
+          "periodo": "Alquiler " ~ cobranzas.mes_nombre|lower,
+          "det": m.inmueble, "hoy": hoy.isoformat()
+        }|tojson }})'>{{ icon('banknote', 13) }} Cobrar</button>
+      {% else %}
+      <a class="btn sm" href="{{ url_for('cobros.detalle', cid=m.cid) }}">{{ icon('banknote', 13) }} Ver pago</a>
+      {% endif %}
+      {% if m.wa %}
+      <a class="btn ghost sm icon" href="{{ m.wa }}" target="_blank" rel="noopener"
+         title="Avisar por WhatsApp">{{ icon('message-circle', 13) }}</a>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+
+  {% if cobranzas.hay_mas %}
+  <a class="row mas" href="{{ url_for('cobros.index', f='pendiente') }}">
+    {{ icon('arrow-right', 14) }} Ver los {{ cobranzas.hay_mas }} pendientes restantes
+  </a>
+  {% endif %}
+
+  {% for lq in sin_facturar %}
+  <div class="row">
+    <div class="avatar err">{{ icon('shield', 14) }}</div>
+    <a class="who" href="{{ url_for('liquidaciones.pendientes_facturar') }}">
+      <b>Liquidación {{ lq.numero or lq.id }}</b><span>comisión sin comprobante</span></a>
+    <div class="mid">{{ lq.factura_detalle or 'La factura de honorarios todavía no se emitió' }}</div>
+    <div class="amt num">{{ lq.factura_estado or 'sin intentar' }}</div>
+    <div class="act">
+      <a class="btn sm" href="{{ url_for('liquidaciones.pendientes_facturar') }}">{{ icon('refresh-cw', 13) }} Resolver</a>
+    </div>
+  </div>
+  {% endfor %}
+
+  {% for c in por_vencer[:4] %}
+  <div class="row">
+    <div class="avatar">{{ icon('file-text', 14) }}</div>
+    <a class="who" href="{{ url_for('contratos.ver', cid=c.id) }}">
+      <b>{{ c.inquilino.nombre if c.inquilino else '—' }}</b>
+      <span>{{ c.inmueble.direccion if c.inmueble else '—' }}</span></a>
+    <div class="mid">El contrato vence el {{ c.fecha_fin.strftime('%d/%m/%Y') }}</div>
+    <div class="amt num">{{ (c.fecha_fin - hoy).days }} días</div>
+    <div class="act">
+      <a class="btn sm" href="{{ url_for('contratos.ver', cid=c.id) }}">Ver contrato</a>
+    </div>
+  </div>
+  {% endfor %}
+
+  {% for g in gas_deuda %}
+  <div class="row">
+    <div class="avatar warn">{{ icon('flame', 14) }}</div>
+    <div class="who"><b>{{ g.direccion or g.titular or g.cuenta }}</b><span>cuenta {{ g.cuenta }}</span></div>
+    <div class="mid">Deuda de gas registrada</div>
+    <div class="amt num">$ {{ '{:,.0f}'.format(g.deuda_total or 0).replace(',', '.') }}</div>
+    <div class="act"><a class="btn ghost sm" href="{{ url_for('gas.index') }}">Ver</a></div>
+  </div>
+  {% endfor %}
+
+  {% if not cobranzas.morosos and not sin_facturar and not por_vencer and not gas_deuda %}
+  <div class="empty">
+    <div class="ic">{{ icon('check-circle', 20) }}</div>
+    <b>Nada pendiente</b>
+    Cuando aparezca algo para cobrar, ajustar o facturar, lo vas a ver acá.
+  </div>
+  {% endif %}
+</div>
+
+<p class="hint" style="margin-top:14px">
+  Esta bandeja reemplaza al panel de métricas: cada línea es algo que se puede resolver sin cambiar de pantalla.
+  ¿Preferís el diseño anterior? <a href="?ui=clasica">Volvé al clásico</a>.
+</p>
+{% endblock %}

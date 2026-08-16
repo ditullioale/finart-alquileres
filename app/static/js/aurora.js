@@ -1,0 +1,264 @@
+/* Aurora — comportamiento común del diseño nuevo: panel lateral, paleta de
+   comandos, atajos de teclado, tema y avisos. Sólo se carga con UI=nueva. */
+(function () {
+  'use strict';
+
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+
+  function money(n) {
+    return '$ ' + Math.round(Number(n) || 0).toLocaleString('es-AR');
+  }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  function ini(s) {
+    return String(s || '?').split(' ').filter(Boolean).slice(0, 2)
+      .map(function (w) { return w[0]; }).join('').toUpperCase();
+  }
+  // Lee un importe escrito como en Argentina ("1.234,56", "$ 1.234", "1234.56").
+  function leerMonto(txt) {
+    var s = String(txt || '').replace(/[^\d,.-]/g, '');
+    if (s.indexOf(',') !== -1) s = s.replace(/\./g, '').replace(',', '.');
+    else if ((s.match(/\./g) || []).length > 1) s = s.replace(/\./g, '');
+    else if (/\.\d{3}$/.test(s)) s = s.replace(/\./g, '');
+    return Number(s) || 0;
+  }
+
+  /* ---- avisos ---------------------------------------------------------- */
+  function toast(titulo, detalle, tipo) {
+    var cont = $('#toasts');
+    if (!cont) return;
+    var d = document.createElement('div');
+    d.className = 'toast ' + (tipo || 'ok');
+    d.innerHTML = '<div class="ic"></div><div><b>' + esc(titulo) + '</b>' +
+      (detalle ? '<span>' + esc(detalle) + '</span>' : '') + '</div>';
+    cont.appendChild(d);
+    setTimeout(function () { d.classList.add('out'); setTimeout(function () { d.remove(); }, 300); }, 4200);
+  }
+  window.toast = toast;
+  // La UI clásica usa showToast(msg, tipo): se respeta la firma.
+  window.showToast = function (msg, tipo) { toast(msg, '', tipo === 'error' ? 'err' : 'ok'); };
+
+  /* ---- tema ------------------------------------------------------------ */
+  window.toggleTema = function () {
+    var claro = document.documentElement.classList.toggle('light');
+    document.body.classList.toggle('light', claro);
+    try { localStorage.setItem('tema', claro ? 'claro' : 'oscuro'); } catch (e) {}
+  };
+
+  /* ---- panel lateral --------------------------------------------------- */
+  var Peek = {
+    open: function (titulo, cuerpo, pie) {
+      $('#peek-t').innerHTML = titulo;
+      $('#peek-b').innerHTML = cuerpo;
+      $('#peek-f').innerHTML = pie || '';
+      $('#peek').classList.add('on');
+      $('#ov').classList.add('on');
+      setTimeout(function () { var i = $('#peek-b input'); if (i) { i.focus(); i.select(); } }, 160);
+    },
+    close: function () {
+      $('#peek').classList.remove('on');
+      $('#ov').classList.remove('on');
+    },
+    // Cobro real contra /cobros/rapido. La mora definitiva la calcula el
+    // servidor; acá sólo se muestra la estimación que vino con la fila.
+    cobro: function (r) {
+      Peek._r = r;
+      var mora = Number(r.mora) || 0;
+      var total = (Number(r.monto) || 0) + mora;
+      Peek.open('Registrar cobro',
+        '<div class="split" style="margin-bottom:16px">' +
+          '<div class="avatar" style="width:34px;height:34px">' + ini(r.quien) + '</div>' +
+          '<div><div style="font-weight:550">' + esc(r.quien) + '</div>' +
+          '<div class="mut" style="font-size:12px">' + esc(r.det || '') + '</div></div></div>' +
+        '<div class="field"><label>Importe recibido</label>' +
+          '<div class="inp-money"><span class="cur">$</span>' +
+          '<input class="inp num" id="cobro-monto" value="' + total.toLocaleString('es-AR') + '"></div>' +
+          '<p class="hint">Podés escribirlo con puntos o sin ellos.</p></div>' +
+        '<div class="field"><label>Medio de pago</label>' +
+          '<div class="seg" id="cobro-forma">' +
+          '<button type="button" class="on">Transferencia</button>' +
+          '<button type="button">Efectivo</button>' +
+          '<button type="button">Cheque</button></div></div>' +
+        '<div class="field"><label>Fecha</label><input class="inp" type="date" id="cobro-fecha" value="' +
+          (r.hoy || new Date().toISOString().slice(0, 10)) + '"></div>' +
+        '<div class="calc" id="cobro-calc"></div>' +
+        '<div class="field" style="margin-top:14px"><label>Nota (opcional)</label>' +
+          '<textarea class="inp" id="cobro-obs" placeholder="Ej.: paga con dos transferencias"></textarea></div>' +
+        '<p class="hint">Este cobro lleva una clave única: si se reenvía, se registra una sola vez.</p>',
+        '<button class="btn ghost" onclick="Peek.close()">Cancelar <kbd>Esc</kbd></button>' +
+        '<div style="flex:1"></div>' +
+        '<button class="btn pri" id="cobro-ok" onclick="Peek.guardarCobro()">Guardar cobro <kbd>↵</kbd></button>');
+      var inp = $('#cobro-monto');
+      inp.addEventListener('input', function () { Peek.recalc(); });
+      inp.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); Peek.guardarCobro(); }
+      });
+      $('#cobro-forma').addEventListener('click', function (e) {
+        var b = e.target.closest('button'); if (!b) return;
+        Array.prototype.forEach.call(b.parentElement.children, function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+      });
+      Peek.idem = 'cobro-' + (r.cid || '') + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+      Peek.recalc();
+    },
+    recalc: function () {
+      var r = Peek._r || {}, base = Number(r.monto) || 0, mora = Number(r.mora) || 0;
+      var v = leerMonto(($('#cobro-monto') || {}).value);
+      var saldo = base + mora - v;
+      var el = $('#cobro-calc'); if (!el) return;
+      el.innerHTML =
+        '<div class="l">' + esc(r.periodo || 'Alquiler') + ' <b>' + money(base) + '</b></div>' +
+        (mora ? '<div class="l">Mora estimada <b>' + money(mora) + '</b></div>' : '') +
+        '<div class="l">Recibís <b>' + money(v) + '</b></div>' +
+        '<div class="l tot">' + (saldo > 0 ? 'Queda debiendo' : 'Saldo') +
+          ' <b style="color:' + (saldo > 0 ? 'var(--err)' : 'var(--ok)') + '">' +
+          money(Math.abs(saldo)) + '</b></div>' +
+        (saldo > 0 ? '<p class="hint">Se registra como <b>pago parcial</b>.</p>'
+                   : '<p class="hint">Con esto el período queda <b>al día</b>.</p>');
+    },
+    guardarCobro: function () {
+      var r = Peek._r || {}, btn = $('#cobro-ok');
+      if (!btn || btn.disabled) return;
+      var forma = ($('#cobro-forma .on') || {}).textContent || '';
+      var body = {
+        cid: r.cid, mes: r.mes, anio: r.anio, precio: r.monto,
+        pagado: leerMonto($('#cobro-monto').value),
+        fecha: ($('#cobro-fecha') || {}).value || '',
+        forma_pago: forma.trim(),
+        observaciones: ($('#cobro-obs') || {}).value || '',
+        idem: Peek.idem
+      };
+      btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Guardando…';
+      fetch('/cobros/rapido', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      }).then(function (resp) { return resp.json().then(function (j) { return { ok: resp.ok, j: j }; }); })
+        .then(function (res) {
+          if (!res.j.ok) {
+            btn.disabled = false; btn.textContent = 'Guardar cobro';
+            toast('No se registró el cobro', res.j.error || 'Probá de nuevo.', 'err');
+            return;
+          }
+          Peek.close();
+          toast('Cobro registrado', res.j.saldo > 0
+            ? 'Queda un saldo de ' + money(res.j.saldo)
+            : 'El período quedó al día', 'ok');
+          var fila = document.querySelector('[data-fila="' + r.cid + '-' + r.mes + '-' + r.anio + '"]');
+          if (fila) { fila.classList.add('resuelta'); setTimeout(function () { fila.remove(); }, 600); }
+          setTimeout(function () { location.reload(); }, 1200);
+        })
+        .catch(function () {
+          btn.disabled = false; btn.textContent = 'Guardar cobro';
+          toast('Error de conexión', 'No se pudo registrar el cobro.', 'err');
+        });
+    }
+  };
+  window.Peek = Peek;
+
+  /* ---- paleta de comandos ---------------------------------------------- */
+  var COMANDOS = (window.AURORA_COMANDOS || []);
+  var Pal = {
+    sel: 0, list: [], timer: null,
+    open: function () {
+      $('#pal-ov').classList.add('on');
+      var q = $('#pal-q'); q.value = ''; q.focus();
+      Pal.filtrar('');
+    },
+    close: function () { $('#pal-ov').classList.remove('on'); },
+    abierta: function () { return $('#pal-ov').classList.contains('on'); },
+    filtrar: function (q) {
+      q = (q || '').trim().toLowerCase();
+      var cmds = COMANDOS.filter(function (c) {
+        return !q || c.t.toLowerCase().indexOf(q) !== -1 ||
+          (c.k || []).some(function (k) { return k.indexOf(q) !== -1; });
+      });
+      Pal.list = cmds.slice();
+      Pal.sel = 0; Pal.paint();
+      clearTimeout(Pal.timer);
+      if (q.length >= 2) {
+        Pal.timer = setTimeout(function () { Pal.buscar(q, cmds); }, 180);
+      }
+    },
+    buscar: function (q, cmds) {
+      fetch('/api/buscar?q=' + encodeURIComponent(q))
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          if (!Pal.abierta()) return;
+          var res = [];
+          (j.grupos || []).forEach(function (gr) {
+            (gr.items || []).forEach(function (it) {
+              res.push({ g: gr.titulo, t: it.texto, s: it.sub, url: it.url });
+            });
+          });
+          Pal.list = cmds.concat(res);
+          Pal.sel = 0; Pal.paint();
+        }).catch(function () {});
+    },
+    paint: function () {
+      var html = '', g = null;
+      Pal.list.forEach(function (c, i) {
+        if (c.g !== g) { g = c.g; html += '<div class="pal-sec">' + esc(g) + '</div>'; }
+        html += '<div class="pal-i ' + (i === Pal.sel ? 'on' : '') + '" data-i="' + i + '">' +
+          '<div class="tx"><b>' + esc(c.t) + '</b>' + (c.s ? '<span>' + esc(c.s) + '</span>' : '') + '</div>' +
+          (i === Pal.sel ? '<kbd>↵</kbd>' : '') + '</div>';
+      });
+      $('#pal-res').innerHTML = html ||
+        '<div class="empty" style="padding:30px">Nada coincide con esa búsqueda.</div>';
+    },
+    mover: function (d) {
+      if (!Pal.list.length) return;
+      Pal.sel = (Pal.sel + d + Pal.list.length) % Pal.list.length;
+      Pal.paint();
+      var el = $('#pal-res').querySelectorAll('.pal-i')[Pal.sel];
+      if (el) el.scrollIntoView({ block: 'nearest' });
+    },
+    run: function (i) {
+      var c = Pal.list[i != null ? i : Pal.sel];
+      if (!c) return;
+      Pal.close();
+      if (c.url) location.href = c.url;
+      else if (c.run) c.run();
+    }
+  };
+  window.Pal = Pal;
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var q = $('#pal-q');
+    if (q) q.addEventListener('input', function (e) { Pal.filtrar(e.target.value); });
+    var res = $('#pal-res');
+    if (res) {
+      res.addEventListener('click', function (e) {
+        var it = e.target.closest('.pal-i');
+        if (it) Pal.run(Number(it.dataset.i));
+      });
+      res.addEventListener('mousemove', function (e) {
+        var it = e.target.closest('.pal-i');
+        if (it && Number(it.dataset.i) !== Pal.sel) { Pal.sel = Number(it.dataset.i); Pal.paint(); }
+      });
+    }
+  });
+
+  /* ---- teclado --------------------------------------------------------- */
+  document.addEventListener('keydown', function (e) {
+    if (!$('#pal-ov')) return;
+    var enInput = /INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName || '');
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+      e.preventDefault(); Pal.abierta() ? Pal.close() : Pal.open(); return;
+    }
+    if (Pal.abierta()) {
+      if (e.key === 'Escape') Pal.close();
+      if (e.key === 'ArrowDown') { e.preventDefault(); Pal.mover(1); }
+      if (e.key === 'ArrowUp') { e.preventDefault(); Pal.mover(-1); }
+      if (e.key === 'Enter') { e.preventDefault(); Pal.run(); }
+      return;
+    }
+    if (e.key === 'Escape') { Peek.close(); return; }
+    if (enInput || e.ctrlKey || e.metaKey || e.altKey) return;
+    var atajos = window.AURORA_ATAJOS || {};
+    var destino = atajos[e.key.toLowerCase()];
+    if (destino) { e.preventDefault(); location.href = destino; }
+  });
+})();

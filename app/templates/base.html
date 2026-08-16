@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>{% block title %}Gestión de Alquileres{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=17">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=18">
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#12263f">
   <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
@@ -88,6 +88,9 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="logout" style="background:none;border:0;width:100%;text-align:left;cursor:pointer;font:inherit;color:inherit;padding:0"><span class="i">{{ icon('log-out', 15) }}</span> Cerrar sesión</button>
       </form>
+      {% if config.UI == 'nueva' %}
+      <a href="?ui=nueva" style="display:block;text-align:center;color:#9db4d6;font-size:11px;margin-top:8px;text-decoration:none">Probar el diseño nuevo</a>
+      {% endif %}
       <a href="{{ url_for('main.acerca') }}" style="display:block;text-align:center;color:#6f86a6;font-size:11px;margin-top:8px;text-decoration:none">v{{ app_version }} · Acerca de</a>
     </div>
   </aside>
@@ -101,6 +104,12 @@
     </div>
     {% endif %}
     <main class="content">
+      {% if current_user.is_authenticated and ui_nueva %}
+      <div class="ui-aviso">
+        Esta pantalla todavía usa el diseño anterior: la estamos migrando de a una.
+        <a href="{{ url_for('main.index') }}">Volver a Hoy</a>
+      </div>
+      {% endif %}
       {% block content %}{% endblock %}
     </main>
   </div>
@@ -136,20 +145,7 @@
   </div>
 </div>
 
-<div class="modal-ov" id="gasModal" hidden>
-  <div class="modal">
-    <div class="modal-head">
-      <h3>Estado de gas</h3>
-      <button type="button" class="modal-x" aria-label="Cerrar" onclick="document.getElementById('gasModal').setAttribute('hidden','')">✕</button>
-    </div>
-    <p class="modal-sub" id="gm-cuenta"></p>
-    <div id="gm-body" style="font-size:15px"></div>
-    <div class="modal-btns">
-      <a class="btn sec" href="{{ url_for('gas.index') }}">Ir al panel de gas</a>
-      <button type="button" class="btn sec" onclick="document.getElementById('gasModal').setAttribute('hidden','')">Cerrar</button>
-    </div>
-  </div>
-</div>
+{% include "_modal_gas.html" %}
 {% endif %}
 
 <script>
@@ -213,278 +209,10 @@
     else if(e.key === 'Escape' && !ov.hasAttribute('hidden')){ cerrarBuscar(); }
   });
 })();
-
-// Vista compacta / cómoda: alterna densidad de tablas y la recuerda.
-window.toggleDensidad = function(){
-  var on = document.body.classList.toggle('compact');
-  try{ localStorage.setItem('densidad', on ? 'compact' : 'normal'); }catch(e){}
-  var l = document.getElementById('densLbl');
-  if(l) l.textContent = on ? 'Vista cómoda' : 'Vista compacta';
-};
-(function(){
-  var l = document.getElementById('densLbl');
-  if(l) l.textContent = document.body.classList.contains('compact') ? 'Vista cómoda' : 'Vista compacta';
-})();
-// Ventanita "Ver gas": muestra la deuda de una cuenta sin salir de la página.
-(function(){
-  var ov = document.getElementById('gasModal');
-  if(!ov) return;
-  function fmt(n){ return Number(n||0).toFixed(2).replace(/\d(?=(\d{3})+\.)/g,'$&X').replace('.',',').replace(/X/g,'.'); }
-  function fecha(iso){ if(!iso) return '—'; var p=iso.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
-  window.verGas = function(cuenta){
-    document.getElementById('gm-cuenta').textContent = 'Cuenta Litoral Gas: ' + cuenta;
-    document.getElementById('gm-body').innerHTML = 'Cargando…';
-    ov.removeAttribute('hidden');
-    fetch('/gas/estado?cuenta=' + encodeURIComponent(cuenta))
-      .then(function(r){ return r.json(); })
-      .then(function(j){
-        var b = document.getElementById('gm-body');
-        if(!j.ok){
-          b.innerHTML = '<p style="color:var(--muted)">Todavía no hay datos de gas para esta cuenta. Corré el robot para actualizar.</p>';
-          return;
-        }
-        if(j.tiene_deuda){
-          var hoy = new Date().toISOString().slice(0,10);
-          var fact = (j.facturas||[]);
-          var filas = fact.map(function(f){
-            var vencida = f.venc && f.venc < hoy;
-            var col = vencida ? 'var(--err)' : 'var(--txt)';
-            var tag = vencida ? ' <span style="color:var(--err);font-size:11px;font-weight:700">VENCIDA</span>' : '';
-            return '<tr>' +
-              '<td style="padding:5px 6px;font-size:12.5px;color:var(--muted)">N° ' + (f.num||'—') + '</td>' +
-              '<td style="padding:5px 6px;font-size:13px;color:'+col+'">' + fecha(f.venc) + tag + '</td>' +
-              '<td style="padding:5px 6px;font-size:13px;text-align:right;font-weight:600;color:'+col+'">$ ' + fmt(f.imp) + '</td></tr>';
-          }).join('');
-          b.innerHTML =
-            '<div style="background:var(--errbg);border:1px solid #f0b4b4;border-radius:10px;padding:10px 12px;margin-bottom:10px">' +
-            '<span style="font-size:13px;color:#9c2020;font-weight:600">DEBE </span>' +
-            '<span style="font-size:22px;font-weight:800;color:var(--err)">$ ' + fmt(j.deuda_total) + '</span>' +
-            '<span style="font-size:12.5px;color:var(--muted)"> · ' + fact.length + ' factura(s)</span></div>' +
-            '<div style="font-size:12px;color:var(--muted);margin-bottom:2px">Facturas pendientes (de la más vieja a la más nueva):</div>' +
-            '<table style="width:100%;border-collapse:collapse"><thead><tr>' +
-            '<th style="text-align:left;font-size:11px;color:var(--muted);padding:2px 6px">Comprobante</th>' +
-            '<th style="text-align:left;font-size:11px;color:var(--muted);padding:2px 6px">Vencimiento</th>' +
-            '<th style="text-align:right;font-size:11px;color:var(--muted);padding:2px 6px">Saldo</th>' +
-            '</tr></thead><tbody>' + filas + '</tbody></table>';
-        } else {
-          b.innerHTML =
-            '<div style="background:var(--okbg);border:1px solid #a9dcbb;border-radius:10px;padding:14px;text-align:center">' +
-            '<div style="font-size:20px;font-weight:700;color:#14663a">✓ Al día</div>' +
-            '<div style="font-size:13px;color:var(--muted);margin-top:2px">Sin facturas pendientes</div></div>';
-        }
-        if(j.actualizado){
-          b.innerHTML += '<div style="font-size:12px;color:var(--muted);margin-top:10px">Actualizado: ' + j.actualizado + '</div>';
-        }
-      }).catch(function(){
-        document.getElementById('gm-body').innerHTML = '<p style="color:var(--err)">No se pudo cargar el estado de gas.</p>';
-      });
-  };
-  ov.addEventListener('click', function(e){ if(e.target === ov) ov.setAttribute('hidden',''); });
-  document.addEventListener('keydown', function(e){ if(e.key==='Escape' && !ov.hasAttribute('hidden')) ov.setAttribute('hidden',''); });
-  document.querySelectorAll('.js-vergas').forEach(function(btn){
-    btn.addEventListener('click', function(){ verGas(btn.dataset.cuenta); });
-  });
-})();
-
-// Toast dinámico (desde JS): showToast('mensaje', 'ok'|'error')
-window.showToast = function(msg, type){
-  var cont = document.getElementById('toasts');
-  if(!cont){ cont = document.createElement('div'); cont.id = 'toasts'; cont.className = 'toasts'; document.body.appendChild(cont); }
-  var t = document.createElement('div');
-  t.className = 'toast ' + (type === 'error' ? 'error' : 'ok');
-  var ic = document.createElement('span'); ic.className = 't-ic';
-  ic.innerHTML = (type === 'error')
-    ? '<svg class="ic-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>'
-    : '<svg class="ic-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
-  var m = document.createElement('span'); m.className = 't-msg'; m.textContent = msg;
-  var x = document.createElement('button'); x.className = 't-x'; x.setAttribute('aria-label','Cerrar');
-  x.textContent = '✕'; x.onclick = function(){ t.remove(); };
-  t.appendChild(ic); t.appendChild(m); t.appendChild(x); cont.appendChild(t);
-  setTimeout(function(){ t.classList.add('hide'); setTimeout(function(){ t.remove(); }, 350); }, 5000);
-};
-// Toasts (de mensajes flash del servidor): se desvanecen solos a los ~5s.
-document.querySelectorAll('#toasts .toast').forEach(function(t, i){
-  setTimeout(function(){ t.classList.add('hide'); setTimeout(function(){ t.remove(); }, 350); }, 5000 + i*400);
-});
-// Tablas usables en mobile: envolver cada tabla en un contenedor con scroll.
-document.querySelectorAll('table.grid').forEach(function(tb){
-  if (tb.parentElement && tb.parentElement.classList.contains('table-wrap')) return;
-  var w = document.createElement('div'); w.className = 'table-wrap';
-  tb.parentNode.insertBefore(w, tb); w.appendChild(tb);
-});
-// Filtro instantáneo de listas: escribís y se ocultan las filas que no coinciden,
-// sin recargar la página. Enter/submit sigue funcionando (búsqueda del servidor).
-document.querySelectorAll('input[data-live-filter]').forEach(function(inp){
-  var tbody = document.querySelector(inp.getAttribute('data-live-filter'));
-  if(!tbody) return;
-  function apply(){
-    var q = (inp.value || '').trim().toLowerCase();
-    var visibles = 0, total = 0;
-    tbody.querySelectorAll('tr').forEach(function(tr){
-      if(tr.dataset.noFilter !== undefined) return;
-      total++;
-      var match = tr.textContent.toLowerCase().indexOf(q) !== -1;
-      tr.style.display = match ? '' : 'none';
-      if(match) visibles++;
-    });
-    var vacio = tbody.querySelector('tr[data-live-empty]');
-    if(!vacio && total){
-      vacio = document.createElement('tr');
-      vacio.setAttribute('data-live-empty','');
-      vacio.setAttribute('data-no-filter','');
-      var td = document.createElement('td');
-      td.className = 'empty'; td.colSpan = 12;
-      td.textContent = 'Sin resultados para tu búsqueda.';
-      vacio.appendChild(td); tbody.appendChild(vacio);
-    }
-    if(vacio) vacio.style.display = (q && visibles === 0) ? '' : 'none';
-  }
-  inp.addEventListener('input', apply);
-  // Evitar recargar al apretar Enter cuando se usa el filtro en vivo.
-  inp.addEventListener('keydown', function(e){ if(e.key === 'Enter') e.preventDefault(); });
-});
-// Feedback al enviar formularios: deshabilita el botón y muestra "Guardando…".
-document.addEventListener('submit', function(e){
-  var form = e.target;
-  if (form.dataset.noBusy !== undefined) return;
-  if ((form.method || '').toLowerCase() !== 'post') return;  // no en búsquedas/filtros (GET)
-  // Esperar un tick para respetar validaciones/confirmaciones que cancelan el submit.
-  setTimeout(function(){
-    if (e.defaultPrevented) return;
-    var btn = form.querySelector('button[type="submit"], button:not([type])');
-    if (btn && !btn.disabled){
-      btn.dataset.label = btn.innerHTML;
-      btn.disabled = true;
-      btn.classList.add('is-busy');
-      btn.innerHTML = '<span class="spin"></span> Guardando…';
-    }
-  }, 0);
-}, true);
 </script>
 
-{% if asistente_disponible %}
-<style>
-  #aiFab{position:fixed;left:22px;bottom:22px;top:auto;z-index:1200;width:56px;height:56px;border:0;border-radius:50%;
-    background:linear-gradient(135deg,rgba(79,124,246,.72),rgba(139,92,246,.72));
-    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);color:#fff;cursor:grab;touch-action:none;opacity:.88;
-    box-shadow:0 8px 24px rgba(79,124,246,.30);display:flex;align-items:center;justify-content:center;
-    transition:box-shadow .15s ease, opacity .15s ease}
-  #aiFab:hover{opacity:1;box-shadow:0 12px 30px rgba(79,124,246,.45)}
-  #aiFab.ai-drag{cursor:grabbing;opacity:1}
-  #aiFab svg{width:26px;height:26px;pointer-events:none}
-  #aiPanel{position:fixed;left:22px;bottom:90px;z-index:1200;width:370px;max-width:calc(100vw - 28px);
-    height:540px;max-height:calc(100vh - 130px);background:rgba(255,255,255,.82);
-    -webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);
-    border:1px solid rgba(219,228,240,.7);border-radius:16px;
-    box-shadow:0 18px 50px rgba(18,38,63,.24);display:flex;flex-direction:column;overflow:hidden}
-  #aiPanel[hidden]{display:none}
-  .ai-head{background:linear-gradient(135deg,rgba(18,38,63,.86),rgba(40,64,126,.86));color:#fff;padding:12px 14px;
-    display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px}
-  .ai-head .ai-x{margin-left:auto;background:transparent;border:0;color:#cfe0f5;font-size:20px;cursor:pointer;line-height:1;padding:0 4px}
-  .ai-body{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:9px;background:transparent}
-  .ai-b{max-width:88%;padding:9px 12px;border-radius:13px;white-space:pre-wrap;line-height:1.45;font-size:13.5px}
-  .ai-b.u{align-self:flex-end;background:#2f6fed;color:#fff;border-bottom-right-radius:4px}
-  .ai-b.a{align-self:flex-start;background:#eef3fb;color:#12263f;border-bottom-left-radius:4px}
-  .ai-b.err{background:#fdecec;color:#9c2020}
-  .ai-chips{display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px 0;background:transparent}
-  .ai-chip{border:1px solid #cfe0f5;background:#fff;color:#2f6fed;border-radius:20px;padding:5px 11px;font-size:12px;cursor:pointer}
-  .ai-chip:hover{background:#eef3fb}
-  .ai-form{display:flex;gap:8px;padding:10px 12px;border-top:1px solid rgba(230,236,245,.7);align-items:flex-end;background:rgba(255,255,255,.35)}
-  .ai-form textarea{flex:1;resize:none;border:1px solid #cfd8e3;border-radius:10px;padding:9px 11px;
-    font-family:inherit;font-size:13.5px;max-height:90px;outline:none}
-  .ai-form textarea:focus{border-color:#2f6fed}
-  .ai-form .ai-send{background:#2f6fed;color:#fff;border:0;border-radius:10px;width:40px;height:40px;
-    cursor:pointer;font-size:17px;flex:0 0 auto}
-  .ai-form .ai-send:disabled{opacity:.5;cursor:default}
-</style>
-<button id="aiFab" title="Preguntá al asistente" aria-label="Abrir asistente">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-  </svg>
-</button>
-<div id="aiPanel" role="dialog" aria-label="Asistente" hidden>
-  <div class="ai-head">🤖 Asistente <button type="button" class="ai-x" id="aiClose" aria-label="Cerrar">&times;</button></div>
-  <div class="ai-body" id="aiBody"></div>
-  <div class="ai-chips">
-    <button type="button" class="ai-chip">¿Quién me debe?</button>
-    <button type="button" class="ai-chip">¿Qué contratos vencen pronto?</button>
-    <button type="button" class="ai-chip">¿Cuánto cobré este mes?</button>
-  </div>
-  <form class="ai-form" id="aiForm">
-    <textarea id="aiInput" rows="1" placeholder="Preguntá algo…"></textarea>
-    <button type="submit" class="ai-send" id="aiSend" aria-label="Enviar">➤</button>
-  </form>
-</div>
-<script>
-(function(){
-  var fab=document.getElementById('aiFab'), panel=document.getElementById('aiPanel');
-  var body=document.getElementById('aiBody'), form=document.getElementById('aiForm');
-  var input=document.getElementById('aiInput'), send=document.getElementById('aiSend');
-  var saludado=false, POS='ai_fab_pos';
+{% include "_scripts_comunes.html" %}
 
-  function clamp(x,y){ return [Math.max(6,Math.min(x,window.innerWidth-62)),
-                               Math.max(6,Math.min(y,window.innerHeight-62))]; }
-  function ponerFab(x,y){ var c=clamp(x,y); fab.style.left=c[0]+'px'; fab.style.top=c[1]+'px'; fab.style.bottom='auto'; }
-  (function(){
-    try{ var p=JSON.parse(localStorage.getItem(POS)); if(p&&p.x!=null){ ponerFab(p.x,p.y); return; } }catch(e){}
-    ponerFab(22, window.innerHeight-78);   // por defecto: abajo a la izquierda
-  })();
-
-  function posicionarPanel(){
-    var r=fab.getBoundingClientRect();
-    var pw=Math.min(370, window.innerWidth-28), ph=panel.offsetHeight||540;
-    var left=Math.max(8, Math.min(r.left, window.innerWidth-pw-8));
-    var top=r.top-ph-10;                       // preferir arriba del globito
-    if(top<8){ top=Math.min(r.bottom+10, window.innerHeight-ph-8); }
-    if(top<8) top=8;
-    panel.style.left=left+'px'; panel.style.top=top+'px'; panel.style.bottom='auto';
-  }
-  function burbuja(txt, tipo){ var d=document.createElement('div'); d.className='ai-b '+tipo;
-    d.textContent=txt; body.appendChild(d); body.scrollTop=body.scrollHeight; return d; }
-  function abrir(){ panel.hidden=false; posicionarPanel();
-    if(!saludado){ burbuja('¡Hola! Preguntame lo que quieras sobre tus alquileres: quién debe, cuándo vence un contrato, cuánto cobraste este mes…','a'); saludado=true; }
-    input.focus(); }
-  function cerrar(){ panel.hidden=true; }
-  function toggle(){ panel.hidden ? abrir() : cerrar(); }
-
-  // Arrastre del globito (distingue clic de mover; guarda la posición).
-  var down=false, movido=false, sx=0, sy=0, ox=0, oy=0;
-  fab.addEventListener('pointerdown', function(e){
-    down=true; movido=false; sx=e.clientX; sy=e.clientY;
-    var r=fab.getBoundingClientRect(); ox=e.clientX-r.left; oy=e.clientY-r.top;
-    try{ fab.setPointerCapture(e.pointerId); }catch(_e){}
-    fab.classList.add('ai-drag');
-  });
-  fab.addEventListener('pointermove', function(e){
-    if(!down) return;
-    if(Math.abs(e.clientX-sx)+Math.abs(e.clientY-sy)>5) movido=true;
-    if(movido){ ponerFab(e.clientX-ox, e.clientY-oy); if(!panel.hidden) posicionarPanel(); }
-  });
-  fab.addEventListener('pointerup', function(){
-    if(!down) return; down=false; fab.classList.remove('ai-drag');
-    if(movido){ var r=fab.getBoundingClientRect();
-      try{ localStorage.setItem(POS, JSON.stringify({x:r.left,y:r.top})); }catch(e){} }
-    else { toggle(); }
-  });
-  window.addEventListener('resize', function(){
-    var r=fab.getBoundingClientRect(); ponerFab(r.left,r.top); if(!panel.hidden) posicionarPanel(); });
-
-  document.getElementById('aiClose').addEventListener('click', cerrar);
-  function preguntar(txt){ if(!txt.trim()) return; burbuja(txt,'u'); input.value=''; input.style.height='auto';
-    send.disabled=true; var p=burbuja('Pensando…','a');
-    fetch('/asistente/preguntar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pregunta:txt})})
-      .then(function(r){ return r.json(); })
-      .then(function(j){ if(j.ok){ p.textContent=j.respuesta||'Sin respuesta.'; }
-        else { p.textContent='⚠️ '+(j.error||'No se pudo responder.'); p.classList.add('err'); }
-        send.disabled=false; body.scrollTop=body.scrollHeight; })
-      .catch(function(){ p.textContent='⚠️ Error de conexión.'; p.classList.add('err'); send.disabled=false; }); }
-  form.addEventListener('submit', function(e){ e.preventDefault(); preguntar(input.value); });
-  document.querySelectorAll('#aiPanel .ai-chip').forEach(function(c){
-    c.addEventListener('click', function(){ preguntar(c.textContent); }); });
-  input.addEventListener('keydown', function(e){ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); form.requestSubmit(); } });
-  input.addEventListener('input', function(){ input.style.height='auto'; input.style.height=Math.min(input.scrollHeight,90)+'px'; });
-})();
-</script>
-{% endif %}
+{% include "_asistente.html" %}
 </body>
 </html>
