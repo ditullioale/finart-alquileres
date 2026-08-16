@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>{% block title %}Gestión de Alquileres{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=18">
+  <link rel="stylesheet" href="{{ url_for('static', filename='aurora.css') }}?v=1">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#08090b">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(function(){});
+      });
+    }
+    // ===== Protección CSRF =====
+    (function(){
+      var meta = document.querySelector('meta[name="csrf-token"]');
+      var token = meta ? meta.getAttribute('content') : '';
+      var _fetch = window.fetch;
+      window.fetch = function(url, opts){
+        opts = opts || {};
+        var m = (opts.method || 'GET').toUpperCase();
+        if(['POST','PUT','DELETE','PATCH'].indexOf(m) !== -1){
+          opts.headers = opts.headers || {};
+          if(!opts.headers['X-CSRFToken']) opts.headers['X-CSRFToken'] = token;
+        }
+        return _fetch(url, opts);
+      };
+      document.addEventListener('DOMContentLoaded', function(){
+        document.querySelectorAll('form').forEach(function(f){
+          if((f.getAttribute('method')||'').toLowerCase() === 'post' &&
+             !f.querySelector('input[name="csrf_token"]')){
+            var i = document.createElement('input');
+            i.type = 'hidden'; i.name = 'csrf_token'; i.value = token;
+            f.appendChild(i);
+          }
+        });
+      });
+    })();
+    try{ if(localStorage.getItem('tema')==='claro') document.documentElement.classList.add('light'); }catch(e){}
+  </script>
+</head>
+{% from "_icons.html" import icon %}
+<body class="aurora{{ ' no-auth' if not current_user.is_authenticated }}">
+<script>if(document.documentElement.classList.contains('light'))document.body.classList.add('light');</script>
+{% set bp = request.blueprint or '' %}
+{% set ep = request.endpoint or '' %}
+
+{% if current_user.is_authenticated %}
+<div class="app">
+  <aside class="side" id="side">
+    <div class="side-top">
+      <div class="mark">{{ (inmobiliaria_nombre or 'F')[0]|upper }}</div>
+      <div class="brand">{{ inmobiliaria_nombre or 'Alquileres' }}<small>{{ current_user.nombre or current_user.username }}</small></div>
+    </div>
+
+    <div class="side-search" onclick="Pal.open()">
+      {{ icon('search', 15) }}<span>Buscar o ejecutar…</span><kbd>Ctrl K</kbd>
+    </div>
+
+    <nav class="nav">
+      <a class="nav-i {{ 'on' if bp=='main' }}" href="{{ url_for('main.index') }}">{{ icon('home', 16) }}<span>Hoy</span></a>
+      <a class="nav-i {{ 'on' if bp=='contratos' and ep not in ('contratos.generador','contratos.crear') }}" href="{{ url_for('contratos.listar') }}">{{ icon('file-text', 16) }}<span>Contratos</span></a>
+      <a class="nav-i {{ 'on' if bp=='cobros' }}" href="{{ url_for('cobros.index') }}">{{ icon('banknote', 16) }}<span>Cobranzas</span></a>
+      <a class="nav-i {{ 'on' if bp=='liquidaciones' }}" href="{{ url_for('liquidaciones.index') }}">{{ icon('receipt', 16) }}<span>Liquidaciones</span></a>
+      {% if facturador_disponible %}
+      <a class="nav-i {{ 'on' if bp=='facturador' }}" href="{{ url_for('facturador.index') }}">{{ icon('file-text', 16) }}<span>Facturación</span></a>
+      {% endif %}
+      <a class="nav-i {{ 'on' if bp=='aumentos' and 'indice' not in ep }}" href="{{ url_for('aumentos.index') }}">{{ icon('trending-up', 16) }}<span>Aumentos</span>
+        {% if aumentos_pendientes and aumentos_pendientes > 0 %}<span class="cnt hot">{{ aumentos_pendientes }}</span>{% endif %}</a>
+
+      <div class="nav-sec">Datos</div>
+      <a class="nav-i {{ 'on' if bp=='inmuebles' }}" href="{{ url_for('inmuebles.listar') }}">{{ icon('building', 16) }}<span>Inmuebles</span></a>
+      <a class="nav-i {{ 'on' if bp=='personas' }}" href="{{ url_for('personas.listar') }}">{{ icon('users', 16) }}<span>Personas</span></a>
+      <a class="nav-i {{ 'on' if bp=='gas' }}" href="{{ url_for('gas.index') }}">{{ icon('flame', 16) }}<span>Gas</span></a>
+
+      <div class="nav-sec">Herramientas</div>
+      <a class="nav-i {{ 'on' if ep in ('contratos.crear','contratos.generador') }}" href="{{ url_for('contratos.crear') }}">{{ icon('file-pen', 16) }}<span>Nuevo contrato</span></a>
+      <a class="nav-i {{ 'on' if ep in ('recibos.manuales','recibos.manual_nuevo','recibos.manual_ver') }}" href="{{ url_for('recibos.manuales') }}">{{ icon('receipt', 16) }}<span>Recibos manuales</span></a>
+      <a class="nav-i {{ 'on' if 'pagare_manual' in ep or ep=='recibos.pagares_manuales' }}" href="{{ url_for('recibos.pagares_manuales') }}">{{ icon('scroll', 16) }}<span>Pagarés manuales</span></a>
+      <a class="nav-i {{ 'on' if bp=='aumentos' and 'indice' in ep }}" href="{{ url_for('aumentos.indices') }}">{{ icon('bar-chart', 16) }}<span>Índices</span></a>
+      <a class="nav-i {{ 'on' if bp=='ajustes' }}" href="{{ url_for('ajustes.index') }}">{{ icon('settings', 16) }}<span>Ajustes</span></a>
+      {% if current_user.rol == 'superadmin' %}
+      <a class="nav-i {{ 'on' if bp=='plataforma' }}" href="{{ url_for('plataforma.index') }}">{{ icon('building', 16) }}<span>Plataforma</span></a>
+      {% endif %}
+      {% if current_user.rol == 'admin' %}
+      <a class="nav-i {{ 'on' if bp=='usuarios' and 'auditoria' not in ep }}" href="{{ url_for('usuarios.listar') }}">{{ icon('user', 16) }}<span>Usuarios</span></a>
+      <a class="nav-i {{ 'on' if 'auditoria' in ep }}" href="{{ url_for('usuarios.auditoria') }}">{{ icon('file-text', 16) }}<span>Auditoría</span></a>
+      {% endif %}
+    </nav>
+
+    <div class="side-foot">
+      <div class="av">{{ (current_user.nombre or current_user.username)[:2]|upper }}</div>
+      <div class="who">{{ current_user.nombre or current_user.username }}<small>{{ current_user.rol|capitalize }}</small></div>
+      <button type="button" class="iconbtn" onclick="toggleTema()" title="Cambiar tema">{{ icon('sun', 15) }}</button>
+      <form method="post" action="{{ url_for('auth.logout') }}" style="margin:0">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="iconbtn" title="Cerrar sesión">{{ icon('log-out', 15) }}</button>
+      </form>
+    </div>
+    <a class="side-legacy" href="?ui=clasica" title="Volver al diseño anterior">{{ icon('refresh-cw', 13) }} Volver al diseño anterior</a>
+  </aside>
+
+  <div class="main">
+    <header class="head">
+      <button class="btn ghost icon sm burger" onclick="document.getElementById('side').classList.toggle('on')">{{ icon('menu', 17) }}</button>
+      <div class="crumb">{% block crumb %}{% endblock %}</div>
+      <div class="sp"></div>
+      <div class="btngrp">{% block acciones %}{% endblock %}</div>
+    </header>
+    <div class="wrap">
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+</div>
+{% else %}
+  {% block content_anon %}{{ self.content() }}{% endblock %}
+{% endif %}
+
+{% if current_user.is_authenticated %}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="toasts" id="toasts">
+      {% for cat, msg in messages %}
+      <div class="toast {{ 'err' if cat != 'ok' else 'ok' }}">
+        <div class="ic">{{ icon('check-circle', 15) if cat=='ok' else icon('alert-triangle', 15) }}</div>
+        <div><b>{{ msg }}</b></div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  {% endwith %}
+{% else %}
+  <div class="toasts" id="toasts"></div>
+{% endif %}
+
+{% if current_user.is_authenticated %}
+{# Panel lateral: las pantallas lo usan para cobrar o editar sin cambiar de página. #}
+<div class="ov" id="ov" onclick="Peek.close()"></div>
+<aside class="peek" id="peek">
+  <div class="peek-h">
+    <h2 id="peek-t">—</h2><div class="sp"></div>
+    <kbd>Esc</kbd>
+    <button class="btn ghost icon sm" onclick="Peek.close()">{{ icon('x', 15) }}</button>
+  </div>
+  <div class="peek-b" id="peek-b"></div>
+  <div class="peek-f" id="peek-f"></div>
+</aside>
+
+<div class="pal-ov" id="pal-ov" onclick="if(event.target.id==='pal-ov')Pal.close()">
+  <div class="pal">
+    <div class="pal-in">
+      {{ icon('search', 16) }}
+      <input id="pal-q" placeholder="Buscá una persona, un contrato… o escribí una acción" autocomplete="off">
+      <kbd>Esc</kbd>
+    </div>
+    <div class="pal-res" id="pal-res"></div>
+    <div class="pal-f">
+      <span><kbd>↑</kbd><kbd>↓</kbd> moverse</span>
+      <span><kbd>↵</kbd> abrir</span>
+      <span><kbd>Ctrl</kbd><kbd>K</kbd> comandos</span>
+    </div>
+  </div>
+</div>
+
+{% include "_modal_gas.html" %}
+<script>
+  window.AURORA_ATAJOS = {
+    h: "{{ url_for('main.index') }}",
+    b: "{{ url_for('cobros.index') }}",
+    l: "{{ url_for('liquidaciones.index') }}",
+    a: "{{ url_for('aumentos.index') }}",
+    p: "{{ url_for('personas.listar') }}",
+    i: "{{ url_for('inmuebles.listar') }}"
+  };
+  window.AURORA_COMANDOS = [
+    {g:'Ir a', t:'Hoy', s:'Bandeja del día', k:['hoy','inicio','bandeja'], url:"{{ url_for('main.index') }}"},
+    {g:'Ir a', t:'Cobranzas', s:'Panel del mes', k:['cobranza','cobrar','pago'], url:"{{ url_for('cobros.index') }}"},
+    {g:'Ir a', t:'Liquidaciones', s:'Pagos a propietarios y comisión', k:['liquidacion','propietario','comision'], url:"{{ url_for('liquidaciones.index') }}"},
+    {g:'Ir a', t:'Aumentos', s:'Ajustes por índice o porcentaje', k:['aumento','ajuste','icl','ipc'], url:"{{ url_for('aumentos.index') }}"},
+    {g:'Ir a', t:'Contratos', s:'', k:['contrato'], url:"{{ url_for('contratos.listar') }}"},
+    {g:'Ir a', t:'Personas', s:'Propietarios e inquilinos', k:['persona','inquilino','propietario'], url:"{{ url_for('personas.listar') }}"},
+    {g:'Ir a', t:'Inmuebles', s:'', k:['inmueble','propiedad'], url:"{{ url_for('inmuebles.listar') }}"},
+    {g:'Ir a', t:'Gas', s:'Deudas de servicios', k:['gas','servicio'], url:"{{ url_for('gas.index') }}"},
+    {% if facturador_disponible %}
+    {g:'Ir a', t:'Facturación', s:'Comprobantes de ARCA', k:['factura','arca','cae'], url:"{{ url_for('facturador.index') }}"},
+    {% endif %}
+    {g:'Acciones', t:'Nuevo contrato', s:'', k:['nuevo contrato','alta contrato'], url:"{{ url_for('contratos.crear') }}"},
+    {g:'Acciones', t:'Nueva persona', s:'', k:['nueva persona','alta persona'], url:"{{ url_for('personas.nueva') }}"},
+    {g:'Acciones', t:'Enviar recordatorios del mes', s:'Inquilinos con deuda', k:['recordatorio','whatsapp','aviso'], url:"{{ url_for('cobros.recordatorios') }}"},
+    {g:'Acciones', t:'Recibos manuales', s:'', k:['recibo manual'], url:"{{ url_for('recibos.manuales') }}"},
+    {g:'Acciones', t:'Ajustes', s:'Datos de la inmobiliaria, índices, integración', k:['ajuste','configuracion'], url:"{{ url_for('ajustes.index') }}"},
+    {g:'Acciones', t:'Volver al diseño anterior', s:'Restaura la interfaz clásica en este navegador', k:['diseño','clasico','volver','ui'], url:"?ui=clasica"}
+  ];
+</script>
+<script src="{{ url_for('static', filename='js/aurora.js') }}?v=1"></script>
+{% endif %}
+
+{% include "_scripts_comunes.html" %}
+
+{% include "_asistente.html" %}
+</body>
+</html>

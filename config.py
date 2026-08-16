@@ -130,6 +130,10 @@ class Config:
 
     APP_VERSION = "1.0.0"
 
+    # Diseño de la interfaz: "nueva" (Aurora) o "clasica". Cambiarlo acá o en
+    # el entorno vuelve al diseño anterior sin tocar código ni redesplegar.
+    UI = os.environ.get("UI", "clasica")
+
     # Datos de la inmobiliaria (se usan en recibos y liquidaciones).
     INMOBILIARIA_NOMBRE = os.environ.get("INMOBILIARIA_NOMBRE", "Mi Inmobiliaria")
     INMOBILIARIA_CUIT = os.environ.get("INMOBILIARIA_CUIT", "")

@@ -1,0 +1,14 @@
+<div class="modal-ov" id="gasModal" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Estado de gas</h3>
+      <button type="button" class="modal-x" aria-label="Cerrar" onclick="document.getElementById('gasModal').setAttribute('hidden','')">✕</button>
+    </div>
+    <p class="modal-sub" id="gm-cuenta"></p>
+    <div id="gm-body" style="font-size:15px"></div>
+    <div class="modal-btns">
+      <a class="btn sec" href="{{ url_for('gas.index') }}">Ir al panel de gas</a>
+      <button type="button" class="btn sec" onclick="document.getElementById('gasModal').setAttribute('hidden','')">Cerrar</button>
+    </div>
+  </div>
+</div>
