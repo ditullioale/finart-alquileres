@@ -1,0 +1,89 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Liquidaciones · {{ meses[mes] }} {{ anio }}{% endblock %}
+
+{% block crumb %}<b>Liquidaciones</b><span class="sep">·</span>{{ meses[mes]|lower }} {{ anio }}{% endblock %}
+
+{% block acciones %}
+{% if pendientes_facturar %}
+<a class="btn sm" href="{{ url_for('liquidaciones.pendientes_facturar') }}">{{ icon('alert-triangle', 13) }} Sin facturar ({{ pendientes_facturar }})</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Liquidaciones a propietarios</h1>
+    <p class="sub">Lo cobrado de cada propietario en el período, su comisión y el neto a pagar.</p>
+  </div>
+  <div class="sp" style="flex:1"></div>
+  <form method="get" class="btngrp" style="gap:8px">
+    <select class="inp" name="mes" onchange="this.form.submit()" style="width:auto">
+      {% for m in range(1, 13) %}<option value="{{ m }}" {{ 'selected' if mes == m }}>{{ meses[m] }}</option>{% endfor %}
+    </select>
+    <select class="inp" name="anio" onchange="this.form.submit()" style="width:auto">
+      {% for a in anios %}<option value="{{ a }}" {{ 'selected' if anio == a }}>{{ a }}</option>{% endfor %}
+    </select>
+  </form>
+</div>
+
+<div class="kpis">
+  <div class="kpi"><div class="l">Cobrado del período</div><div class="v">$ {{ tot_ingresos|money }}</div></div>
+  <div class="kpi"><div class="l">Comisión de la inmobiliaria</div><div class="v ok">$ {{ tot_comision|money }}</div>
+    <div class="s">es lo que se factura al propietario</div></div>
+  <div class="kpi"><div class="l">Neto a pagar</div><div class="v">$ {{ tot_neto|money }}</div>
+    <div class="s">{{ filas|length }} propietario(s)</div></div>
+</div>
+
+<div class="card" style="margin-top:18px">
+  <div class="card-h"><h2>{{ meses[mes] }} {{ anio }}</h2></div>
+  {% if filas %}
+  <table class="t">
+    <thead><tr><th>Propietario</th><th class="r">Inmuebles</th><th class="r">Cobrado</th><th class="r">Comisión</th><th class="r">Neto</th><th class="r">Estado</th><th class="r"></th></tr></thead>
+    <tbody>
+      {% for f in filas %}
+      <tr>
+        <td><b>{{ f.prop.nombre if f.prop else '—' }}</b>
+          {% if f.prop and not f.prop.cuit %}<div class="mut">sin CUIT: la comisión no se puede facturar</div>{% endif %}</td>
+        <td class="r mut">{{ f.cant }}</td>
+        <td class="r">$ {{ f.ingresos|money }}</td>
+        <td class="r">$ {{ f.comision|money }}</td>
+        <td class="r"><b>$ {{ f.neto|money }}</b></td>
+        <td class="r"><span class="chip {{ 'ok' if f.estado == 'Liquidada' else ('warn' if f.estado == 'Parcial' else 'err') }}">{{ f.estado }}</span></td>
+        <td class="r">
+          <a class="btn pri sm" href="{{ url_for('liquidaciones.gestionar', pid=f.prop.id, mes=mes, anio=anio) }}">Liquidar</a>
+          <a class="btn ghost sm" href="{{ url_for('liquidaciones.resumen', pid=f.prop.id, mes=mes, anio=anio) }}" target="_blank" rel="noopener">Resumen</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">{{ icon('receipt', 26) }}<h3>No hay cobros para liquidar en {{ meses[mes]|lower }} {{ anio }}</h3>
+    <p>Se liquida lo que ya se cobró: registrá los cobros del mes y volvé acá.</p>
+    <a class="btn pri sm" href="{{ url_for('cobros.index', mes=mes, anio=anio) }}">Ir a Cobranzas</a></div>
+  {% endif %}
+</div>
+
+{% if sin_facturar %}
+<div class="card" style="margin-top:18px">
+  <div class="card-h"><h2>Comisiones sin factura</h2><div class="sp"></div>
+    <a class="btn sm" href="{{ url_for('liquidaciones.pendientes_facturar') }}">Ver la bandeja {{ icon('arrow-right', 12) }}</a></div>
+  <table class="t">
+    <thead><tr><th>Liquidación</th><th>Período</th><th class="r">Comisión</th><th>Estado</th></tr></thead>
+    <tbody>
+      {% for lq in sin_facturar %}
+      <tr>
+        <td><b>{{ lq.numero or '#' ~ lq.id }}</b></td>
+        <td class="mut">{{ meses[lq.periodo_mes] if lq.periodo_mes else '' }} {{ lq.periodo_anio or '' }}</td>
+        <td class="r">$ {{ (lq.total_comision or 0)|money }}</td>
+        <td>{% include "aurora/contratos/_factura.html" %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="card-f">{{ icon('clock', 13) }} Una factura que no salió (facturador caído, propietario sin CUIT) se reintenta desde la liquidación.</div>
+</div>
+{% endif %}
+{% endblock %}

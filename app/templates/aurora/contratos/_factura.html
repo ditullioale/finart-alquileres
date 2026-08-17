@@ -1,0 +1,13 @@
+{# Estado fiscal de la comisión de una liquidación (`lq`), con el CAE a la vista. #}
+{% if lq.facturada %}
+  <span class="chip ok">{{ lq.factura_tipo or 'C' }} {{ lq.factura_numero or '' }}</span>
+  {% if lq.factura_cae %}<div class="mut">CAE {{ lq.factura_cae }}{% if lq.factura_cae_vto %} · vence {{ lq.factura_cae_vto.strftime('%d/%m/%Y') }}{% endif %}</div>{% endif %}
+  {% if lq.factura_id and facturador_disponible %}
+  <a class="mut" href="{{ url_for('facturador.factura_pdf', fid=lq.factura_id) }}" target="_blank" rel="noopener">Ver PDF</a>
+  {% endif %}
+{% elif lq.factura_estado in ('error', 'sin_cuit', 'requiere_confirmacion') %}
+  <span class="chip err">{{ 'Falta CUIT' if lq.factura_estado == 'sin_cuit' else ('Bajo el mínimo' if lq.factura_estado == 'requiere_confirmacion' else 'Error') }}</span>
+  <div class="mut">{{ lq.factura_detalle or 'Se puede reintentar desde la liquidación.' }}</div>
+{% else %}
+  <span class="chip warn">Sin facturar</span>
+{% endif %}

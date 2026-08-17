@@ -10,6 +10,7 @@ from flask_login import login_required
 from .. import db
 from .. import facturador
 from ..models import Contrato, Pago, Persona, Liquidacion, Ajustes, ConceptoLiquidacion
+from ..ui import render_ui
 from ..utils import parse_num, pesos_letras, MESES_ES
 
 liquidaciones_bp = Blueprint("liquidaciones", __name__, url_prefix="/liquidaciones")
@@ -300,9 +301,12 @@ def index():
                           comision=comision, neto=neto, estado=estado))
     filas.sort(key=lambda f: f["prop"].nombre if f["prop"] else "")
 
-    return render_template("liquidaciones/index.html", filas=filas, mes=mes, anio=anio,
-                           meses=MESES_ES, anios=list(range(hoy.year - 4, hoy.year + 2)),
-                           tot_neto=sum(f["neto"] for f in filas))
+    return render_ui("liquidaciones/index.html", filas=filas, mes=mes, anio=anio,
+                     meses=MESES_ES, anios=list(range(hoy.year - 4, hoy.year + 2)),
+                     tot_ingresos=sum(f["ingresos"] for f in filas),
+                     tot_comision=sum(f["comision"] for f in filas),
+                     tot_neto=sum(f["neto"] for f in filas),
+                     sin_facturar=_pendientes_facturar_query().limit(8).all())
 
 
 # --------------------------------------------------------------------------- #

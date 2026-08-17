@@ -1,0 +1,88 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+{% set q = request.args.get('q', '') %}
+
+
+{% block title %}Cobranzas · {{ meses[mes] }} {{ anio }}{% endblock %}
+
+{% block crumb %}<b>Cobranzas</b><span class="sep">·</span>{{ meses[mes]|lower }} {{ anio }}{% endblock %}
+
+{% block acciones %}
+<a class="btn sm" href="{{ url_for('cobros.recordatorios', mes=mes, anio=anio) }}">{{ icon('message-circle', 13) }} Recordatorios</a>
+<a class="btn pri sm" href="{{ url_for('cobros.index', mes=mes, anio=anio, f='pendiente') }}">{{ icon('banknote', 13) }} Ver pendientes</a>
+{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Cobranzas</h1>
+    <p class="sub">{{ cuenta.pendiente }} pendiente(s) de {{ cuenta.todos }} contratos vigentes · {{ meses[mes]|lower }} {{ anio }}</p>
+  </div>
+  <div class="sp" style="flex:1"></div>
+  <form method="get" class="btngrp" style="gap:8px">
+    <input type="hidden" name="f" value="{{ filtro }}">
+    <select class="inp" name="mes" onchange="this.form.submit()" style="width:auto">
+      {% for m in range(1, 13) %}<option value="{{ m }}" {{ 'selected' if m == mes }}>{{ meses[m] }}</option>{% endfor %}
+    </select>
+    <select class="inp" name="anio" onchange="this.form.submit()" style="width:auto">
+      {% for a in anios %}<option value="{{ a }}" {{ 'selected' if a == anio }}>{{ a }}</option>{% endfor %}
+    </select>
+    <input class="inp" name="q" value="{{ q }}" placeholder="Buscar inquilino o inmueble" style="width:220px">
+  </form>
+</div>
+
+<div class="kpis">
+  <div class="kpi"><div class="l">Esperado del mes</div><div class="v">$ {{ totales.esperado|money }}</div></div>
+  <div class="kpi"><div class="l">Cobrado</div><div class="v ok">$ {{ totales.cobrado|money }}</div>
+    <div class="s">{{ ((totales.cobrado / totales.esperado * 100)|round|int) if totales.esperado else 0 }}% del mes</div></div>
+  <div class="kpi"><div class="l">Pendiente</div><div class="v {{ 'err' if totales.pendiente > 0 }}">$ {{ totales.pendiente|money }}</div></div>
+</div>
+
+<div class="card" style="margin-top:18px">
+  <div class="card-h">
+    <div class="tabs">
+      <a class="tab {{ 'on' if filtro == 'pendiente' }}" href="{{ url_for('cobros.index', mes=mes, anio=anio, q=q, f='pendiente') }}">Pendientes<span class="n">{{ cuenta.pendiente }}</span></a>
+      <a class="tab {{ 'on' if filtro == 'cobrado' }}" href="{{ url_for('cobros.index', mes=mes, anio=anio, q=q, f='cobrado') }}">Cobrados<span class="n">{{ cuenta.cobrado }}</span></a>
+      <a class="tab {{ 'on' if not filtro }}" href="{{ url_for('cobros.index', mes=mes, anio=anio, q=q) }}">Todos</a>
+    </div>
+  </div>
+  {% if filas %}
+  <table class="t">
+    <thead><tr><th>Inquilino</th><th>Inmueble</th><th>Vence</th><th class="r">Esperado</th><th class="r">Cobrado</th><th class="r">Saldo</th><th class="r">Estado</th><th class="r"></th></tr></thead>
+    <tbody>
+      {% for f in filas %}
+      {% set c = f.c %}
+      <tr>
+        <td><a href="{{ url_for('contratos.ver', cid=c.id) }}"><b>{{ c.inquilino.nombre if c.inquilino else '—' }}</b></a>
+          {% if f.aum_pendiente %}<div class="mut">{{ icon('trending-up', 11) }} tiene un aumento sin registrar</div>{% endif %}
+          {% if f.contrato_vencido %}<div class="mut">contrato vencido</div>{% endif %}</td>
+        <td class="mut">{{ c.inmueble.direccion if c.inmueble else '—' }}</td>
+        <td class="mut">{{ f.venc.strftime('%d/%m') if f.venc else '—' }}</td>
+        <td class="r">$ {{ f.esperado|money }}</td>
+        <td class="r">{{ ('$ ' ~ f.cobrado|money) if f.cobrado else '—' }}</td>
+        <td class="r">{% if f.saldo > 0 %}<span class="err">$ {{ f.saldo|money }}</span>{% else %}—{% endif %}</td>
+        <td class="r"><span class="chip {{ 'ok' if f.estado == 'Pagado' else ('warn' if f.estado == 'Parcial' else 'err') }}">{{ f.estado }}</span></td>
+        <td class="r">
+          {% if f.estado != 'Pagado' and f.registrable %}
+          <button class="btn ok sm" onclick='Peek.cobro({{
+            {"cid": c.id, "quien": (c.inquilino.nombre if c.inquilino else "—"),
+             "monto": f.esperado, "mora": f.mora, "mes": mes, "anio": anio,
+             "periodo": "Alquiler " ~ meses[mes]|lower,
+             "det": (c.inmueble.direccion if c.inmueble else ""),
+             "hoy": hoy.isoformat()}|tojson }})'>{{ icon('banknote', 13) }} Cobrar</button>
+          {% elif f.estado != 'Pagado' %}
+          <a class="btn sm" href="{{ url_for('cobros.abonar', pid=f.pago.id) }}">Abonar saldo</a>
+          {% elif f.pago and f.pago.recibo_numero %}
+          <a class="btn ghost sm" href="{{ url_for('recibos.recibo', pid=f.pago.id) }}" target="_blank" rel="noopener">{{ icon('receipt', 13) }} Recibo</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">{{ icon('check-circle', 26) }}<h3>No hay contratos para mostrar</h3>
+    <p>Probá con otro mes o sacá el filtro de búsqueda.</p></div>
+  {% endif %}
+</div>
+{% endblock %}

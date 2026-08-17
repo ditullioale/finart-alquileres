@@ -43,6 +43,27 @@ def test_valor_invalido_cae_al_clasico(client):
         app.config["UI"] = "clasica"
 
 
+def test_ficha_de_contrato_en_los_dos_disenos(client):
+    cl, _app, ids = client
+    clasica = cl.get(f"/contratos/{ids['c']}?ui=clasica").get_data(as_text=True)
+    assert "aurora.css" not in clasica and "Historial de aumentos" in clasica
+    nueva = cl.get(f"/contratos/{ids['c']}?ui=nueva").get_data(as_text=True)
+    assert "aurora.css" in nueva and "sheet-tabs" in nueva
+    # Cada solapa se sirve del server, así que todas tienen que renderizar.
+    for t in ("pagos", "aumentos", "liquidaciones", "docs"):
+        r = cl.get(f"/contratos/{ids['c']}?ui=nueva&t={t}")
+        assert r.status_code == 200, t
+
+
+def test_cobranzas_y_liquidaciones_en_los_dos_disenos(client):
+    cl, _app, _ = client
+    for url in ("/cobros/", "/liquidaciones/"):
+        clasica = cl.get(url + "?ui=clasica")
+        assert clasica.status_code == 200 and "aurora.css" not in clasica.get_data(as_text=True)
+        nueva = cl.get(url + "?ui=nueva")
+        assert nueva.status_code == 200 and "aurora.css" in nueva.get_data(as_text=True)
+
+
 def test_pantalla_sin_migrar_sigue_usando_el_clasico(client):
     """Sólo se rediseña de a una pantalla: el resto no cambia."""
     cl, _app, _ = client
