@@ -10,6 +10,7 @@ from werkzeug.utils import secure_filename
 
 from .. import db
 from ..models import Contrato, Inmueble, Persona, Fiador, DocumentoContrato
+from ..ui import render_ui
 from ..utils import add_months, parse_fecha, parse_num, INDICE_MAP, INDICE_NOMBRE
 
 contratos_bp = Blueprint("contratos", __name__, url_prefix="/contratos")
@@ -128,9 +129,40 @@ def ver(cid):
                    contrato_vencido=bool(contrato.estado == "Vigente"
                                          and contrato.fecha_fin and contrato.fecha_fin < hoy),
                    email=(contrato.inquilino.email if contrato.inquilino else None))
-    return render_template("contratos/ver.html", c=contrato,
-                           indice_nombre=INDICE_NOMBRE, cat_docs=CATEGORIAS_DOC,
-                           resumen=resumen)
+    return render_ui("contratos/ver.html", c=contrato,
+                     indice_nombre=INDICE_NOMBRE, cat_docs=CATEGORIAS_DOC,
+                     resumen=resumen, hoy=hoy, meses=MESES_ES,
+                     **_ficha_360(contrato, hoy))
+
+
+def _ficha_360(contrato, hoy):
+    """Datos que sólo usa la ficha rediseñada: pagos, liquidaciones y gas.
+
+    Se calculan acá y no en la plantilla para que la vista siga siendo la única
+    fuente de verdad; la ficha clásica los ignora."""
+    from ..calculos import estado_periodo
+    from ..models import GasEstado, Liquidacion
+    from ..utils import calcular_mora
+    pagos = sorted(contrato.pagos,
+                   key=lambda p: (p.periodo_anio or 0, p.periodo_mes or 0),
+                   reverse=True)
+    liquidaciones = (Liquidacion.query.filter_by(contrato_id=contrato.id)
+                     .order_by(Liquidacion.fecha.desc().nullslast(),
+                               Liquidacion.id.desc()).limit(12).all())
+    gas = None
+    if contrato.inmueble and contrato.inmueble.cuenta_gas:
+        gas = GasEstado.query.filter_by(cuenta=contrato.inmueble.cuenta_gas).first()
+    dias_restantes = (contrato.fecha_fin - hoy).days if contrato.fecha_fin else None
+    # Cobro del mes en curso: los mismos números que muestra Cobranzas, para que
+    # el panel lateral no invente un importe propio.
+    info = estado_periodo(contrato, hoy.month, hoy.year, hoy=hoy)
+    cobro = None
+    if info["pago"] is None:
+        cobro = dict(monto=info["esperado"],
+                     mora=float(calcular_mora(info["esperado"], contrato.mora_diaria_pct,
+                                              info["venc"], hoy) or 0))
+    return dict(pagos=pagos, liquidaciones=liquidaciones, gas=gas,
+                dias_restantes=dias_restantes, cobro=cobro)
 
 
 # --------------------------------------------------------------------------- #

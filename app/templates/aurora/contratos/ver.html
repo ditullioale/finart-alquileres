@@ -1,0 +1,338 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+{% set tab = request.args.get('t', 'resumen') %}
+{% set inq = c.inquilino.nombre if c.inquilino else 'Sin inquilino' %}
+{% set canon = c.precio_actual or 0 %}
+{% set cobrable = {'cid': c.id, 'quien': inq,
+                   'monto': (cobro.monto if cobro else 0),
+                   'mora': (cobro.mora if cobro else 0),
+                   'mes': hoy.month, 'anio': hoy.year,
+                   'periodo': 'Alquiler ' ~ meses[hoy.month]|lower,
+                   'det': (c.inmueble.direccion if c.inmueble else ''),
+                   'hoy': hoy.isoformat()} %}
+
+{% block title %}{{ inq }} · Contrato{% endblock %}
+
+{% block crumb %}
+<a href="{{ url_for('contratos.listar') }}">Contratos</a>
+<span class="sep">{{ icon('chevron-right', 12) }}</span>
+<b>{{ c.numero or '#' ~ c.id }}</b>
+{% endblock %}
+
+{% block acciones %}
+<a class="btn sm" href="{{ url_for('contratos.editar', cid=c.id) }}">{{ icon('file-pen', 13) }} Editar</a>
+<a class="btn sm" href="{{ url_for('contratos.renovar', cid=c.id) }}">{{ icon('refresh-cw', 13) }} Renovar</a>
+{% if cobro %}<button class="btn pri sm" onclick='Peek.cobro({{ cobrable|tojson }})'>{{ icon('banknote', 13) }} Cobrar</button>
+{% else %}<a class="btn sm" href="{{ url_for('cobros.detalle', cid=c.id) }}">{{ icon('banknote', 13) }} Cobros</a>{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="sheet-hd">
+  <div class="sheet-top">
+    <div class="avatar {{ 'err' if resumen.deuda > 0 else 'ok' }}">{{ inq[:2]|upper }}</div>
+    <div>
+      <h1>{{ inq }}</h1>
+      <div class="meta">
+        {{ c.inmueble.direccion if c.inmueble else '—' }}
+        <span class="sep">·</span>{{ c.numero or '#' ~ c.id }}
+        <span class="chip {{ 'ok' if c.estado == 'Vigente' else 'warn' }}"><i class="dot"></i>{{ c.estado }}</span>
+        {% if resumen.deuda > 0 %}<span class="chip err">Debe $ {{ resumen.deuda|money }}</span>
+        {% else %}<span class="chip ok">Al día</span>{% endif %}
+      </div>
+    </div>
+    <div class="sp" style="flex:1"></div>
+    <div class="btngrp">
+      {% if resumen.wa %}<a class="btn sm" href="{{ resumen.wa }}" target="_blank" rel="noopener">{{ icon('message-circle', 13) }} WhatsApp</a>{% endif %}
+      <a class="btn sm" href="{{ url_for('cobros.detalle', cid=c.id) }}">{{ icon('receipt', 13) }} Recibos</a>
+      {% if c.fiadores %}<a class="btn sm" href="{{ url_for('recibos.pagares', cid=c.id) }}" target="_blank" rel="noopener">{{ icon('scroll', 13) }} Pagarés</a>{% endif %}
+    </div>
+  </div>
+  <div class="sheet-tabs">
+    {% for k, t, n in [('resumen', 'Resumen', None),
+                       ('pagos', 'Pagos', pagos|length),
+                       ('aumentos', 'Aumentos', c.aumentos|length),
+                       ('liquidaciones', 'Liquidaciones', liquidaciones|length),
+                       ('docs', 'Documentos', c.documentos|length)] %}
+    <a class="sheet-tab {{ 'on' if tab == k }}" href="{{ url_for('contratos.ver', cid=c.id, t=k) }}">
+      {{ t }}{% if n %}<span class="n">{{ n }}</span>{% endif %}</a>
+    {% endfor %}
+  </div>
+</div>
+
+{% if resumen.contrato_vencido %}
+<div class="banner err">{{ icon('alert-triangle', 16) }}
+  <div class="sp"><b>Contrato vencido el {{ c.fecha_fin.strftime('%d/%m/%Y') }}</b> — sigue figurando como vigente.</div>
+  <a class="btn sm" href="{{ url_for('contratos.renovar', cid=c.id) }}">Renovar</a>
+</div>
+{% elif resumen.aumento_vencido %}
+<div class="banner warn">{{ icon('trending-up', 16) }}
+  <div class="sp"><b>Hay un aumento por aplicar</b> desde el {{ resumen.prox_aumento.strftime('%d/%m/%Y') }}.</div>
+  <a class="btn sm" href="{{ url_for('aumentos.aplicar', cid=c.id) }}">Aplicarlo</a>
+</div>
+{% endif %}
+
+{% if tab == 'resumen' %}
+{% if resumen.deuda > 0 %}
+<div class="banner err">{{ icon('alert-triangle', 16) }}
+  <div class="sp"><b>Debe $ {{ resumen.deuda|money }}</b>{% if resumen.impagos_txt %} — {{ resumen.impagos_txt }}{% endif %}.
+    La mora se calcula al {{ c.mora_diaria_pct }}% diario al registrar el cobro.</div>
+  {% if cobro %}<button class="btn sm" onclick='Peek.cobro({{ cobrable|tojson }})'>Cobrar {{ meses[hoy.month]|lower }}</button>
+  {% else %}<a class="btn sm" href="{{ url_for('cobros.detalle', cid=c.id) }}">Ver los períodos</a>{% endif %}
+</div>
+{% endif %}
+
+<div class="facts">
+  <div class="fact"><div class="l">Canon vigente</div><div class="v">{{ c.moneda|simbolo }} {{ canon|money }}</div>
+    <div class="s">vence el día {{ c.dia_vencimiento or '—' }}</div></div>
+  <div class="fact"><div class="l">Deuda</div>
+    <div class="v {{ 'err' if resumen.deuda > 0 }}">$ {{ resumen.deuda|money }}</div>
+    <div class="s">{{ resumen.impagos|length }} período(s) impago(s)</div></div>
+  <div class="fact"><div class="l">Próximo aumento</div>
+    <div class="v">{{ resumen.prox_aumento.strftime('%d/%m/%y') if resumen.prox_aumento else '—' }}</div>
+    <div class="s">{% if c.metodo_ajuste == 'indice' %}{{ indice_nombre.get(c.indice_tipo, c.indice_tipo) }} cada {{ c.ajuste_cada_meses }} meses
+      {% elif c.metodo_ajuste == 'porcentaje' %}+{{ c.porcentaje_ajuste }}% cada {{ c.ajuste_cada_meses }} meses
+      {% else %}sin ajuste{% endif %}</div></div>
+  <div class="fact"><div class="l">Contrato hasta</div>
+    <div class="v">{{ c.fecha_fin.strftime('%d/%m/%y') if c.fecha_fin else '—' }}</div>
+    <div class="s">{% if dias_restantes is not none %}{{ 'vencido' if dias_restantes < 0 else 'en ' ~ dias_restantes ~ ' días' }}{% else %}sin fecha de fin{% endif %}</div></div>
+  {% if gas %}
+  <div class="fact"><div class="l">Gas</div>
+    <div class="v {{ 'err' if gas.tiene_deuda }}">$ {{ (gas.deuda_total or 0)|money }}</div>
+    <div class="s">cuenta {{ gas.cuenta }}</div></div>
+  {% endif %}
+  <div class="fact"><div class="l">Comisión</div>
+    <div class="v">{% if c.comision_pct is not none %}{{ c.comision_pct }}%
+      {% elif c.inmueble and c.inmueble.comision_pct is not none %}{{ c.inmueble.comision_pct }}%
+      {% else %}—{% endif %}</div>
+    <div class="s">mora {{ c.mora_diaria_pct }}% diario</div></div>
+</div>
+
+<div class="two">
+  <div class="stack">
+    <div class="card">
+      <div class="card-h"><h2>Últimos pagos</h2><div class="sp"></div>
+        <a class="btn ghost sm" href="{{ url_for('contratos.ver', cid=c.id, t='pagos') }}">Ver todos {{ icon('arrow-right', 12) }}</a></div>
+      {% if pagos %}
+      <table class="t">
+        <thead><tr><th>Período</th><th>Fecha</th><th>Medio</th><th class="r">Monto</th><th class="r">Estado</th></tr></thead>
+        <tbody>
+          {% for p in pagos[:5] %}
+          <tr>
+            <td><b>{{ meses[p.periodo_mes] if p.periodo_mes else '—' }} {{ p.periodo_anio or '' }}</b></td>
+            <td class="mut">{{ p.fecha_pago.strftime('%d/%m/%Y') if p.fecha_pago else '—' }}</td>
+            <td class="mut">{{ p.forma_pago or '—' }}</td>
+            <td class="r">$ {{ (p.pagado or 0)|money }}</td>
+            <td class="r"><span class="chip {{ 'ok' if p.estado == 'Pagado' else ('warn' if p.estado == 'Parcial' else 'err') }}">{{ p.estado }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<div class="card-b"><p class="hint">Todavía no hay pagos registrados.</p></div>{% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h2>Liquidaciones y facturación</h2><div class="sp"></div>
+        <a class="btn ghost sm" href="{{ url_for('contratos.ver', cid=c.id, t='liquidaciones') }}">Ver todo {{ icon('arrow-right', 12) }}</a></div>
+      {% if liquidaciones %}
+      <table class="t">
+        <thead><tr><th>Liquidación</th><th class="r">Comisión</th><th>Comprobante</th></tr></thead>
+        <tbody>
+          {% for lq in liquidaciones[:4] %}
+          <tr>
+            <td><b>{{ lq.numero or '#' ~ lq.id }}</b>
+              <div class="mut">{{ meses[lq.periodo_mes] if lq.periodo_mes else '' }} {{ lq.periodo_anio or '' }}</div></td>
+            <td class="r">$ {{ (lq.total_comision or 0)|money }}</td>
+            <td>{% include "aurora/contratos/_factura.html" %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<div class="card-b"><p class="hint">Este contrato todavía no se liquidó.</p></div>{% endif %}
+    </div>
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <div class="card-h"><h2>Personas</h2></div>
+      <div class="card-b" style="display:flex;flex-direction:column;gap:12px">
+        {% if c.inquilino %}
+        <div class="split">
+          <div class="avatar">{{ c.inquilino.nombre[:2]|upper }}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:550">{{ c.inquilino.nombre }}</div>
+            <div class="mut" style="font-size:12px">{{ 'Locatario' }} · {{ resumen.telefono or 'sin teléfono' }}{% if resumen.email %} · {{ resumen.email }}{% endif %}</div>
+          </div>
+          {% if resumen.wa %}<a class="btn ghost sm icon" href="{{ resumen.wa }}" target="_blank" rel="noopener" title="WhatsApp">{{ icon('message-circle', 13) }}</a>{% endif %}
+        </div>
+        {% endif %}
+        {% for p in c.colocatarios %}
+        <div class="split"><div class="avatar">{{ p.nombre[:2]|upper }}</div>
+          <div style="flex:1;min-width:0"><div style="font-weight:550">{{ p.nombre }}</div>
+            <div class="mut" style="font-size:12px">Colocatario · {{ p.telefono or 'sin teléfono' }}</div></div></div>
+        {% endfor %}
+        {% if c.propietario %}
+        <div class="split">
+          <div class="avatar">{{ c.propietario.nombre[:2]|upper }}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:550">{{ c.propietario.nombre }}</div>
+            <div class="mut" style="font-size:12px">Propietario · {{ ('CUIT ' ~ c.propietario.cuit) if c.propietario.cuit else 'sin CUIT' }}</div>
+          </div>
+        </div>
+        {% endif %}
+        {% for f in c.fiadores %}
+        <div class="split"><div class="avatar">{{ f.nombre[:2]|upper }}</div>
+          <div style="flex:1;min-width:0"><div style="font-weight:550">{{ f.nombre }}</div>
+            <div class="mut" style="font-size:12px">Fiador · {{ f.solvencia or 'sin solvencia declarada' }}</div></div></div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h2>Condiciones</h2></div>
+      <div class="card-b">
+        <dl class="dl">
+          <dt>Inmueble</dt><dd>{{ c.inmueble.direccion if c.inmueble else '—' }}</dd>
+          <dt>Desde</dt><dd>{{ c.fecha_inicio.strftime('%d/%m/%Y') if c.fecha_inicio else '—' }}</dd>
+          <dt>Hasta</dt><dd>{{ c.fecha_fin.strftime('%d/%m/%Y') if c.fecha_fin else '—' }}{% if c.duracion_meses %} ({{ c.duracion_meses }} meses){% endif %}</dd>
+          <dt>Precio inicial</dt><dd>{{ c.moneda|simbolo }} {{ (c.precio_inicial or 0)|money }}</dd>
+          <dt>Mora diaria</dt><dd>{{ c.mora_diaria_pct }}%</dd>
+          <dt>Origen</dt><dd>{{ 'Redactado con el asistente' if c.origen == 'generador' else 'Registrado' }}</dd>
+        </dl>
+        {% if c.observaciones %}<p class="hint" style="margin-top:10px">{{ c.observaciones }}</p>{% endif %}
+      </div>
+      <div class="card-f">
+        <form method="post" action="{{ url_for('contratos.rescindir', cid=c.id) }}" style="margin:0"
+              onsubmit="return confirm('¿Rescindir este contrato? El inmueble queda disponible y se conserva el historial de pagos.')">
+          <button class="btn ghost sm" type="submit">{{ icon('x', 13) }} Rescindir</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% elif tab == 'pagos' %}
+<div class="card">
+  <div class="card-h"><h2>Historial de pagos</h2><div class="sp"></div>
+    <a class="btn sm" href="{{ url_for('cobros.detalle', cid=c.id) }}">Detalle y recibos {{ icon('arrow-right', 12) }}</a></div>
+  {% if pagos %}
+  <table class="t">
+    <thead><tr><th>Período</th><th>Fecha</th><th>Medio</th><th>Recibo</th><th class="r">Alquiler</th><th class="r">Mora</th><th class="r">Cobrado</th><th class="r">Saldo</th><th class="r">Estado</th></tr></thead>
+    <tbody>
+      {% for p in pagos %}
+      <tr>
+        <td><b>{{ meses[p.periodo_mes] if p.periodo_mes else '—' }} {{ p.periodo_anio or '' }}</b></td>
+        <td class="mut">{{ p.fecha_pago.strftime('%d/%m/%Y') if p.fecha_pago else '—' }}</td>
+        <td class="mut">{{ p.forma_pago or '—' }}</td>
+        <td class="mut">{% if p.recibo_numero %}<a href="{{ url_for('recibos.recibo', pid=p.id) }}" target="_blank" rel="noopener">{{ p.recibo_numero }}</a>{% else %}—{% endif %}</td>
+        <td class="r">$ {{ (p.precio_alquiler or 0)|money }}</td>
+        <td class="r">{% if p.mora %}$ {{ p.mora|money }}{% else %}—{% endif %}</td>
+        <td class="r">$ {{ (p.pagado or 0)|money }}</td>
+        <td class="r">{% if p.saldo and p.saldo > 0 %}<span class="mut err">$ {{ p.saldo|money }}</span>{% else %}—{% endif %}</td>
+        <td class="r"><span class="chip {{ 'ok' if p.estado == 'Pagado' else ('warn' if p.estado == 'Parcial' else 'err') }}">{{ p.estado }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="card-b"><p class="hint">Todavía no hay pagos registrados.</p></div>{% endif %}
+</div>
+
+{% elif tab == 'aumentos' %}
+<div class="card">
+  <div class="card-h"><h2>Historial de aumentos</h2><div class="sp"></div>
+    {% if c.metodo_ajuste != 'sin_ajuste' %}
+    <a class="btn pri sm" href="{{ url_for('aumentos.aplicar', cid=c.id) }}">{{ icon('trending-up', 13) }} Aplicar aumento</a>{% endif %}</div>
+  {% set aumentos = c.aumentos|sort(attribute='fecha_vigencia') %}
+  {% if aumentos %}
+  <table class="t">
+    <thead><tr><th>Vigencia</th><th>Método</th><th class="r">Anterior</th><th class="r">Nuevo</th><th>Detalle</th><th class="r"></th></tr></thead>
+    <tbody>
+      {% for a in aumentos %}
+      <tr>
+        <td><b>{{ a.fecha_vigencia.strftime('%d/%m/%Y') if a.fecha_vigencia else '—' }}</b></td>
+        <td>{{ 'Porcentaje' if a.metodo == 'porcentaje' else 'Índice ' ~ (a.indice_tipo or '') }}</td>
+        <td class="r">$ {{ (a.precio_anterior or 0)|money }}</td>
+        <td class="r"><b>$ {{ (a.precio_nuevo or 0)|money }}</b></td>
+        <td class="mut">{% if a.metodo == 'porcentaje' %}+{{ a.porcentaje }}%{% else %}{{ a.indice_inicio }} → {{ a.indice_fin }}{% endif %}</td>
+        <td class="r">
+          <a class="mut" href="{{ url_for('aumentos.editar', aid=a.id) }}">Editar</a>
+          {% if loop.last %}
+          <form method="post" action="{{ url_for('aumentos.eliminar', aid=a.id) }}" style="display:inline"
+                onsubmit="return confirm('¿Deshacer este aumento y restaurar el precio anterior?')">
+            <button class="btn ghost sm" type="submit">Deshacer</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="card-f">{{ icon('clock', 13) }} Cada aumento vale desde su fecha de vigencia: los meses ya cobrados no se tocan.</div>
+  {% else %}<div class="card-b"><p class="hint">Sin aumentos registrados.</p></div>{% endif %}
+</div>
+
+{% elif tab == 'liquidaciones' %}
+<div class="card">
+  <div class="card-h"><h2>Liquidaciones al propietario</h2><div class="sp"></div>
+    <a class="btn sm" href="{{ url_for('liquidaciones.index') }}">Ir a Liquidaciones {{ icon('arrow-right', 12) }}</a></div>
+  {% if liquidaciones %}
+  <table class="t">
+    <thead><tr><th>Número</th><th>Período</th><th class="r">Ingresos</th><th class="r">Comisión</th><th class="r">Neto</th><th>Factura de honorarios</th></tr></thead>
+    <tbody>
+      {% for lq in liquidaciones %}
+      <tr>
+        <td><b>{{ lq.numero or '#' ~ lq.id }}</b><div class="mut">{{ lq.fecha.strftime('%d/%m/%Y') if lq.fecha else '' }}</div></td>
+        <td class="mut">{{ meses[lq.periodo_mes] if lq.periodo_mes else '' }} {{ lq.periodo_anio or '' }}</td>
+        <td class="r">$ {{ (lq.total_ingresos or 0)|money }}</td>
+        <td class="r">$ {{ (lq.total_comision or 0)|money }}</td>
+        <td class="r"><b>$ {{ (lq.total_neto or 0)|money }}</b></td>
+        <td>{% include "aurora/contratos/_factura.html" %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="card-b"><p class="hint">Este contrato todavía no se liquidó.</p></div>{% endif %}
+</div>
+
+{% else %}
+<div class="card">
+  <div class="card-h"><h2>Documentación</h2></div>
+  {% if c.documentos %}
+  <table class="t">
+    <thead><tr><th>Tipo</th><th>De quién</th><th>Archivo</th><th class="r">Tamaño</th><th class="r">Subido</th><th class="r"></th></tr></thead>
+    <tbody>
+      {% for d in c.documentos %}
+      <tr>
+        <td><span class="chip">{{ d.categoria or 'Otro' }}</span></td>
+        <td>{{ d.persona or '—' }}</td>
+        <td><a href="{{ url_for('contratos.ver_documento', doc_id=d.id) }}" target="_blank" rel="noopener">{{ d.nombre_archivo }}</a></td>
+        <td class="r mut">{{ d.tamano_texto }}</td>
+        <td class="r mut">{{ d.subido.strftime('%d/%m/%Y') if d.subido }}{% if d.subido_por %} · {{ d.subido_por }}{% endif %}</td>
+        <td class="r">
+          <form method="post" action="{{ url_for('contratos.eliminar_documento', doc_id=d.id) }}" style="display:inline"
+                onsubmit="return confirm('¿Eliminar este documento?')">
+            <button class="btn ghost sm" type="submit">Eliminar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="card-b"><p class="hint">Todavía no cargaste documentación para este contrato.</p></div>{% endif %}
+  <div class="card-b" style="border-top:1px solid var(--line)">
+    <form method="post" action="{{ url_for('contratos.subir_documento', cid=c.id) }}" enctype="multipart/form-data">
+      <div class="two">
+        <div class="field"><label>Tipo de documento</label>
+          <select class="inp" name="categoria">
+            {% for cat in cat_docs %}<option value="{{ cat }}">{{ cat }}</option>{% endfor %}
+          </select></div>
+        <div class="field"><label>¿De quién es?</label>
+          <input class="inp" name="persona" placeholder="Ej: Inquilino Ana Pérez / Fiador Juan"></div>
+      </div>
+      <div class="field" style="margin-top:10px"><label>Archivo (PDF o imagen, hasta 8 MB)</label>
+        <input class="inp" type="file" name="archivo" accept=".pdf,image/*" required></div>
+      <button class="btn pri sm" type="submit" style="margin-top:12px">{{ icon('arrow-right', 13) }} Subir documento</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from .. import db
 from ..idempotencia import nueva_clave, reservar
 from ..models import Contrato, Pago, GastoExtra
+from ..ui import render_ui
 from ..utils import (parse_fecha, parse_num, vencimiento, calcular_mora,
                      periodo_siguiente, MESES_ES, link_whatsapp, whatsapp_valido, q2)
 from ..calculos import (estado_periodo, canon_vigente,
@@ -123,7 +124,14 @@ def index():
         filas.append(dict(c=c, pago=pago, esperado=esperado, estado=estado,
                           cobrado=cobrado, saldo=saldo, prox_nro=prox_nro,
                           venc=venc, aum_pendiente=aum_pendiente,
-                          contrato_vencido=contrato_vencido))
+                          contrato_vencido=contrato_vencido,
+                          mora=float(calcular_mora(esperado, c.mora_diaria_pct,
+                                                   venc, hoy) or 0),
+                          registrable=pago is None))
+
+    cuenta = dict(todos=len(filas),
+                  pendiente=sum(1 for f in filas if f["estado"] != "Pagado"))
+    cuenta["cobrado"] = cuenta["todos"] - cuenta["pendiente"]
 
     if filtro == "pendiente":
         filas = [f for f in filas if f["estado"] not in ("Pagado",)]
@@ -145,11 +153,12 @@ def index():
         filas.sort(key=lambda f: (f["estado"] == "Pagado",
                                   (f["c"].inquilino.nombre if f["c"].inquilino else "")))
 
-    return render_template("cobros/index.html", filas=filas, mes=mes, anio=anio,
-                           filtro=filtro, meses=MESES_ES, formas=FORMAS_PAGO, hoy=hoy,
-                           totales=dict(esperado=tot_esperado, cobrado=tot_cobrado,
-                                        pendiente=tot_pendiente),
-                           anios=list(range(hoy.year - 4, hoy.year + 2)))
+    return render_ui("cobros/index.html", filas=filas, mes=mes, anio=anio,
+                     filtro=filtro, meses=MESES_ES, formas=FORMAS_PAGO, hoy=hoy,
+                     cuenta=cuenta,
+                     totales=dict(esperado=tot_esperado, cobrado=tot_cobrado,
+                                  pendiente=tot_pendiente),
+                     anios=list(range(hoy.year - 4, hoy.year + 2)))
 
 
 @cobros_bp.route("/react")
