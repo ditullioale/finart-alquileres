@@ -6,6 +6,8 @@
 {% set cobrable = {'cid': c.id, 'quien': inq,
                    'monto': (cobro.monto if cobro else 0),
                    'mora': (cobro.mora if cobro else 0),
+                   'venc': (cobro.venc if cobro else none),
+                   'morapct': c.mora_diaria_pct,
                    'mes': hoy.month, 'anio': hoy.year,
                    'periodo': 'Alquiler ' ~ meses[hoy.month]|lower,
                    'det': (c.inmueble.direccion if c.inmueble else ''),
@@ -96,7 +98,7 @@
     <div class="v">{{ c.fecha_fin.strftime('%d/%m/%y') if c.fecha_fin else '—' }}</div>
     <div class="s">{% if dias_restantes is not none %}{{ 'vencido' if dias_restantes < 0 else 'en ' ~ dias_restantes ~ ' días' }}{% else %}sin fecha de fin{% endif %}</div></div>
   {% if gas %}
-  <div class="fact"><div class="l">Gas</div>
+  <div class="fact js-vergas" data-cuenta="{{ gas.cuenta }}" style="cursor:pointer" title="Ver facturas de gas"><div class="l">Gas</div>
     <div class="v {{ 'err' if gas.tiene_deuda }}">$ {{ (gas.deuda_total or 0)|money }}</div>
     <div class="s">cuenta {{ gas.cuenta }}</div></div>
   {% endif %}
@@ -179,6 +181,11 @@
           </div>
         </div>
         {% endif %}
+        {% for p in c.colocadores %}
+        <div class="split"><div class="avatar">{{ p.nombre[:2]|upper }}</div>
+          <div style="flex:1;min-width:0"><div style="font-weight:550">{{ p.nombre }}</div>
+            <div class="mut" style="font-size:12px">Copropietario · {{ ('CUIT ' ~ p.cuit) if p.cuit else 'sin CUIT' }}</div></div></div>
+        {% endfor %}
         {% for f in c.fiadores %}
         <div class="split"><div class="avatar">{{ f.nombre[:2]|upper }}</div>
           <div style="flex:1;min-width:0"><div style="font-weight:550">{{ f.nombre }}</div>
@@ -200,10 +207,16 @@
         </dl>
         {% if c.observaciones %}<p class="hint" style="margin-top:10px">{{ c.observaciones }}</p>{% endif %}
       </div>
-      <div class="card-f">
+      <div class="card-f" style="display:flex;gap:8px">
+        {% if c.estado == 'Vigente' %}
         <form method="post" action="{{ url_for('contratos.rescindir', cid=c.id) }}" style="margin:0"
               onsubmit="return confirm('¿Rescindir este contrato? El inmueble queda disponible y se conserva el historial de pagos.')">
           <button class="btn ghost sm" type="submit">{{ icon('x', 13) }} Rescindir</button>
+        </form>
+        {% endif %}
+        <form method="post" action="{{ url_for('contratos.eliminar', cid=c.id) }}" style="margin:0"
+              onsubmit="return confirm('¿Eliminar definitivamente este contrato? Esta acción no se puede deshacer. (Solo se permite si no tiene pagos registrados.)')">
+          <button class="btn ghost sm" type="submit" style="color:var(--err)">Eliminar contrato</button>
         </form>
       </div>
     </div>

@@ -66,7 +66,9 @@
           {% if f.estado != 'Pagado' and f.registrable %}
           <button class="btn ok sm" onclick='Peek.cobro({{
             {"cid": c.id, "quien": (c.inquilino.nombre if c.inquilino else "—"),
-             "monto": f.esperado, "mora": f.mora, "mes": mes, "anio": anio,
+             "monto": f.esperado, "mora": f.mora,
+             "venc": (f.venc.isoformat() if f.venc else none), "morapct": c.mora_diaria_pct,
+             "mes": mes, "anio": anio,
              "periodo": "Alquiler " ~ meses[mes]|lower,
              "det": (c.inmueble.direccion if c.inmueble else ""),
              "hoy": hoy.isoformat()}|tojson }})'>{{ icon('banknote', 13) }} Cobrar</button>

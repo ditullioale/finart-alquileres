@@ -89,7 +89,7 @@ def index():
             "saldo": info["saldo"], "vto": info["venc"],
             "vencido": info["vencido"], "dias": info["dias_atraso"],
             "etiqueta": etiqueta_operativa(info), "wa": msj,
-            "esperado": info["esperado"], "mora": mora,
+            "esperado": info["esperado"], "mora": mora, "morapct": c.mora_diaria_pct,
             "telefono": (c.inquilino.telefono if c.inquilino else None),
             "registrable": info["pago"] is None,
         })

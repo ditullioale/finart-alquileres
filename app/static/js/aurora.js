@@ -77,11 +77,13 @@
           '<div><div style="font-weight:550">' + esc(r.quien) + '</div>' +
           '<div class="mut" style="font-size:12px">' + esc(r.det || '') + '</div></div></div>' +
         '<div class="field"><label>Mora' +
-          (mora ? ' <button type="button" class="btn ghost sm" style="float:right;padding:1px 9px" onclick="Peek.sacarMora()">Sacar mora</button>' : '') +
-          '</label>' +
+          '<span style="float:right;display:flex;gap:6px">' +
+          '<button type="button" class="btn ghost sm" style="padding:1px 9px" onclick="Peek.calcularMora()">↻ Calcular</button>' +
+          '<button type="button" class="btn ghost sm" style="padding:1px 9px" onclick="Peek.sacarMora()">Sacar mora</button>' +
+          '</span></label>' +
           '<div class="inp-money"><span class="cur">$</span>' +
           '<input class="inp num" id="cobro-mora" value="' + mora.toLocaleString('es-AR') + '" oninput="Peek.moraTocada=true;Peek.syncMonto();Peek.recalc()"></div>' +
-          '<p class="hint">Se suma al importe recibido. Poné 0 (o tocá "Sacar mora") si esta vez no la cobrás.</p></div>' +
+          '<p class="hint" id="cobro-mora-hint">Se suma al importe recibido. Poné 0 (o tocá "Sacar mora" / "Calcular") si esta vez no la cobrás.</p></div>' +
         '<div class="field"><label>Importe recibido</label>' +
           '<div class="inp-money"><span class="cur">$</span>' +
           '<input class="inp num" id="cobro-monto" value="' + total.toLocaleString('es-AR') + '"></div>' +
@@ -110,7 +112,40 @@
         Array.prototype.forEach.call(b.parentElement.children, function (x) { x.classList.remove('on'); });
         b.classList.add('on');
       });
+      // Si cambian la fecha de pago y todavía no tocaron la mora a mano, la
+      // recalculamos para esa fecha (igual que al abrir el modal).
+      $('#cobro-fecha').addEventListener('change', function () {
+        if (!Peek.moraTocada) Peek.calcularMora();
+      });
       Peek.idem = 'cobro-' + (r.cid || '') + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+      Peek.recalc();
+    },
+    // Recalcula la mora para la fecha de pago elegida: gracia hasta el
+    // vencimiento, y si se paga tarde los días cuentan desde el día 1 del mes
+    // del vencimiento (misma regla que utils.calcular_mora en el servidor).
+    calcularMora: function () {
+      var r = Peek._r || {};
+      var el = $('#cobro-mora'), hint = $('#cobro-mora-hint');
+      if (!el) return;
+      var pct = Number(r.morapct) || 0, precio = Number(r.monto) || 0;
+      var fp = ($('#cobro-fecha') || {}).value;
+      if (!r.venc || !fp || !precio || !pct) {
+        if (hint) hint.textContent = '';
+        return;
+      }
+      var dv = new Date(r.venc + 'T00:00:00'), dp = new Date(fp + 'T00:00:00');
+      var dia1 = new Date(dv.getFullYear(), dv.getMonth(), 1);
+      var dias = Math.floor((dp - dia1) / 86400000);
+      var mora = (dp > dv && dias > 0) ? Math.round(precio * (pct / 100) * dias * 100) / 100 : 0;
+      el.value = mora.toLocaleString('es-AR');
+      Peek.moraTocada = false;
+      if (hint) {
+        hint.textContent = mora > 0
+          ? (dias + ' día(s) desde el 1° del mes × ' + pct + '%/día sobre el alquiler')
+          : 'Pagó dentro del vencimiento: mora 0';
+        hint.style.color = mora > 0 ? 'var(--err)' : 'var(--muted)';
+      }
+      Peek.syncMonto();
       Peek.recalc();
     },
     // Pone la mora en 0 y refleja el cambio en "Importe recibido" (si el
