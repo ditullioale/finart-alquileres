@@ -62,10 +62,13 @@
       $('#peek').classList.remove('on');
       $('#ov').classList.remove('on');
     },
-    // Cobro real contra /cobros/rapido. La mora definitiva la calcula el
-    // servidor; acá sólo se muestra la estimación que vino con la fila.
+    // Cobro real contra /cobros/rapido. Si no se toca el campo Mora, el
+    // servidor la recalcula solo; si se toca (por ej. para sacarla), se manda
+    // el valor explícito y el servidor respeta ese override.
     cobro: function (r) {
       Peek._r = r;
+      Peek.moraTocada = false;
+      Peek.montoTocado = false;
       var mora = Number(r.mora) || 0;
       var total = (Number(r.monto) || 0) + mora;
       Peek.open('Registrar cobro',
@@ -73,6 +76,12 @@
           '<div class="avatar" style="width:34px;height:34px">' + ini(r.quien) + '</div>' +
           '<div><div style="font-weight:550">' + esc(r.quien) + '</div>' +
           '<div class="mut" style="font-size:12px">' + esc(r.det || '') + '</div></div></div>' +
+        '<div class="field"><label>Mora' +
+          (mora ? ' <button type="button" class="btn ghost sm" style="float:right;padding:1px 9px" onclick="Peek.sacarMora()">Sacar mora</button>' : '') +
+          '</label>' +
+          '<div class="inp-money"><span class="cur">$</span>' +
+          '<input class="inp num" id="cobro-mora" value="' + mora.toLocaleString('es-AR') + '" oninput="Peek.moraTocada=true;Peek.syncMonto();Peek.recalc()"></div>' +
+          '<p class="hint">Se suma al importe recibido. Poné 0 (o tocá "Sacar mora") si esta vez no la cobrás.</p></div>' +
         '<div class="field"><label>Importe recibido</label>' +
           '<div class="inp-money"><span class="cur">$</span>' +
           '<input class="inp num" id="cobro-monto" value="' + total.toLocaleString('es-AR') + '"></div>' +
@@ -92,7 +101,7 @@
         '<div style="flex:1"></div>' +
         '<button class="btn pri" id="cobro-ok" onclick="Peek.guardarCobro()">Guardar cobro <kbd>↵</kbd></button>');
       var inp = $('#cobro-monto');
-      inp.addEventListener('input', function () { Peek.recalc(); });
+      inp.addEventListener('input', function () { Peek.montoTocado = true; Peek.recalc(); });
       inp.addEventListener('keydown', function (e) {
         if (e.key === 'Enter') { e.preventDefault(); Peek.guardarCobro(); }
       });
@@ -104,14 +113,34 @@
       Peek.idem = 'cobro-' + (r.cid || '') + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
       Peek.recalc();
     },
+    // Pone la mora en 0 y refleja el cambio en "Importe recibido" (si el
+    // usuario no lo tocó a mano todavía).
+    sacarMora: function () {
+      var el = $('#cobro-mora'); if (!el) return;
+      el.value = 0;
+      Peek.moraTocada = true;
+      Peek.syncMonto();
+      Peek.recalc();
+    },
+    // Mientras el usuario no haya editado "Importe recibido" a mano, lo
+    // mantiene sincronizado con base + mora (para que al sacar la mora el
+    // importe sugerido baje solo).
+    syncMonto: function () {
+      if (Peek.montoTocado) return;
+      var r = Peek._r || {}, base = Number(r.monto) || 0;
+      var mora = leerMonto(($('#cobro-mora') || {}).value);
+      var el = $('#cobro-monto'); if (!el) return;
+      el.value = (base + mora).toLocaleString('es-AR');
+    },
     recalc: function () {
-      var r = Peek._r || {}, base = Number(r.monto) || 0, mora = Number(r.mora) || 0;
+      var r = Peek._r || {}, base = Number(r.monto) || 0;
+      var mora = leerMonto(($('#cobro-mora') || {}).value);
       var v = leerMonto(($('#cobro-monto') || {}).value);
       var saldo = base + mora - v;
       var el = $('#cobro-calc'); if (!el) return;
       el.innerHTML =
         '<div class="l">' + esc(r.periodo || 'Alquiler') + ' <b>' + money(base) + '</b></div>' +
-        (mora ? '<div class="l">Mora estimada <b>' + money(mora) + '</b></div>' : '') +
+        (mora ? '<div class="l">Mora <b>' + money(mora) + '</b></div>' : '') +
         '<div class="l">Recibís <b>' + money(v) + '</b></div>' +
         '<div class="l tot">' + (saldo > 0 ? 'Queda debiendo' : 'Saldo') +
           ' <b style="color:' + (saldo > 0 ? 'var(--err)' : 'var(--ok)') + '">' +
@@ -126,6 +155,7 @@
       var body = {
         cid: r.cid, mes: r.mes, anio: r.anio, precio: r.monto,
         pagado: leerMonto($('#cobro-monto').value),
+        mora: Peek.moraTocada ? leerMonto($('#cobro-mora').value) : null,
         fecha: ($('#cobro-fecha') || {}).value || '',
         forma_pago: forma.trim(),
         observaciones: ($('#cobro-obs') || {}).value || '',
@@ -262,3 +292,4 @@
     if (destino) { e.preventDefault(); location.href = destino; }
   });
 })();
+
