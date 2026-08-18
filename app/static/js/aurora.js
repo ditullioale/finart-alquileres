@@ -95,6 +95,12 @@
           '<button type="button">Cheque</button></div></div>' +
         '<div class="field"><label>Fecha</label><input class="inp" type="date" id="cobro-fecha" value="' +
           (r.hoy || new Date().toISOString().slice(0, 10)) + '"></div>' +
+        '<div class="field"><label>Gastos extra (opcional)</label>' +
+          '<div id="cobro-gastos"></div>' +
+          '<button type="button" class="btn ghost sm" onclick="Peek.agregarGasto()">+ Agregar gasto</button>' +
+          '<p class="hint">Agua, expensas, seguro... "Trasladar" tildado = se suma a la liquidación del ' +
+          'propietario (sin comisión); destildado = lo cobramos junto con el alquiler pero queda para la ' +
+          'inmobiliaria (ej.: un seguro que pagamos nosotros).</p></div>' +
         '<div class="calc" id="cobro-calc"></div>' +
         '<div class="field" style="margin-top:14px"><label>Nota (opcional)</label>' +
           '<textarea class="inp" id="cobro-obs" placeholder="Ej.: paga con dos transferencias"></textarea></div>' +
@@ -158,24 +164,65 @@
       Peek.recalc();
     },
     // Mientras el usuario no haya editado "Importe recibido" a mano, lo
-    // mantiene sincronizado con base + mora (para que al sacar la mora el
-    // importe sugerido baje solo).
+    // mantiene sincronizado con base + mora + gastos extra (para que al sacar
+    // la mora, o al agregar un gasto, el importe sugerido se ajuste solo).
     syncMonto: function () {
       if (Peek.montoTocado) return;
       var r = Peek._r || {}, base = Number(r.monto) || 0;
       var mora = leerMonto(($('#cobro-mora') || {}).value);
+      var gastos = Peek.gastosTotal();
       var el = $('#cobro-monto'); if (!el) return;
-      el.value = (base + mora).toLocaleString('es-AR');
+      el.value = (base + mora + gastos).toLocaleString('es-AR');
+    },
+    // Agrega una fila de "gasto extra" (desc + monto + trasladar al propietario).
+    agregarGasto: function (desc, monto, trasladar) {
+      trasladar = trasladar === undefined ? true : !!trasladar;
+      var wrap = $('#cobro-gastos'); if (!wrap) return;
+      var row = document.createElement('div');
+      row.className = 'gasto-row';
+      row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap';
+      row.innerHTML =
+        '<input class="inp g-desc" placeholder="Descripción" style="flex:2;min-width:110px" value="' + esc(desc || '') + '">' +
+        '<input class="inp num g-monto" placeholder="Monto" style="flex:1;min-width:90px" value="' +
+          (monto !== undefined && monto !== null ? monto : '') + '">' +
+        '<label class="chk" style="font-size:12px;white-space:nowrap"><input type="checkbox" class="g-trasladar"' +
+          (trasladar ? ' checked' : '') + '>Trasladar</label>' +
+        '<button type="button" class="btn ghost sm" title="Quitar">✕</button>';
+      row.querySelector('.g-monto').addEventListener('input', function () { Peek.syncMonto(); Peek.recalc(); });
+      row.querySelector('button').addEventListener('click', function () {
+        row.remove(); Peek.syncMonto(); Peek.recalc();
+      });
+      wrap.appendChild(row);
+    },
+    gastosTotal: function () {
+      var t = 0;
+      document.querySelectorAll('#cobro-gastos .gasto-row .g-monto').forEach(function (i) {
+        t += leerMonto(i.value);
+      });
+      return t;
+    },
+    leerGastos: function () {
+      var out = [];
+      document.querySelectorAll('#cobro-gastos .gasto-row').forEach(function (row) {
+        var desc = (row.querySelector('.g-desc').value || '').trim();
+        var monto = leerMonto(row.querySelector('.g-monto').value);
+        if (desc && monto) {
+          out.push({ desc: desc, monto: monto, trasladar: row.querySelector('.g-trasladar').checked });
+        }
+      });
+      return out;
     },
     recalc: function () {
       var r = Peek._r || {}, base = Number(r.monto) || 0;
       var mora = leerMonto(($('#cobro-mora') || {}).value);
+      var gastos = Peek.gastosTotal();
       var v = leerMonto(($('#cobro-monto') || {}).value);
-      var saldo = base + mora - v;
+      var saldo = base + mora + gastos - v;
       var el = $('#cobro-calc'); if (!el) return;
       el.innerHTML =
         '<div class="l">' + esc(r.periodo || 'Alquiler') + ' <b>' + money(base) + '</b></div>' +
         (mora ? '<div class="l">Mora <b>' + money(mora) + '</b></div>' : '') +
+        (gastos ? '<div class="l">Gastos extra <b>' + money(gastos) + '</b></div>' : '') +
         '<div class="l">Recibís <b>' + money(v) + '</b></div>' +
         '<div class="l tot">' + (saldo > 0 ? 'Queda debiendo' : 'Saldo') +
           ' <b style="color:' + (saldo > 0 ? 'var(--err)' : 'var(--ok)') + '">' +
@@ -191,6 +238,7 @@
         cid: r.cid, mes: r.mes, anio: r.anio, precio: r.monto,
         pagado: leerMonto($('#cobro-monto').value),
         mora: Peek.moraTocada ? leerMonto($('#cobro-mora').value) : null,
+        gastos: Peek.leerGastos(),
         fecha: ($('#cobro-fecha') || {}).value || '',
         forma_pago: forma.trim(),
         observaciones: ($('#cobro-obs') || {}).value || '',

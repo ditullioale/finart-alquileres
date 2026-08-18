@@ -123,7 +123,7 @@
     </div>
     <table>
       <thead>
-        <tr><th>Inmueble</th><th>Inquilino</th><th>Período</th><th class="r">Alquiler</th><th class="r">Comisión</th><th class="r">Neto</th></tr>
+        <tr><th>Inmueble</th><th>Inquilino</th><th>Período</th><th class="r">Alquiler</th><th class="r">Comisión</th><th class="r">Extras</th><th class="r">Neto</th></tr>
       </thead>
       <tbody>
         {% for it in items %}
@@ -133,14 +133,19 @@
           <td>{{ meses[it.pago.periodo_mes] if it.pago.periodo_mes }} {{ it.pago.periodo_anio }}</td>
           <td class="r">{{ it.alquiler|money }}</td>
           <td class="r neg">- {{ it.comision|money }} <span style="color:#999">({{ it.pct }}%)</span></td>
+          <td class="r">{{ it.extras|money if it.extras else '—' }}</td>
           <td class="r">{{ it.neto|money }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
     <div class="tot">
-      <div class="l"><span>Total cobrado</span><span>{{ ingresos|money }}</span></div>
+      <div class="l"><span>Total cobrado (alquiler)</span><span>{{ ingresos|money }}</span></div>
       <div class="l neg"><span>Comisión por administración</span><span>- {{ comision|money }}</span></div>
+      {% set total_extras = items|sum(attribute='extras') %}
+      {% if total_extras %}
+      <div class="l"><span>Gastos extra trasladados (agua, expensas...)</span><span>{{ total_extras|money }}</span></div>
+      {% endif %}
       {% for c in conceptos %}
       <div class="l{{ ' neg' if c.monto < 0 }}"><span>{{ c.descripcion }}</span><span>{{ c.monto|money }}</span></div>
       {% endfor %}

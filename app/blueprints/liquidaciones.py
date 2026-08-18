@@ -45,20 +45,30 @@ def _comision_pct(c):
 
 
 def _detalle(pagos):
-    """Arma el detalle con comisión por inmueble y totales."""
-    items, ingresos, comision = [], 0.0, 0.0
+    """Arma el detalle con comisión por inmueble y totales.
+
+    Los gastos extra de cada pago (agua, expensas, seguro...) marcados como
+    "trasladar al propietario" se suman al neto tal cual, sin comisión -- no son
+    alquiler, son plata del propietario que pasa de largo. Los que NO se marcaron
+    para trasladar quedan afuera: se cobraron junto con el alquiler pero son de la
+    inmobiliaria (ej.: un seguro que paga la inmobiliaria, no el propietario)."""
+    items, ingresos, comision, extras = [], 0.0, 0.0, 0.0
     for p in pagos:
         c = p.contrato
         pct = _comision_pct(c)
         alq = float(p.precio_alquiler or 0)
         com = round(alq * pct / 100.0, 2)
+        gex = round(sum(float(g.monto or 0) for g in p.gastos
+                        if g.trasladar_liquidacion), 2)
         ingresos += alq
         comision += com
+        extras += gex
         items.append(dict(pago=p, contrato=c, inmueble=c.inmueble,
                           inquilino=c.inquilino, alquiler=alq, pct=pct, comision=com,
-                          neto=round(alq - com, 2),
+                          extras=gex, neto=round(alq - com + gex, 2),
                           liquidada=p.pagado_al_propietario is not None))
-    return items, round(ingresos, 2), round(comision, 2), round(ingresos - comision, 2)
+    return (items, round(ingresos, 2), round(comision, 2),
+           round(ingresos - comision + extras, 2))
 
 
 def _facturar_honorarios(liq, prop, confirmar=False):
