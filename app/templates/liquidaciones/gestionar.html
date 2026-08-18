@@ -43,7 +43,7 @@
 <table class="grid">
   <thead>
     <tr><th>Inmueble</th><th>Inquilino</th><th>Período</th><th class="r">Alquiler</th>
-        <th class="r">Comisión</th><th class="r">Neto</th><th>Estado</th><th></th></tr>
+        <th class="r">Comisión</th><th class="r">Extras</th><th class="r">Neto</th><th>Estado</th><th></th></tr>
   </thead>
   <tbody>
     {% for it in items %}
@@ -53,6 +53,9 @@
       <td>{{ meses[it.pago.periodo_mes] if it.pago.periodo_mes }} {{ it.pago.periodo_anio }}</td>
       <td class="r">{{ it.alquiler|money }}</td>
       <td class="r">- {{ it.comision|money }} <span class="hint" style="display:inline">({{ it.pct }}%)</span></td>
+      <td class="r">{% if it.extras %}+ {{ it.extras|money }}
+        <span class="hint" style="display:inline" title="Gastos extra del cobro marcados para trasladar (agua, expensas...), sin comisión">ⓘ</span>
+        {% else %}—{% endif %}</td>
       <td class="r"><b>{{ it.neto|money }}</b></td>
       <td>{% if it.liquidada %}<span class="badge pagado">Liquidada</span>{% else %}<span class="badge parcial">Pendiente</span>{% endif %}</td>
       <td class="actions">

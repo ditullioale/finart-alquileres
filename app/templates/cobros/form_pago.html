@@ -52,7 +52,9 @@
       {% endif %}
 
       <h2 style="margin-top:16px">3 · Gastos extras</h2>
-      <p class="hint">Agua, expensas, etc. Descuento = monto en negativo.</p>
+      <p class="hint">Agua, expensas, etc. Descuento = monto en negativo. "Trasladar al propietario"
+        tildado = se suma a su liquidación (sin comisión); destildado = lo cobramos junto con el
+        alquiler pero queda para la inmobiliaria (ej.: un seguro que pagamos nosotros).</p>
       <div id="gastos"></div>
       <button type="button" class="btn sec sm" style="margin-top:8px" onclick="addGasto()">+ Agregar gasto</button>
     </div>
@@ -107,10 +109,14 @@ function fmt(n){ return n.toLocaleString('es-AR',{minimumFractionDigits:2,maximu
 
 function addGasto(d){
   d = d || {};
+  const trasladar = d.trasladar === undefined ? true : !!d.trasladar;
   const div = document.createElement('div');
   div.className = 'gasto-row';
   div.innerHTML = `<input placeholder="Descripción" name="gasto_desc" value="${d.desc||''}" style="flex:2">
     <input placeholder="Monto" name="gasto_monto" value="${d.monto!==undefined?d.monto:''}" style="flex:1" oninput="recalc()">
+    <input type="hidden" name="gasto_trasladar" value="${trasladar?1:0}">
+    <label class="chk" style="white-space:nowrap"><input type="checkbox" ${trasladar?'checked':''}
+      onchange="this.closest('.gasto-row').querySelector('input[name=gasto_trasladar]').value=this.checked?1:0">Trasladar al propietario</label>
     <button type="button" class="btn sec" onclick="this.parentNode.remove();recalc()">✕</button>`;
   document.getElementById('gastos').appendChild(div);
 }
@@ -190,7 +196,8 @@ function calcularMora(){
 });
 actualizarVenc();
 {% for g in pago.gastos %}
-addGasto({desc:{{ g.descripcion|tojson }}, monto:{{ (g.monto|float) }}});
+addGasto({desc:{{ g.descripcion|tojson }}, monto:{{ (g.monto|float) }},
+         trasladar:{{ 'true' if g.trasladar_liquidacion else 'false' }}});
 {% endfor %}
 recalc();
 </script>

@@ -43,11 +43,17 @@ def _leer_gastos(pago):
     pago.gastos.clear()
     descs = request.form.getlist("gasto_desc")
     montos = request.form.getlist("gasto_monto")
+    # Un valor por fila (0/1), sincronizado por JS con el checkbox "Trasladar al
+    # propietario" -- así, aunque el checkbox esté destildado, sigue habiendo un
+    # valor alineado por índice con gasto_desc/gasto_monto.
+    traslada = request.form.getlist("gasto_trasladar")
     total = 0.0
     for i, desc in enumerate(descs):
         monto = parse_num(montos[i]) if i < len(montos) else None
         if desc.strip() and monto is not None:
-            pago.gastos.append(GastoExtra(descripcion=desc.strip(), monto=monto))
+            tr = traslada[i] != "0" if i < len(traslada) else True
+            pago.gastos.append(GastoExtra(descripcion=desc.strip(), monto=monto,
+                                          trasladar_liquidacion=tr))
             total += monto
     return total
 
@@ -446,14 +452,18 @@ def rapido():
                              parse_fecha(d.get("fecha")) or date.today())
     else:
         mora = parse_num(d.get("mora")) or 0
-    # Gastos extras: lista de {desc, monto} (suma con decimales exactos)
+    # Gastos extras: lista de {desc, monto, trasladar} (suma con decimales exactos).
+    # trasladar=True (default) -> se traslada a la liquidación del propietario;
+    # False -> lo cobramos junto con el alquiler pero es plata nuestra (ej. seguro).
     gastos = []
     gastos_total = q2(0)
     for g in (d.get("gastos") or []):
         desc = (g.get("desc") or "").strip()
         monto = parse_num(g.get("monto"))
         if desc and monto is not None:
-            gastos.append((desc, monto))
+            trasladar = g.get("trasladar")
+            trasladar = True if trasladar is None else bool(trasladar)
+            gastos.append((desc, monto, trasladar))
             gastos_total += q2(monto)
 
     total = q2(precio) + q2(mora) + gastos_total
@@ -479,8 +489,9 @@ def rapido():
         observaciones=(d.get("observaciones") or "").strip(),
         mora=mora, total=total, pagado=pagado, saldo=saldo, estado=estado,
     )
-    for desc, monto in gastos:
-        pago.gastos.append(GastoExtra(descripcion=desc, monto=monto))
+    for desc, monto, trasladar in gastos:
+        pago.gastos.append(GastoExtra(descripcion=desc, monto=monto,
+                                      trasladar_liquidacion=trasladar))
     db.session.add(pago)
     try:
         db.session.commit()

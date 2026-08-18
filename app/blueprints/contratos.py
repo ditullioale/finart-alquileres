@@ -160,7 +160,8 @@ def _ficha_360(contrato, hoy):
     if info["pago"] is None:
         cobro = dict(monto=info["esperado"],
                      mora=float(calcular_mora(info["esperado"], contrato.mora_diaria_pct,
-                                              info["venc"], hoy) or 0))
+                                              info["venc"], hoy) or 0),
+                     venc=info["venc"].isoformat() if info["venc"] else None)
     return dict(pagos=pagos, liquidaciones=liquidaciones, gas=gas,
                 dias_restantes=dias_restantes, cobro=cobro)
 

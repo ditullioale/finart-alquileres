@@ -493,6 +493,13 @@ class GastoExtra(db.Model):
     pago_id = db.Column(db.Integer, db.ForeignKey("pagos.id"), nullable=False)
     descripcion = db.Column(db.String(120))               # Agua, Expensas, Descuento...
     monto = db.Column(db.Numeric(14, 2))                  # negativo = descuento
+    # Si es True, el importe se traslada al propietario en la liquidación (además
+    # del alquiler, sin comisión). Si es False, queda afuera: lo cobramos junto con
+    # el alquiler pero es plata nuestra (ej.: un seguro que pagamos nosotros), no
+    # del propietario. Default True: mantiene el criterio de "esto es del
+    # propietario salvo que se diga lo contrario" para cosas como agua o expensas.
+    trasladar_liquidacion = db.Column(db.Boolean, default=True, nullable=False,
+                                      server_default=db.text("true"))
 
     pago = db.relationship("Pago", back_populates="gastos")
 

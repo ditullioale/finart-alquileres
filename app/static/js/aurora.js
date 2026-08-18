@@ -77,11 +77,13 @@
           '<div><div style="font-weight:550">' + esc(r.quien) + '</div>' +
           '<div class="mut" style="font-size:12px">' + esc(r.det || '') + '</div></div></div>' +
         '<div class="field"><label>Mora' +
-          (mora ? ' <button type="button" class="btn ghost sm" style="float:right;padding:1px 9px" onclick="Peek.sacarMora()">Sacar mora</button>' : '') +
-          '</label>' +
+          '<span style="float:right;display:flex;gap:6px">' +
+          '<button type="button" class="btn ghost sm" style="padding:1px 9px" onclick="Peek.calcularMora()">↻ Calcular</button>' +
+          '<button type="button" class="btn ghost sm" style="padding:1px 9px" onclick="Peek.sacarMora()">Sacar mora</button>' +
+          '</span></label>' +
           '<div class="inp-money"><span class="cur">$</span>' +
           '<input class="inp num" id="cobro-mora" value="' + mora.toLocaleString('es-AR') + '" oninput="Peek.moraTocada=true;Peek.syncMonto();Peek.recalc()"></div>' +
-          '<p class="hint">Se suma al importe recibido. Poné 0 (o tocá "Sacar mora") si esta vez no la cobrás.</p></div>' +
+          '<p class="hint" id="cobro-mora-hint">Se suma al importe recibido. Poné 0 (o tocá "Sacar mora" / "Calcular") si esta vez no la cobrás.</p></div>' +
         '<div class="field"><label>Importe recibido</label>' +
           '<div class="inp-money"><span class="cur">$</span>' +
           '<input class="inp num" id="cobro-monto" value="' + total.toLocaleString('es-AR') + '"></div>' +
@@ -93,6 +95,12 @@
           '<button type="button">Cheque</button></div></div>' +
         '<div class="field"><label>Fecha</label><input class="inp" type="date" id="cobro-fecha" value="' +
           (r.hoy || new Date().toISOString().slice(0, 10)) + '"></div>' +
+        '<div class="field"><label>Gastos extra (opcional)</label>' +
+          '<div id="cobro-gastos"></div>' +
+          '<button type="button" class="btn ghost sm" onclick="Peek.agregarGasto()">+ Agregar gasto</button>' +
+          '<p class="hint">Agua, expensas, seguro... "Trasladar" tildado = se suma a la liquidación del ' +
+          'propietario (sin comisión); destildado = lo cobramos junto con el alquiler pero queda para la ' +
+          'inmobiliaria (ej.: un seguro que pagamos nosotros).</p></div>' +
         '<div class="calc" id="cobro-calc"></div>' +
         '<div class="field" style="margin-top:14px"><label>Nota (opcional)</label>' +
           '<textarea class="inp" id="cobro-obs" placeholder="Ej.: paga con dos transferencias"></textarea></div>' +
@@ -110,7 +118,40 @@
         Array.prototype.forEach.call(b.parentElement.children, function (x) { x.classList.remove('on'); });
         b.classList.add('on');
       });
+      // Si cambian la fecha de pago y todavía no tocaron la mora a mano, la
+      // recalculamos para esa fecha (igual que al abrir el modal).
+      $('#cobro-fecha').addEventListener('change', function () {
+        if (!Peek.moraTocada) Peek.calcularMora();
+      });
       Peek.idem = 'cobro-' + (r.cid || '') + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+      Peek.recalc();
+    },
+    // Recalcula la mora para la fecha de pago elegida: gracia hasta el
+    // vencimiento, y si se paga tarde los días cuentan desde el día 1 del mes
+    // del vencimiento (misma regla que utils.calcular_mora en el servidor).
+    calcularMora: function () {
+      var r = Peek._r || {};
+      var el = $('#cobro-mora'), hint = $('#cobro-mora-hint');
+      if (!el) return;
+      var pct = Number(r.morapct) || 0, precio = Number(r.monto) || 0;
+      var fp = ($('#cobro-fecha') || {}).value;
+      if (!r.venc || !fp || !precio || !pct) {
+        if (hint) hint.textContent = '';
+        return;
+      }
+      var dv = new Date(r.venc + 'T00:00:00'), dp = new Date(fp + 'T00:00:00');
+      var dia1 = new Date(dv.getFullYear(), dv.getMonth(), 1);
+      var dias = Math.floor((dp - dia1) / 86400000);
+      var mora = (dp > dv && dias > 0) ? Math.round(precio * (pct / 100) * dias * 100) / 100 : 0;
+      el.value = mora.toLocaleString('es-AR');
+      Peek.moraTocada = false;
+      if (hint) {
+        hint.textContent = mora > 0
+          ? (dias + ' día(s) desde el 1° del mes × ' + pct + '%/día sobre el alquiler')
+          : 'Pagó dentro del vencimiento: mora 0';
+        hint.style.color = mora > 0 ? 'var(--err)' : 'var(--muted)';
+      }
+      Peek.syncMonto();
       Peek.recalc();
     },
     // Pone la mora en 0 y refleja el cambio en "Importe recibido" (si el
@@ -123,24 +164,65 @@
       Peek.recalc();
     },
     // Mientras el usuario no haya editado "Importe recibido" a mano, lo
-    // mantiene sincronizado con base + mora (para que al sacar la mora el
-    // importe sugerido baje solo).
+    // mantiene sincronizado con base + mora + gastos extra (para que al sacar
+    // la mora, o al agregar un gasto, el importe sugerido se ajuste solo).
     syncMonto: function () {
       if (Peek.montoTocado) return;
       var r = Peek._r || {}, base = Number(r.monto) || 0;
       var mora = leerMonto(($('#cobro-mora') || {}).value);
+      var gastos = Peek.gastosTotal();
       var el = $('#cobro-monto'); if (!el) return;
-      el.value = (base + mora).toLocaleString('es-AR');
+      el.value = (base + mora + gastos).toLocaleString('es-AR');
+    },
+    // Agrega una fila de "gasto extra" (desc + monto + trasladar al propietario).
+    agregarGasto: function (desc, monto, trasladar) {
+      trasladar = trasladar === undefined ? true : !!trasladar;
+      var wrap = $('#cobro-gastos'); if (!wrap) return;
+      var row = document.createElement('div');
+      row.className = 'gasto-row';
+      row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap';
+      row.innerHTML =
+        '<input class="inp g-desc" placeholder="Descripción" style="flex:2;min-width:110px" value="' + esc(desc || '') + '">' +
+        '<input class="inp num g-monto" placeholder="Monto" style="flex:1;min-width:90px" value="' +
+          (monto !== undefined && monto !== null ? monto : '') + '">' +
+        '<label class="chk" style="font-size:12px;white-space:nowrap"><input type="checkbox" class="g-trasladar"' +
+          (trasladar ? ' checked' : '') + '>Trasladar</label>' +
+        '<button type="button" class="btn ghost sm" title="Quitar">✕</button>';
+      row.querySelector('.g-monto').addEventListener('input', function () { Peek.syncMonto(); Peek.recalc(); });
+      row.querySelector('button').addEventListener('click', function () {
+        row.remove(); Peek.syncMonto(); Peek.recalc();
+      });
+      wrap.appendChild(row);
+    },
+    gastosTotal: function () {
+      var t = 0;
+      document.querySelectorAll('#cobro-gastos .gasto-row .g-monto').forEach(function (i) {
+        t += leerMonto(i.value);
+      });
+      return t;
+    },
+    leerGastos: function () {
+      var out = [];
+      document.querySelectorAll('#cobro-gastos .gasto-row').forEach(function (row) {
+        var desc = (row.querySelector('.g-desc').value || '').trim();
+        var monto = leerMonto(row.querySelector('.g-monto').value);
+        if (desc && monto) {
+          out.push({ desc: desc, monto: monto, trasladar: row.querySelector('.g-trasladar').checked });
+        }
+      });
+      return out;
     },
     recalc: function () {
       var r = Peek._r || {}, base = Number(r.monto) || 0;
       var mora = leerMonto(($('#cobro-mora') || {}).value);
+      var gastos = Peek.gastosTotal();
       var v = leerMonto(($('#cobro-monto') || {}).value);
-      var saldo = base + mora - v;
+      var saldo = base + mora + gastos - v;
       var el = $('#cobro-calc'); if (!el) return;
       el.innerHTML =
         '<div class="l">' + esc(r.periodo || 'Alquiler') + ' <b>' + money(base) + '</b></div>' +
         (mora ? '<div class="l">Mora <b>' + money(mora) + '</b></div>' : '') +
+        (gastos ? '<div class="l">Gastos extra <b>' + money(gastos) + '</b></div>' : '') +
         '<div class="l">Recibís <b>' + money(v) + '</b></div>' +
         '<div class="l tot">' + (saldo > 0 ? 'Queda debiendo' : 'Saldo') +
           ' <b style="color:' + (saldo > 0 ? 'var(--err)' : 'var(--ok)') + '">' +
@@ -156,6 +238,7 @@
         cid: r.cid, mes: r.mes, anio: r.anio, precio: r.monto,
         pagado: leerMonto($('#cobro-monto').value),
         mora: Peek.moraTocada ? leerMonto($('#cobro-mora').value) : null,
+        gastos: Peek.leerGastos(),
         fecha: ($('#cobro-fecha') || {}).value || '',
         forma_pago: forma.trim(),
         observaciones: ($('#cobro-obs') || {}).value || '',

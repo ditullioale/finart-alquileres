@@ -208,6 +208,8 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
       </div>
 
       <label style="margin-top:12px">Gastos extras</label>
+      <p class="hint" style="margin-top:2px">Agua, expensas, seguro... "Trasladar al propietario" tildado = se
+        suma a su liquidación (sin comisión); destildado = queda para la inmobiliaria.</p>
       <div id="cm-gastos"></div>
       <button type="button" class="btn sec sm" style="margin-top:6px" onclick="cmAddGasto()">+ Agregar gasto</button>
 
@@ -241,11 +243,14 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
   }
   var cur = '$';
   function num(id){ return parseFloat(document.getElementById(id).value) || 0; }
-  window.cmAddGasto = function(desc, monto){
+  window.cmAddGasto = function(desc, monto, trasladar){
+    trasladar = trasladar === undefined ? true : !!trasladar;
     var wrap = document.getElementById('cm-gastos');
     var row = document.createElement('div'); row.className = 'gasto-row';
     row.innerHTML = '<input type="text" placeholder="Descripción" class="g-desc" style="flex:1" value="'+(desc||'')+'">'
       + '<input type="number" step="0.01" placeholder="Monto" class="g-monto" style="width:120px" value="'+(monto||'')+'">'
+      + '<label class="chk" style="white-space:nowrap;font-size:12px"><input type="checkbox" class="g-trasladar"'
+      + (trasladar ? ' checked' : '') + '>Trasladar al propietario</label>'
       + '<button type="button" class="btn sec sm" title="Quitar">✕</button>';
     row.querySelector('button').addEventListener('click', function(){ row.remove(); cmTotal(); });
     row.querySelector('.g-monto').addEventListener('input', cmTotal);
@@ -272,12 +277,15 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
     var fp = document.getElementById('cm-fecha').value;
     var hint = document.getElementById('cm-mora-hint');
     if(!venc || !fp || !precio){ hint.textContent=''; return; }
+    // Gracia hasta el vencimiento; si paga tarde, los días cuentan desde el
+    // día 1 del mes del vencimiento (misma regla que utils.calcular_mora).
     var dv = new Date(venc + 'T00:00:00'), dp = new Date(fp + 'T00:00:00');
-    var dias = Math.floor((dp - dv) / 86400000);
-    var mora = dias > 0 ? Math.round(precio * (pct/100) * dias * 100) / 100 : 0;
+    var dia1 = new Date(dv.getFullYear(), dv.getMonth(), 1);
+    var dias = Math.floor((dp - dia1) / 86400000);
+    var mora = (dp > dv && dias > 0) ? Math.round(precio * (pct/100) * dias * 100) / 100 : 0;
     document.getElementById('cm-mora').value = mora;
     cmMoraTocada = false;
-    if(dias > 0){ hint.textContent = dias + ' día(s) de atraso × ' + pct + '%/día'; hint.style.color='var(--err)'; }
+    if(mora > 0){ hint.textContent = dias + ' día(s) desde el 1° × ' + pct + '%/día sobre el alquiler'; hint.style.color='var(--err)'; }
     else { hint.textContent = 'Al día (sin mora)'; hint.style.color='var(--muted)'; }
     cmTotal();
   };
@@ -402,7 +410,8 @@ window.__tot = { cobrado: {{ totales.cobrado|round(2) }}, pendiente: {{ totales.
     document.querySelectorAll('#cm-gastos .gasto-row').forEach(function(r){
       var desc = r.querySelector('.g-desc').value.trim();
       var monto = parseFloat(r.querySelector('.g-monto').value);
-      if(desc && !isNaN(monto)) gastos.push({desc:desc, monto:monto});
+      var trasladar = r.querySelector('.g-trasladar').checked;
+      if(desc && !isNaN(monto)) gastos.push({desc:desc, monto:monto, trasladar:trasladar});
     });
     var payload = {
       cid: document.getElementById('cm-cid').value, mes: period.mes, anio: period.anio,
