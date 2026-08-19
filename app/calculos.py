@@ -208,3 +208,16 @@ def etiqueta_operativa(info):
     if info["vencido"]:
         return "Vencido 1-5" if info["dias_atraso"] <= 5 else "Vencido +5"
     return "Sin cobrar"
+
+
+def numero_periodo(contrato, mes, anio):
+    """En qué mes de la duración del contrato cae un período (mes, anio).
+
+    1-indexado desde el mes de fecha_inicio: el propio mes de inicio es el 1.
+    Devuelve (numero, total_meses) o None si falta fecha_inicio o duración
+    (por ej. un contrato sin duración fija). Sirve para mostrar "3/24" junto
+    al período en las liquidaciones -- a qué altura del contrato está ese pago."""
+    if not contrato.fecha_inicio or not contrato.duracion_meses or not mes or not anio:
+        return None
+    numero = _ym(date(anio, mes, 1)) - _ym(contrato.fecha_inicio) + 1
+    return numero, contrato.duracion_meses

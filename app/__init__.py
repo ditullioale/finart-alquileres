@@ -261,6 +261,11 @@ def create_app(config_class=Config):
     from .utils import link_whatsapp
     app.jinja_env.globals["wa_link"] = link_whatsapp
 
+    # numero_periodo(contrato, mes, anio) -> (numero, total) o None. A qué mes de
+    # la duración del contrato corresponde un período (para mostrar "3/24").
+    from .calculos import numero_periodo
+    app.jinja_env.globals["numero_periodo"] = numero_periodo
+
     # Símbolo de moneda: "Pesos" -> "$", "Dólares"/"Dolares" -> "US$".
     @app.template_filter("simbolo")
     def simbolo(moneda):

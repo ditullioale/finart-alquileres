@@ -59,7 +59,10 @@
           {% if (p.saldo or 0) > 0 %}<a href="{{ url_for('cobros.abonar', pid=p.id) }}"><b>Abonar</b></a>{% endif %}
           <a href="{{ url_for('recibos.recibo', pid=p.id) }}" target="_blank">Recibo</a>
           <a href="{{ url_for('recibos.recibo_pdf', pid=p.id) }}">PDF</a>
-          <a href="{{ url_for('recibos.liquidacion', pid=p.id) }}" target="_blank">Liquidación</a>
+          {% set propietario_id = c.propietario_id or (c.inmueble.propietario_id if c.inmueble else none) %}
+          {% if propietario_id %}
+          <a href="{{ url_for('liquidaciones.ver', pid=propietario_id, mes=p.periodo_mes, anio=p.periodo_anio, contrato=c.id) }}" target="_blank">Liquidación</a>
+          {% endif %}
           <a href="{{ url_for('cobros.editar', pid=p.id) }}">Editar</a>
           <form method="post" action="{{ url_for('cobros.anular', pid=p.id) }}"
                 onsubmit="return confirm('¿Anular este pago? Queda como anulado (no se borra) y el período podrá cobrarse de nuevo.')">

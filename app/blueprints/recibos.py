@@ -140,22 +140,20 @@ def recibo_email(pid):
 @recibos_bp.route("/liquidacion/pago/<int:pid>")
 @login_required
 def liquidacion(pid):
+    """Liquidación de un pago puntual: redirige a la liquidación oficial
+    (liquidaciones.ver, filtrada a este contrato/período) en vez de calcular
+    un documento aparte -- antes duplicaba la cuenta acá con otra lógica
+    (sin gastos extra, sin otros conceptos) y podía dar un neto distinto del
+    que se ve desde "Liquidaciones" en general para el mismo pago."""
     pago = db.session.get(Pago, pid) or abort(404)
-    a = Ajustes.get()
-    from ..utils import q2
-    from decimal import Decimal
-    inm = pago.contrato.inmueble
-    alquiler = q2(pago.precio_alquiler)
-    if pago.contrato.comision_pct is not None:
-        pct = float(pago.contrato.comision_pct)
-    else:
-        pct = float(inm.comision_pct or 0) if inm else 0
-    comision = q2(alquiler * q2(pct) / Decimal(100))
-    neto = alquiler - comision
-    alquiler = float(alquiler); comision = float(comision); neto = float(neto)
-    return render_template("recibos/liquidacion.html", pago=pago, c=pago.contrato, a=a,
-                           alquiler=alquiler, pct=pct, comision=comision, neto=neto,
-                           neto_letras=pesos_letras(neto), meses=MESES_ES, hoy=date.today())
+    c = pago.contrato
+    propietario_id = c.propietario_id or (c.inmueble.propietario_id if c.inmueble else None)
+    if not propietario_id:
+        flash("Este contrato no tiene propietario asignado: no se puede liquidar.", "error")
+        return redirect(url_for("cobros.detalle", cid=c.id))
+    return redirect(url_for("liquidaciones.ver", pid=propietario_id,
+                            mes=pago.periodo_mes, anio=pago.periodo_anio,
+                            contrato=c.id))
 
 
 # --------------------------------------------------------------------------- #
