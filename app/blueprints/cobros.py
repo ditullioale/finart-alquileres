@@ -13,7 +13,7 @@ from ..models import Contrato, Pago, GastoExtra
 from ..ui import render_ui
 from ..utils import (parse_fecha, parse_num, vencimiento, calcular_mora,
                      periodo_siguiente, MESES_ES, link_whatsapp, whatsapp_valido, q2)
-from ..calculos import (estado_periodo, canon_vigente,
+from ..calculos import (estado_periodo, canon_vigente, deuda_real,
                         aumento_en_mes, aumento_registrado_en_mes)
 
 cobros_bp = Blueprint("cobros", __name__, url_prefix="/cobros")
@@ -26,7 +26,12 @@ FORMAS_PAGO = ["Efectivo", "Transferencia", "Transferencia prop / inmo", "Cheque
 # --------------------------------------------------------------------------- #
 def _resumen(contrato):
     pagos = sorted(contrato.pagos, key=lambda p: (p.periodo_anio or 0, p.periodo_mes or 0))
-    deuda = sum(float(p.saldo or 0) for p in contrato.pagos)
+    # Deuda real: incluye los meses vencidos que ni siquiera se llegaron a
+    # registrar como pago (no solo los saldos de pagos parciales ya cargados).
+    # Antes esto sumaba nomás p.saldo de los pagos existentes, así que un
+    # contrato con meses sin cargar mostraba "Deuda registrada $0" acá aunque
+    # la ficha del contrato (que sí usa deuda_real) mostrara la deuda real.
+    deuda = deuda_real(contrato, date.today())
     if pagos:
         ult = pagos[-1]
         mes, anio = periodo_siguiente(ult.periodo_mes or 1, ult.periodo_anio or date.today().year)

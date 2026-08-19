@@ -377,7 +377,11 @@ def dashboard():
     )
     from sqlalchemy import func
     from ..models import Aumento
-    deuda = float(db.session.query(func.coalesce(func.sum(Pago.saldo), 0)).scalar() or 0)
+    from ..calculos import deuda_real
+    # Deuda real de cada contrato vigente (incluye meses vencidos nunca
+    # registrados como pago, no solo la suma de saldos ya cargados).
+    deuda = round(sum(deuda_real(c, hoy)
+                      for c in Contrato.query.filter_by(estado="Vigente").all()), 2)
     _cnt = dict(db.session.query(Aumento.contrato_id, func.count(Aumento.id))
                 .group_by(Aumento.contrato_id).all())
     aumentos_pend = 0
