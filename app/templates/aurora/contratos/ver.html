@@ -142,7 +142,8 @@
           {% for lq in liquidaciones[:4] %}
           <tr>
             <td><b>{{ lq.numero or '#' ~ lq.id }}</b>
-              <div class="mut">{{ meses[lq.periodo_mes] if lq.periodo_mes else '' }} {{ lq.periodo_anio or '' }}</div></td>
+              {% set np = numero_periodo(c, lq.periodo_mes, lq.periodo_anio) %}
+              <div class="mut">{{ meses[lq.periodo_mes] if lq.periodo_mes else '' }} {{ lq.periodo_anio or '' }}{% if np %} ({{ np[0] }}/{{ np[1] }}){% endif %}</div></td>
             <td class="r">$ {{ (lq.total_comision or 0)|money }}</td>
             <td>{% include "aurora/contratos/_factura.html" %}</td>
           </tr>
@@ -294,7 +295,8 @@
       {% for lq in liquidaciones %}
       <tr>
         <td><b>{{ lq.numero or '#' ~ lq.id }}</b><div class="mut">{{ lq.fecha.strftime('%d/%m/%Y') if lq.fecha else '' }}</div></td>
-        <td class="mut">{{ meses[lq.periodo_mes] if lq.periodo_mes else '' }} {{ lq.periodo_anio or '' }}</td>
+        {% set np = numero_periodo(c, lq.periodo_mes, lq.periodo_anio) %}
+        <td class="mut">{{ meses[lq.periodo_mes] if lq.periodo_mes else '' }} {{ lq.periodo_anio or '' }}{% if np %} ({{ np[0] }}/{{ np[1] }}){% endif %}</td>
         <td class="r">$ {{ (lq.total_ingresos or 0)|money }}</td>
         <td class="r">$ {{ (lq.total_comision or 0)|money }}</td>
         <td class="r"><b>$ {{ (lq.total_neto or 0)|money }}</b></td>

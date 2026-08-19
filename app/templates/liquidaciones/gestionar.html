@@ -50,7 +50,9 @@
     <tr>
       <td><b>{{ it.inmueble.direccion }}</b></td>
       <td>{{ it.inquilino.nombre if it.inquilino else '—' }}</td>
-      <td>{{ meses[it.pago.periodo_mes] if it.pago.periodo_mes }} {{ it.pago.periodo_anio }}</td>
+      <td>{{ meses[it.pago.periodo_mes] if it.pago.periodo_mes }} {{ it.pago.periodo_anio }}
+        {% set np = numero_periodo(it.contrato, it.pago.periodo_mes, it.pago.periodo_anio) %}
+        {% if np %}<span class="hint" style="display:inline" title="Mes {{ np[0] }} de {{ np[1] }} del contrato">({{ np[0] }}/{{ np[1] }})</span>{% endif %}</td>
       <td class="r">{{ it.alquiler|money }}</td>
       <td class="r">- {{ it.comision|money }} <span class="hint" style="display:inline">({{ it.pct }}%)</span></td>
       <td class="r">{% if it.extras %}+ {{ it.extras|money }}
