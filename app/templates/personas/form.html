@@ -7,8 +7,15 @@
   <div class="grid2">
     <div class="full"><label>Nombre y apellido *</label>
       <input name="nombre" value="{{ persona.nombre or '' }}" required autofocus></div>
-    <div><label>DNI</label><input name="dni" value="{{ persona.dni or '' }}"></div>
-    <div><label>CUIT / CUIL</label><input name="cuit" value="{{ persona.cuit or '' }}"></div>
+    <div><label>DNI</label><input name="dni" id="dni" value="{{ persona.dni or '' }}"></div>
+    <div><label>CUIT / CUIL</label>
+      <input name="cuit" id="cuit" value="{{ persona.cuit or '' }}">
+      <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">
+        <span class="hint" style="margin:0">Calcular desde el DNI:</span>
+        <button type="button" class="btn sec sm" onclick="calcularCuit('M')">Varón</button>
+        <button type="button" class="btn sec sm" onclick="calcularCuit('F')">Mujer</button>
+      </div>
+      <span id="cuit-hint" class="hint"></span></div>
     <div class="full"><label>Domicilio</label>
       <input name="domicilio" value="{{ persona.domicilio or '' }}"></div>
     <div><label>Localidad</label><input name="localidad" value="{{ persona.localidad or '' }}"></div>
@@ -73,5 +80,37 @@ function actualizarCheck() {
 }
 telInput.addEventListener('input', actualizarCheck);
 actualizarCheck();
+
+// Calcular CUIT desde el DNI: no se puede derivar el prefijo (20 varón /
+// 27 mujer) del DNI solo -- depende del sexo registrado en AFIP, que no
+// guardamos -- así que lo elegís vos acá con el botón y se arma el CUIT
+// con el algoritmo oficial (módulo 11, coeficientes 5,4,3,2,7,6,5,4,3,2),
+// incluido el caso especial: si el resto da 1, el prefijo pasa a 23 y el
+// verificador es 9 (venía de varón) o 4 (venía de mujer). Solo llena el
+// campo -- se guarda recién cuando confirmás y le das Guardar.
+function calcularCuit(sexo) {
+  const hint = document.getElementById('cuit-hint');
+  const dni = (document.getElementById('dni').value || '').replace(/\D/g, '');
+  if (dni.length !== 7 && dni.length !== 8) {
+    hint.textContent = 'Cargá primero un DNI válido (7 u 8 dígitos) y probá de nuevo.';
+    hint.style.color = 'var(--err)';
+    return;
+  }
+  const dni8 = dni.padStart(8, '0');
+  const prefijo = sexo === 'M' ? '20' : '27';
+  const base = prefijo + dni8;
+  const coefs = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
+  let suma = 0;
+  for (let i = 0; i < 10; i++) suma += parseInt(base[i], 10) * coefs[i];
+  const resto = suma % 11;
+  let prefFinal = prefijo, verif;
+  if (resto === 0) verif = 0;
+  else if (resto === 1) { prefFinal = '23'; verif = sexo === 'M' ? 9 : 4; }
+  else verif = 11 - resto;
+  document.getElementById('cuit').value = prefFinal + '-' + dni8 + '-' + verif;
+  hint.textContent = 'Calculado a partir del DNI (' + (sexo === 'M' ? 'varón' : 'mujer') +
+    '). Revisalo antes de guardar -- no confirma que sea el CUIT real de la persona, solo hace la cuenta.';
+  hint.style.color = 'var(--muted)';
+}
 </script>
 {% endblock %}
