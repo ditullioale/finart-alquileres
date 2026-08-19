@@ -5,8 +5,7 @@ from flask import Blueprint, render_template, redirect, url_for
 from flask_login import login_required
 from sqlalchemy.exc import SQLAlchemyError
 
-from .. import db
-from ..models import Persona, Inmueble, Contrato, Pago, GasEstado
+from ..models import Persona, Inmueble, Contrato, GasEstado
 from ..utils import MESES_ES, calcular_mora, link_whatsapp
 from ..calculos import estado_periodo, etiqueta_operativa
 from ..ui import render_ui
@@ -26,16 +25,26 @@ def index():
         "contratos_vigentes": Contrato.query.filter_by(estado="Vigente").count(),
     }
 
-    # Pendientes: deuda total y aumentos por aplicar.
-    from sqlalchemy import func
     from sqlalchemy.orm import joinedload
-    from ..models import Aumento
-    deuda = float(db.session.query(func.coalesce(func.sum(Pago.saldo), 0)).scalar() or 0)
     hoy = date.today()
-    from ..calculos import proximo_aumento
+    from ..calculos import proximo_aumento, deuda_real
+
+    # Contratos vigentes: una sola consulta, reusada para deuda, aumentos y
+    # cobranzas del mes (evita repetirla tres veces).
+    contratos_vig = (Contrato.query.filter_by(estado="Vigente")
+                     .options(joinedload(Contrato.inquilino),
+                              joinedload(Contrato.inmueble),
+                              joinedload(Contrato.pagos),
+                              joinedload(Contrato.aumentos))
+                     .all())
+
+    # Deuda total: los meses vencidos sin cobrar de cada contrato, no solo la
+    # suma de saldos de los pagos ya cargados -- un contrato con meses sin
+    # registrar (nunca se llegó a asentar el cobro) también debe.
+    deuda = round(sum(deuda_real(c, hoy) for c in contratos_vig), 2)
+
     aumentos_pend = 0
-    for c in (Contrato.query.filter_by(estado="Vigente")
-              .options(joinedload(Contrato.aumentos)).all()):
+    for c in contratos_vig:
         if c.metodo_ajuste == "sin_ajuste" or not c.ajuste_cada_meses:
             continue
         prox = proximo_aumento(c)
@@ -58,11 +67,6 @@ def index():
 
     # Cobranzas del mes en curso: quién todavía no pagó (lo que la inmobiliaria
     # mira todos los días). Compacto, para el panel de inicio.
-    contratos_vig = (Contrato.query.filter_by(estado="Vigente")
-                     .options(joinedload(Contrato.inquilino),
-                              joinedload(Contrato.inmueble),
-                              joinedload(Contrato.pagos))
-                     .all())
     morosos, cobrados, monto_pend, vencen_hoy = [], 0, 0.0, 0
     for c in contratos_vig:
         info = estado_periodo(c, hoy.month, hoy.year, hoy=hoy)

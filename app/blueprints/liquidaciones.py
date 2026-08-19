@@ -460,16 +460,20 @@ def resumen(pid):
         if pago and float(pago.pagado or 0) > 0:
             alq = float(pago.precio_alquiler or 0)
             com = round(alq * pct / 100.0, 2)
-            neto = round(alq - com, 2)
+            # Gastos extra trasladados (agua, expensas...): se suman al neto tal
+            # cual, sin comisión -- misma regla que liquidaciones._detalle().
+            extras = round(sum(float(g.monto or 0) for g in pago.gastos
+                               if g.trasladar_liquidacion), 2)
+            neto = round(alq - com + extras, 2)
             estado = "Cobrado"
             tot_alq += alq; tot_com += com; tot_neto += neto
         else:
             alq = float(c.precio_actual or c.precio_inicial or 0)
-            com = neto = 0.0
+            com = neto = extras = 0.0
             estado = "Pendiente"
             tot_pend += alq
         filas.append(dict(c=c, estado=estado, alquiler=alq, pct=pct,
-                          comision=com, neto=neto))
+                          comision=com, extras=extras, neto=neto))
     filas.sort(key=lambda f: f["estado"])
 
     a = Ajustes.get()

@@ -57,7 +57,7 @@
     <table>
       <thead>
         <tr><th>Inmueble</th><th>Inquilino</th><th>Estado</th>
-            <th class="r">Alquiler</th><th class="r">Comisión</th><th class="r">Neto</th></tr>
+            <th class="r">Alquiler</th><th class="r">Comisión</th><th class="r">Extras</th><th class="r">Neto</th></tr>
       </thead>
       <tbody>
         {% for f in filas %}
@@ -67,10 +67,11 @@
           <td class="{{ 'ok' if f.estado=='Cobrado' else 'pend' }}">{{ f.estado }}</td>
           <td class="r">{{ f.alquiler|money }}</td>
           <td class="r">{% if f.estado=='Cobrado' %}<span class="neg">- {{ f.comision|money }}</span> <span style="color:#999">({{ f.pct }}%)</span>{% else %}—{% endif %}</td>
+          <td class="r">{% if f.estado=='Cobrado' and f.extras %}{{ f.extras|money }}{% else %}—{% endif %}</td>
           <td class="r">{% if f.estado=='Cobrado' %}{{ f.neto|money }}{% else %}—{% endif %}</td>
         </tr>
         {% else %}
-        <tr><td colspan="6" style="text-align:center;color:#888">Sin contratos vigentes.</td></tr>
+        <tr><td colspan="7" style="text-align:center;color:#888">Sin contratos vigentes.</td></tr>
         {% endfor %}
       </tbody>
     </table>
