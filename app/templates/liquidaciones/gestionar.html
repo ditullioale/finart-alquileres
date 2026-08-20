@@ -56,9 +56,14 @@
         {% if np %}<span class="hint" style="display:inline" title="Mes {{ np[0] }} de {{ np[1] }} del contrato">({{ np[0] }}/{{ np[1] }})</span>{% endif %}</td>
       <td class="r">{{ it.alquiler|money }}</td>
       <td class="r">- {{ it.comision|money }} <span class="hint" style="display:inline">({{ it.pct }}%)</span></td>
-      <td class="r">{% if it.extras %}+ {{ it.extras|money }}
-        <span class="hint" style="display:inline" title="Gastos extra del cobro marcados para trasladar (agua, expensas...), sin comisión">ⓘ</span>
-        {% else %}—{% endif %}</td>
+      <td class="r">
+        {% if it.gastos %}
+          {% for g in it.gastos %}
+          <div class="hint" style="display:block;white-space:nowrap">{{ g.descripcion }}: {{ g.monto|money }}</div>
+          {% endfor %}
+          <div>+ {{ it.extras|money }}</div>
+        {% else %}—{% endif %}
+      </td>
       <td class="r"><b>{{ it.neto|money }}</b></td>
       <td>{% if it.liquidada %}<span class="badge pagado">Liquidada</span>{% else %}<span class="badge parcial">Pendiente</span>{% endif %}</td>
       <td class="actions">

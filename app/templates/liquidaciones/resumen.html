@@ -67,7 +67,14 @@
           <td class="{{ 'ok' if f.estado=='Cobrado' else 'pend' }}">{{ f.estado }}</td>
           <td class="r">{{ f.alquiler|money }}</td>
           <td class="r">{% if f.estado=='Cobrado' %}<span class="neg">- {{ f.comision|money }}</span> <span style="color:#999">({{ f.pct }}%)</span>{% else %}—{% endif %}</td>
-          <td class="r">{% if f.estado=='Cobrado' and f.extras %}{{ f.extras|money }}{% else %}—{% endif %}</td>
+          <td class="r">
+            {% if f.estado=='Cobrado' and f.gastos %}
+              {% for g in f.gastos %}
+              <div style="font-size:10.5px;color:#666;white-space:nowrap">{{ g.descripcion }}: {{ g.monto|money }}</div>
+              {% endfor %}
+              <div>{{ f.extras|money }}</div>
+            {% else %}—{% endif %}
+          </td>
           <td class="r">{% if f.estado=='Cobrado' %}{{ f.neto|money }}{% else %}—{% endif %}</td>
         </tr>
         {% else %}

@@ -135,7 +135,14 @@
             {% if np %}<span style="color:#999">({{ np[0] }}/{{ np[1] }})</span>{% endif %}</td>
           <td class="r">{{ it.alquiler|money }}</td>
           <td class="r neg">- {{ it.comision|money }} <span style="color:#999">({{ it.pct }}%)</span></td>
-          <td class="r">{{ it.extras|money if it.extras else '—' }}</td>
+          <td class="r">
+            {% if it.gastos %}
+              {% for g in it.gastos %}
+              <div style="font-size:10.5px;color:#666;white-space:nowrap">{{ g.descripcion }}: {{ g.monto|money }}</div>
+              {% endfor %}
+              <div>{{ it.extras|money }}</div>
+            {% else %}—{% endif %}
+          </td>
           <td class="r">{{ it.neto|money }}</td>
         </tr>
         {% endfor %}
