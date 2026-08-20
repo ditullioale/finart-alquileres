@@ -9,6 +9,7 @@ from flask_login import login_required
 
 from .. import db
 from .. import facturador
+from ..idempotencia import nueva_clave, reservar
 from ..models import Contrato, Pago, Persona, Liquidacion, Ajustes, ConceptoLiquidacion
 from ..ui import render_ui
 from ..utils import parse_num, pesos_letras, MESES_ES
@@ -332,9 +333,15 @@ def gestionar(pid):
     pagos = _pagos_periodo(pid, mes, anio)
     items, ingresos, comision, neto = _detalle(pagos)
     pendientes = sum(1 for it in items if not it["liquidada"])
+    # Clave de idempotencia por botón: evita que un doble clic / F5 sobre el POST
+    # genere dos liquidaciones (y, peor, dos facturas de honorarios) para el mismo
+    # período. Se regenera en cada carga de la pantalla, igual que en cobros/abonar.
+    for it in items:
+        it["idem"] = nueva_clave()
     return render_template("liquidaciones/gestionar.html", prop=prop, items=items,
                            ingresos=ingresos, comision=comision, neto=neto,
-                           pendientes=pendientes, mes=mes, anio=anio, meses=MESES_ES)
+                           pendientes=pendientes, mes=mes, anio=anio, meses=MESES_ES,
+                           idem_todas=nueva_clave())
 
 
 @liquidaciones_bp.route("/imprimir/<int:pid>")
@@ -409,6 +416,14 @@ def generar():
     if not pagos:
         flash("No hay cobros pendientes de liquidar en ese período.", "error")
         return redirect(url_for("liquidaciones.gestionar", pid=pid, mes=mes, anio=anio))
+
+    # Anti doble-generación: un doble clic, F5 sobre el POST o dos pestañas no debe
+    # crear dos liquidaciones (y, peor, disparar dos facturas de honorarios reales
+    # al Facturador) para los mismos cobros. Mismo mecanismo que cobros/abonar.
+    if not reservar("liquidacion-generar", request.form.get("idem")):
+        flash("Esa liquidación ya se había generado: no la dupliqué.", "ok")
+        return redirect(url_for("liquidaciones.ver", pid=pid, mes=mes, anio=anio,
+                                contrato=contrato_id))
 
     _, ingresos, comision, neto = _detalle(pagos)
     conceptos = _leer_conceptos()

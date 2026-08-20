@@ -20,6 +20,7 @@
       onsubmit="return confirm('¿Liquidar TODAS las propiedades pendientes de {{ prop.nombre }} juntas?');">
   <input type="hidden" name="propietario_id" value="{{ prop.id }}">
   <input type="hidden" name="mes" value="{{ mes }}"><input type="hidden" name="anio" value="{{ anio }}">
+  <input type="hidden" name="idem" value="{{ idem_todas }}">
   <div class="panel" style="margin-bottom:16px">
     <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
       <b>Liquidar todo junto</b>
@@ -68,6 +69,7 @@
           <input type="hidden" name="propietario_id" value="{{ prop.id }}">
           <input type="hidden" name="contrato_id" value="{{ it.contrato.id }}">
           <input type="hidden" name="mes" value="{{ mes }}"><input type="hidden" name="anio" value="{{ anio }}">
+          <input type="hidden" name="idem" value="{{ it.idem }}">
           <button class="btn ok sm" type="submit">Liquidar</button>
         </form>
         {% endif %}
