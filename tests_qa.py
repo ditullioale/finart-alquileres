@@ -618,6 +618,17 @@ def run():
             follow_redirects=False)
         check("generar liquidación redirige (302)", _g1.status_code in (301, 302))
         check("la primera generación crea una liquidación", q(_n_liq_periodo) == _n0 + 1)
+        # El pago de este período (ids["c"], mes 7/2026) tiene un gasto extra
+        # "Expensas" cargado en Cobros (más arriba, en la sección "Cobros rápidos").
+        # Debe verse desglosado (no solo el total) en las pantallas de liquidación.
+        _ges_html = cl.get(f"/liquidaciones/propietario/{ids['prop']}?mes=7&anio=2026"
+                           ).get_data(as_text=True)
+        check("la gestión de liquidación desglosa el gasto extra por descripción",
+              "Expensas" in _ges_html)
+        _imp_html = cl.get(f"/liquidaciones/imprimir/{ids['prop']}?mes=7&anio=2026"
+                           ).get_data(as_text=True)
+        check("la liquidación impresa desglosa el gasto extra por descripción",
+              "Expensas" in _imp_html)
         # Mismo idem que el POST anterior: simula doble clic / F5 sobre el POST.
         _g2 = cl.post("/liquidaciones/generar", data={
             "propietario_id": ids["prop"], "mes": 7, "anio": 2026, "idem": _idem_liq},

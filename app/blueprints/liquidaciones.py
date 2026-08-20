@@ -59,14 +59,20 @@ def _detalle(pagos):
         pct = _comision_pct(c)
         alq = float(p.precio_alquiler or 0)
         com = round(alq * pct / 100.0, 2)
-        gex = round(sum(float(g.monto or 0) for g in p.gastos
-                        if g.trasladar_liquidacion), 2)
+        gastos_trasl = [g for g in p.gastos if g.trasladar_liquidacion]
+        gex = round(sum(float(g.monto or 0) for g in gastos_trasl), 2)
         ingresos += alq
         comision += com
         extras += gex
         items.append(dict(pago=p, contrato=c, inmueble=c.inmueble,
                           inquilino=c.inquilino, alquiler=alq, pct=pct, comision=com,
-                          extras=gex, neto=round(alq - com + gex, 2),
+                          extras=gex,
+                          # Desglose de cada gasto extra trasladado (no solo el total),
+                          # para que en la liquidación se vea qué es cada importe.
+                          gastos=[dict(descripcion=g.descripcion or "Gasto",
+                                       monto=round(float(g.monto or 0), 2))
+                                  for g in gastos_trasl],
+                          neto=round(alq - com + gex, 2),
                           liquidada=p.pagado_al_propietario is not None))
     return (items, round(ingresos, 2), round(comision, 2),
            round(ingresos - comision + extras, 2))
@@ -477,18 +483,21 @@ def resumen(pid):
             com = round(alq * pct / 100.0, 2)
             # Gastos extra trasladados (agua, expensas...): se suman al neto tal
             # cual, sin comisión -- misma regla que liquidaciones._detalle().
-            extras = round(sum(float(g.monto or 0) for g in pago.gastos
-                               if g.trasladar_liquidacion), 2)
+            gastos_trasl = [g for g in pago.gastos if g.trasladar_liquidacion]
+            extras = round(sum(float(g.monto or 0) for g in gastos_trasl), 2)
+            gastos = [dict(descripcion=g.descripcion or "Gasto",
+                           monto=round(float(g.monto or 0), 2)) for g in gastos_trasl]
             neto = round(alq - com + extras, 2)
             estado = "Cobrado"
             tot_alq += alq; tot_com += com; tot_neto += neto
         else:
             alq = float(c.precio_actual or c.precio_inicial or 0)
             com = neto = extras = 0.0
+            gastos = []
             estado = "Pendiente"
             tot_pend += alq
         filas.append(dict(c=c, estado=estado, alquiler=alq, pct=pct,
-                          comision=com, extras=extras, neto=neto))
+                          comision=com, extras=extras, gastos=gastos, neto=neto))
     filas.sort(key=lambda f: f["estado"])
 
     a = Ajustes.get()
