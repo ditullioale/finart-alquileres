@@ -274,7 +274,9 @@ def run():
               "attachment" in resp.headers.get("Content-Disposition", ""))
 
         seccion("Liquidaciones / recibos de pago")
-        liq = cl.get(f"/recibos/liquidacion/pago/{pago_id}")
+        # La ruta redirige a la liquidación oficial (liquidaciones.ver); seguimos
+        # el redirect para probar la pantalla final, no el 302 intermedio.
+        liq = cl.get(f"/recibos/liquidacion/pago/{pago_id}", follow_redirects=True)
         check("liquidacion de un pago = 200", liq.status_code == 200)
 
         seccion("Confiabilidad - montos en decimales exactos")
@@ -602,6 +604,27 @@ def run():
         check("el período recobrado cuenta como pago ACTIVO (el anulado no)",
               q(lambda: Pago.query.filter_by(contrato_id=ids["c2"], periodo_mes=7,
                 periodo_anio=2098).filter(Pago.estado != "Anulado").count()) == 1)
+
+        seccion("Liquidaciones: anti doble-generación (idempotencia)")
+        from app.models import Liquidacion as _Liq0
+
+        def _n_liq_periodo():
+            return _Liq0.query.filter_by(propietario_id=ids["prop"], periodo_mes=7,
+                                         periodo_anio=2026, contrato_id=None).count()
+        _n0 = q(_n_liq_periodo)
+        _idem_liq = "test-idem-liquidacion-1"
+        _g1 = cl.post("/liquidaciones/generar", data={
+            "propietario_id": ids["prop"], "mes": 7, "anio": 2026, "idem": _idem_liq},
+            follow_redirects=False)
+        check("generar liquidación redirige (302)", _g1.status_code in (301, 302))
+        check("la primera generación crea una liquidación", q(_n_liq_periodo) == _n0 + 1)
+        # Mismo idem que el POST anterior: simula doble clic / F5 sobre el POST.
+        _g2 = cl.post("/liquidaciones/generar", data={
+            "propietario_id": ids["prop"], "mes": 7, "anio": 2026, "idem": _idem_liq},
+            follow_redirects=False)
+        check("un segundo POST con la misma clave NO duplica la liquidación",
+              q(_n_liq_periodo) == _n0 + 1)
+        check("el segundo POST también redirige (no rompe)", _g2.status_code in (301, 302))
 
         seccion("Liquidación: guardar el comprobante emitido")
         from app.blueprints.liquidaciones import _guardar_factura as _guard
