@@ -6,8 +6,11 @@ comprobantes imprimibles (recibos y pagarés). Una sola instancia aloja varias
 inmobiliarias con sus datos **aislados**. Multiusuario, con base de datos
 PostgreSQL e instalable como app en el celular (PWA).
 
-Desarrollado en **Python (Flask)** + **PostgreSQL**, con islas de **React** en
-algunas pantallas.
+Desarrollado en **Python (Flask)** + **PostgreSQL**. Incluye un **asistente con IA**
+para consultas en lenguaje natural y **facturación electrónica AFIP/ARCA** (emisión
+real de CAE) a través del servicio *Facturador ARCA*. La interfaz tiene **dos diseños
+conmutables**: el **clásico** y **Aurora** (el nuevo, más moderno); se elige con
+`?ui=nueva`/`?ui=clasica` o la variable `UI` (ver `app/ui.py`).
 
 ---
 
@@ -25,16 +28,29 @@ algunas pantallas.
 - **Documentación de contratos** — subir y ver DNI, recibos de sueldo, etc.
   (PDF/imagen), guardados en la base junto al contrato.
 - **Cobranzas** — panel mensual tipo checklist con **vencimiento visible**;
-  registro de pagos con **mora automática**, gastos extras, **pago a cuenta /
-  parcial** y **arrastre de saldo**. Cobro rápido (modal + AJAX) y cobro ampliado.
+  registro de pagos con **mora automática** (se calcula desde el **día 1 del mes**,
+  con **gracia hasta el vencimiento**), gastos extras (con opción de **trasladar o no**
+  al propietario), **pago a cuenta / parcial** y **arrastre de saldo**. Cobro rápido
+  (modal + AJAX) y cobro ampliado. Al registrar un cobro se ofrecen las opciones de
+  **recibo** (imprimir / PDF / email / WhatsApp) en el acto. **Cargar varios pagos**
+  de una vez para contratos que arrancaron hace meses.
 - **Aumentos** — por **índice oficial** (ICL/IPC/Casa Propia, con carga manual o
   consulta al BCRA) o por **porcentaje**. Historial editable. Aviso de vencidos.
 - **Liquidaciones a propietarios** — por período; **todas juntas o individuales**;
-  comisión configurable por contrato o por inmueble. Resumen mensual. Al generar una
-  liquidación, se emite automáticamente la **factura de honorarios** (comisión) al
-  propietario a través del **Facturador ARCA** (integración opcional; ver
+  comisión configurable por contrato o por inmueble; **otros conceptos** para sumar o
+  descontar (reparaciones, expensas, reintegros), **gastos extra desglosados por
+  descripción** y **columna de período** (mes N/Total del contrato). Resumen mensual.
+  Al generar una liquidación, se emite automáticamente la **factura de honorarios**
+  (comisión) al propietario a través del **Facturador ARCA** (integración opcional; ver
   `FACTURADOR_URL` en `.env.ejemplo`). Si la comisión no supera el mínimo, la pantalla
   de la liquidación pregunta si se factura igual.
+- **Facturación electrónica AFIP/ARCA** — emisión real de comprobantes con **CAE** a
+  través del *Facturador ARCA* (en **producción**). Re-emisión segura de comprobantes
+  que hayan sido de prueba (mock/homologación) sin duplicar los reales.
+- **Asistente con IA** — globo flotante para preguntar en lenguaje natural (p. ej.
+  *"¿quién debe?"*, *"¿cuándo vence tal alquiler?"*). Responde solo con datos de la
+  inmobiliaria del usuario (herramientas acotadas por tenant, sin SQL libre). Se
+  activa con `IA_API_KEY` (ver `.env.ejemplo`).
 - **Comprobantes imprimibles** (HTML → PDF del navegador): recibos de alquiler
   (con vencimiento y fecha de pago), **recibos manuales**, liquidaciones, pagarés
   de contrato y **pagarés manuales**. El recibo de alquiler puede **enviarse por
@@ -118,6 +134,10 @@ La app lee la configuración desde variables de entorno (ver `.env.ejemplo`):
   `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` (con `EMAIL_FROM`).
 - **`SENTRY_DSN`** (opcional) — activa el monitoreo de errores con Sentry.
 - **`GAS_IMPORT_TOKEN`** — token del robot de Litoral Gas.
+- **`IA_API_KEY`** (opcional) — habilita el **asistente con IA** (API de Anthropic).
+  Sin esta clave, el globo del asistente no aparece.
+- **Facturador ARCA** (opcional) — `FACTURADOR_URL` y token de integración para la
+  facturación electrónica (ver `.env.ejemplo` y `FINART_INTEGRACION_API.md`).
 
 > El archivo `.env` guarda secretos y **no debe subirse** al repositorio
 > (excluido en `.gitignore`). El repositorio debe ser **privado**.
@@ -165,11 +185,15 @@ python importar_inmosoft.py --reset    # recrea las tablas antes de importar
 6. **Dominio propio** (opcional): Settings → Networking → Custom Domain, y cargar
    el CNAME en el registrador.
 
-## Copias de seguridad
+## Copias de seguridad y monitoreo
 
 - **App:** exportación por inmobiliaria desde Herramientas.
 - **PostgreSQL:** `pg_dump` de la base (respaldo general).
-- Ver **BACKUPS.md** para el plan de respaldos.
+- **Backups automáticos diarios** por **GitHub Actions** (`.github/workflows/backup.yml`):
+  `pg_dump` de las dos bases (gestor y facturador) con **verificación de restauración**
+  en un contenedor y retención de los artefactos. Ver **GUIA_BACKUPS.md** / **BACKUPS.md**.
+- **Monitoreo:** health checks públicos para *uptime* y una alerta semanal de
+  **vencimiento del certificado ARCA** (`.github/workflows/cert-check.yml`).
 
 ## Pruebas (QA)
 
@@ -197,13 +221,17 @@ gestion-alquileres/
 │  ├─ models.py            # modelos (incluye Inmobiliaria, auditoría, documentos, solicitudes)
 │  ├─ tenant.py            # aislamiento multiempresa (filtro + asignación)
 │  ├─ auditoria.py         # registro de acciones
+│  ├─ ui.py                # conmutador de diseño clásico / Aurora
+│  ├─ asistente.py         # asistente con IA (herramientas acotadas por tenant)
 │  ├─ emailer.py           # envío de mails (API de Brevo / SMTP o log)
 │  ├─ utils.py             # fechas, montos (Decimal), importe en letras, índices
 │  ├─ indices_oficiales.py # consulta ICL (BCRA)
 │  ├─ blueprints/          # auth, personas, inmuebles, contratos, cobros, aumentos,
-│  │                       #   liquidaciones, recibos, usuarios, ajustes, plataforma, api
-│  ├─ templates/           # vistas (Jinja2)
-│  └─ static/              # estilos, fuente Inter, íconos, manifest, service worker, React bundle
+│  │                       #   liquidaciones, recibos, usuarios, ajustes, plataforma,
+│  │                       #   api, asistente_web, facturador_web
+│  ├─ templates/           # vistas (Jinja2): diseño clásico + carpeta aurora/
+│  └─ static/              # estilos, fuente Inter, íconos, manifest, service worker, aurora.js/css
+├─ .github/workflows/      # CI + backups automáticos + alerta de vencimiento de certificado ARCA
 ├─ MANUAL_USUARIO.md       # guía de uso para el día a día
 ├─ DISENO_MULTIEMPRESA.md  # diseño del aislamiento multiempresa
 ├─ SEGUIMIENTO_FINART_2_0.md # seguimiento del roadmap

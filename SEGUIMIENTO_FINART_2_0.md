@@ -2,7 +2,7 @@
 
 Checklist tildable del roadmap. Estado: ✅ hecho · 🟡 parcial · ⬜ pendiente · 🔴 urgente
 
-Última actualización: 28/07/2026
+Última actualización: 24/08/2026
 
 Leyenda de "Quién": **Claude** = lo hago yo en el código · **Ale** = acción tuya (GitHub, legales, comercial)
 
@@ -24,8 +24,8 @@ Leyenda de "Quién": **Claude** = lo hago yo en el código · **Ale** = acción 
 - [x] ✅ Montos en **decimales exactos** (sin errores de centavos)
 - [x] ✅ Validaciones de fechas, estados y saldos (contratos, cobros)
 - [x] ✅ Reemplazar migraciones artesanales por **Alembic/Flask-Migrate**
-- [ ] 🟡 Registrar errores y mejorar mensajes (hay flashes; falta logging/monitoreo) — **Claude**
-- [ ] ⬜ Documentar flujo de cada módulo y reglas de negocio — **Claude**
+- [x] ✅ Registrar errores y mejorar mensajes (logging estructurado con `X-Request-Id` + Sentry opcional; mensajes de error más claros)
+- [ ] 🟡 Documentar flujo de cada módulo y reglas de negocio (README/MANUAL/roadmap al día; falta doc por módulo) — **Claude**
 
 ## Fase 2 · Núcleo multiempresa  ← **próximo bloque grande**
 
@@ -38,8 +38,8 @@ Leyenda de "Quién": **Claude** = lo hago yo en el código · **Ale** = acción 
 - [x] ✅ Pruebas **negativas** de aislamiento (A no ve/abre datos de B; 7 tests en la batería QA)
 - [x] ✅ Pasar `inmobiliaria_id` a NOT NULL (cierra el hueco de registros sin dueño)
 - [ ] ⬜ FK a nivel base con convención de nombres (endurecimiento opcional) — **Claude**
-- [ ] ⬜ Config por inmobiliaria: logo, datos fiscales, mora, comisión, numeración — **Claude**
-- [ ] ⬜ Rol **superadmin** de plataforma — **Claude**
+- [x] 🟡 Config por inmobiliaria: logo, datos fiscales, mora, comisión, numeración (Ajustes por inmobiliaria ✅; falta nombre de remitente de email por tenant) — **Claude**
+- [x] ✅ Rol **superadmin** de plataforma (`app/blueprints/plataforma.py` + guardia)
 
 ## Fase 3 · Producto mínimo vendible (PMV)
 
@@ -47,7 +47,7 @@ Leyenda de "Quién": **Claude** = lo hago yo en el código · **Ale** = acción 
 - [x] ✅ Roles ampliados: solo lectura y contador (bloqueo de mutaciones) + superadmin de plataforma
 - [x] ✅ **Auditoría** automática de altas, cambios y eliminaciones + pantalla admin (aislada por inmobiliaria)
 - [x] ✅ Exportación completa **por inmobiliaria** (portabilidad / baja) — tenant-safe
-- [ ] 🟡 **Backups automáticos** diarios + copia externa + prueba de restauración — **Ale** (hosting; ver `BACKUPS.md`)
+- [x] 🟡 **Backups automáticos** diarios (GitHub Actions, dos bases) + **prueba de restauración** verificada ✅; falta la **copia externa** fuera del proveedor — **Claude/Ale** (ver `GUIA_BACKUPS.md`)
 - [x] ✅ Dashboard de cartera/mora/vencimientos (existe; se afinará por tenant)
 - [ ] ⬜ Documentos con identidad (logo/datos) de cada inmobiliaria — **Claude**
 - [ ] ⬜ Términos, privacidad, soporte y proceso de baja/exportación — **Ale** (con asesor)
@@ -79,19 +79,19 @@ Leyenda de "Quién": **Claude** = lo hago yo en el código · **Ale** = acción 
 - [x] ✅ Recuperación de contraseña por email (flujo con token; requiere SMTP de Ale para enviar)
 - [x] ✅ Roles ampliados (solo lectura / contador)
 - [ ] 🟡 Validación de archivos y límites de carga (import Excel: falta límite) — **Claude**
-- [ ] ⬜ Roles ampliados (ver Fase 3)
+- [x] ✅ Roles ampliados (solo lectura / contador / superadmin — ver Fase 3)
 - [x] ✅ Auditoría (altas, cambios, eliminaciones)
-- [ ] ⬜ Pruebas de aislamiento entre inmobiliarias (ver Fase 2)
+- [x] ✅ Pruebas de aislamiento entre inmobiliarias (batería adversarial, 90+ pruebas)
 - [ ] ⬜ Cifrado de backups y secretos gestionados por el proveedor — **Ale/Claude**
 
 ## Backups y continuidad (sección 4.3)
 
-- [x] 🟡 Respaldo descargable manual (existe)
-- [ ] ⬜ Backup **automático** diario de PostgreSQL con retención — **Claude/Ale**
-- [ ] ⬜ Copia fuera del proveedor principal — **Ale**
-- [ ] ⬜ Prueba **real** de restauración — **Ale/Claude**
-- [ ] ⬜ Exportación completa por inmobiliaria — **Claude**
-- [ ] ⬜ Plan documentado de incidentes y recuperación — **Ale/Claude**
+- [x] ✅ Respaldo descargable manual (existe)
+- [x] ✅ Backup **automático** diario de PostgreSQL con retención (GitHub Actions, dos bases)
+- [ ] ⬜ Copia fuera del proveedor principal (S3/R2) — **Ale**
+- [x] ✅ Prueba **real** de restauración (verificada en el workflow, dump → restore en contenedor)
+- [x] ✅ Exportación completa por inmobiliaria (tenant-safe)
+- [ ] 🟡 Plan documentado de incidentes y recuperación (existe `GUIA_BACKUPS.md`; falta runbook corto de restore) — **Ale/Claude**
 
 ## Legales (sección 8) — con asesoramiento, antes de vender
 
@@ -108,11 +108,11 @@ Leyenda de "Quién": **Claude** = lo hago yo en el código · **Ale** = acción 
 
 | Indicador | Criterio | Estado |
 |---|---|---|
-| Errores críticos | 0 en cálculos o aislamiento | 🟡 cálculos ok; aislamiento pendiente |
-| Cobertura de pruebas | dinero, fechas, permisos | 🟡 dinero/fechas ok; permisos/aislamiento pendiente |
-| Restauración | backup restaurado en prueba | ⬜ |
-| Onboarding | cliente piloto sin tocar código | ⬜ |
-| Aislamiento | pruebas automáticas y manuales OK | ⬜ |
+| Errores críticos | 0 en cálculos o aislamiento | ✅ cálculos y aislamiento con pruebas |
+| Cobertura de pruebas | dinero, fechas, permisos | ✅ dinero/fechas/permisos/aislamiento cubiertos |
+| Restauración | backup restaurado en prueba | ✅ verificado en el workflow de backups |
+| Onboarding | cliente piloto sin tocar código | 🟡 alta por superadmin lista; falta piloto real |
+| Aislamiento | pruebas automáticas y manuales OK | ✅ batería adversarial verde |
 | Soporte | incidencias clasificadas y medidas | ⬜ |
 | Uso | pilotos usan semanalmente | ⬜ |
 | Retención | pilotos quieren seguir | ⬜ |
@@ -121,7 +121,7 @@ Leyenda de "Quién": **Claude** = lo hago yo en el código · **Ale** = acción 
 
 ## Próximos pasos acordados
 
-1. 🔴 **Ale:** repo privado + rotar secretos.
-2. ✅ **Claude:** Alembic adoptado (hecho).
-3. ✅ **Claude:** documento de diseño de multiempresa (hecho — revisar `DISENO_MULTIEMPRESA.md`).
-4. ⬜ **Siguiente:** ejecutar Fase 2 (multiempresa) según el diseño, o intercalar auditoría + backups automáticos. A definir con Ale.
+1. 🔴 **Ale:** confirmar repo **privado** + rotación de secretos expuestos.
+2. ✅ **Claude:** multiempresa completa (aislamiento + superadmin + onboarding), auditoría, backups automáticos con restore verificado, ARCA en producción, asistente IA.
+3. ⬜ **Ale (comercial/legal):** términos y privacidad, planes/precio, y sumar 1 inmobiliaria **piloto**.
+4. ⬜ **Siguiente técnico:** copia de backups **fuera del proveedor** (S3/R2) + runbook de restore; remitente de email por inmobiliaria; paginación/N+1 (Fase 11).

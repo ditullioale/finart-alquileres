@@ -1,7 +1,7 @@
 # FINART — Roadmap técnico (documento vivo)
 
 > Norte a seguir. Se va marcando: ✅ hecho · 🟡 parcial · ⬜ pendiente.
-> Última actualización: 2026-08-06.
+> Última actualización: 2026-08-24.
 
 **Principio rector:** Finart administra el negocio inmobiliario; el Facturador ARCA
 administra lo fiscal. Ninguno absorbe responsabilidades del otro.
@@ -35,7 +35,7 @@ interfaces que permitan escalar cuando haga falta.
 ## Fase 3 — Testing profesional
 - ✅ 3.1 pytest como framework central (carpeta `tests/`; envuelve las 3 suites históricas + pruebas nativas; `pytest` corre todo).
 - ✅ 3.2 Unit tests de dinero, mora, aumentos, comisiones y numeración (cubiertos en la suite QA).
-- 🟡 3.3 Integración Finart → Facturador con doble de prueba (`test_facturador` + E2E mockeado); falta homologación real.
+- ✅ 3.3 Integración Finart → Facturador con doble de prueba (`test_facturador` + E2E mockeado). **ARCA ya está en producción**: se emitió un **CAE real** (homologación → producción con certificado, WSFE y punto de venta propios; fix SSL `DH_KEY_TOO_SMALL`).
 - ✅ 3.4 E2E completo (`tests/test_e2e.py`: contrato → cobro → liquidación → facturador mock → CAE guardado y visible).
 
 ## Fase 4 — CI/CD
@@ -63,11 +63,11 @@ interfaces que permitan escalar cuando haga falta.
 - ⬜ 9 Auditoría cross-system (correlation IDs) — nota: ya hay auditoría funcional interna.
 - 🟡 10 Documentos (adjuntos de contrato ✅; storage externo S3/R2, URLs firmadas, versionado y hash ⬜).
 - 🟡 11 Performance (índices por `inmobiliaria_id` ✅; paginación general, N+1, agregaciones, cache ⬜).
-- 🟡 12 Observabilidad (health checks ✅; logging estructurado con id de correlación ✅; error tracking con Sentry opcional ✅; métricas ⬜).
+- 🟡 12 Observabilidad (health checks ✅; logging estructurado con id de correlación ✅; error tracking con Sentry opcional ✅; **monitor de uptime** ✅; **alerta de vencimiento de certificado ARCA** ✅; métricas ⬜).
 - ⬜ 13 Modelo Persona multi-rol + Inmueble + Operación.
 - ⬜ 14 CRM · ⬜ 15 Ventas · ⬜ 16 Dashboard · ⬜ 17 Automatización.
 - ⬜ 18 SaaS/planes/billing · ⬜ 19 Superadmin avanzado (base ya existe en Plataforma).
-- ⬜ 20 IA · ⬜ 21 Escalabilidad · ⬜ 22 Recuperación ante desastres · ⬜ 23 Compliance.
+- 🟡 20 IA (asistente de **consulta** en lenguaje natural, acotado por tenant ✅; acciones/escritura ⬜) · ⬜ 21 Escalabilidad · 🟡 22 Recuperación ante desastres (backups automáticos diarios de las dos bases + **restauración verificada** ✅; copia fuera del proveedor y runbook ⬜) · ⬜ 23 Compliance.
 
 ## Fase 24 — Calidad de producto
 - ⬜ 24.1 Design system · ⬜ 24.2 Accesibilidad.
@@ -77,6 +77,14 @@ interfaces que permitan escalar cuando haga falta.
 ---
 
 ## Hecho recientemente (changelog)
+- **ARCA en producción (3.3):** se pasó de homologación a **producción** y se emitió un **CAE real** (certificado, WSFE y punto de venta propios; fix SSL `DH_KEY_TOO_SMALL` con `SECLEVEL=1`). **Re-emisión mode-aware**: un comprobante que fue de prueba (mock/homologación) puede re-emitirse real en producción sin duplicar los que ya son reales, tanto para liquidaciones como para transferencias.
+- **Backups + recuperación (Fase 22):** backups automáticos diarios por **GitHub Actions** (`pg_dump` de las dos bases: gestor y facturador) con **verificación de restauración** en un contenedor y retención de artefactos. Falta la copia fuera del proveedor y el runbook.
+- **Monitoreo (Fase 12):** monitor de **uptime** sobre los health checks + **alerta semanal de vencimiento del certificado ARCA** (`.github/workflows/cert-check.yml`).
+- **Asistente con IA (Fase 20):** globo flotante para preguntar en lenguaje natural (*"¿quién debe?"*, *"¿cuándo vence tal alquiler?"*). Bucle de *tool-calling* contra la API de Anthropic con herramientas **acotadas por inmobiliaria** (sin SQL libre); se activa con `IA_API_KEY`. Solo consulta (lectura).
+- **Diseño Aurora + cobranzas:** interfaz nueva conmutable (clásico/Aurora). En Aurora, al registrar un cobro se ofrece el **recibo** en el acto (imprimir / PDF / email / WhatsApp). **Mora desde el día 1** del mes con gracia hasta el vencimiento; **cargar varios pagos** de una vez (contratos que arrancaron hace meses); gastos extra con opción de **no trasladar** al propietario.
+- **Liquidaciones:** **otros conceptos** (sumar/restar líneas libres), **gastos extra desglosados por descripción**, **columna de período** (mes N/Total del contrato), liquidar todas juntas o **individual**, y fix de doble-generación.
+- **Facturador — parser de resúmenes:** el importador de transferencias del **Santander** ahora detecta montos **redondos** (`$480.000`) además de los que tienen centavos, tomando concepto y CUIT de las líneas contiguas (test de regresión incluido).
+- **Fricciones resueltas:** alta de inmueble sin error, alta rápida *inline* de inmueble/inquilino al cargar un contrato (sin perder el formulario), y renovación de contrato sin el falso bloqueo "este inmueble ya tiene un contrato".
 - **Observabilidad (Fase 12):** logging estructurado con id de correlación (`X-Request-Id`) por request + monitoreo de errores con Sentry (opcional por `SENTRY_DSN`). Y batería adversarial de aislamiento (93 pruebas) para el checklist de comercialización.
 - **Identidad fiscal por token (5.1) + reconciliación automática (6.3):** Finart dejó de mandar `emisor_cuit` (el token es la única identidad; batería de 7 pruebas en el Facturador). Un timeout/5xx ya no se marca como error sino `requiere_reconciliacion` (estado desconocido), y hay un cron `POST /liquidaciones/reconciliar-cron` (token) que las resuelve solas.
 - **Fase 5 y 6 (lado Facturador):** nuevo endpoint `GET /api/integracion/liquidacion?referencia_externa=...` para reconciliación directa (repo `facturador-arca`, 55 pruebas verdes); confirmado que el 5.1 ya estaba bien (emisor por token, rechazo de `emisor_cuit` ajeno). Finart usa el endpoint directo con respaldo al listado.
@@ -93,8 +101,13 @@ interfaces que permitan escalar cuando haga falta.
 - **UX (24.4):** feedback de facturación/ICL, `[object Object]` corregido, ficha de contrato con teléfono y deuda real.
 
 ## Próximo sugerido
-Ya con acceso al repo del Facturador (`ditullioale/facturador-arca`), se puede cerrar lo
-que quedó en amarillo de Fase 5/6 desde ese lado: exponer `GET /integracion/liquidacion/{referencia_externa}`
-(reconciliación fina), endurecer 5.1 (que Finart no pueda forzar otro emisor) y versionar
-a `/api/v1`. Alternativa 100% Finart: resto de **Fase 12** (logging estructurado + error
-tracking) o **Fase 11** (paginación + N+1).
+Con ARCA ya en producción, backups+restore verificados, monitores y el asistente de
+consulta funcionando, los próximos candidatos son:
+- **Recuperación ante desastres (22):** copia de los dumps **fuera del proveedor** (S3/R2)
+  y un **runbook** corto de restauración.
+- **Comercialización:** términos/privacidad, planes/precios y onboarding de un piloto
+  (ver `SEGUIMIENTO_FINART_2_0.md` y `LISTO_PARA_VENDER.md`).
+- **Remitente de email por inmobiliaria** (`EMAIL_FROM_NAME` por tenant) para que el correo
+  del recibo salga con el nombre de cada inmobiliaria.
+- **Fase 11 (performance):** paginación general y barrido de N+1.
+- **Facturador:** versionar a `/api/v1` y CI propio (4.2).
