@@ -255,18 +255,68 @@
             toast('No se registró el cobro', res.j.error || 'Probá de nuevo.', 'err');
             return;
           }
-          Peek.close();
           toast('Cobro registrado', res.j.saldo > 0
             ? 'Queda un saldo de ' + money(res.j.saldo)
             : 'El período quedó al día', 'ok');
-          var fila = document.querySelector('[data-fila="' + r.cid + '-' + r.mes + '-' + r.anio + '"]');
-          if (fila) { fila.classList.add('resuelta'); setTimeout(function () { fila.remove(); }, 600); }
-          setTimeout(function () { location.reload(); }, 1200);
+          // No recargamos de una: mostramos el pago guardado con las opciones de
+          // recibo (imprimir / PDF / email / WhatsApp), igual que el flujo clásico.
+          Peek.cobroOk(res.j);
         })
         .catch(function () {
           btn.disabled = false; btn.textContent = 'Guardar cobro';
           toast('Error de conexión', 'No se pudo registrar el cobro.', 'err');
         });
+    },
+    // Estado de éxito: el pago ya quedó guardado. Ofrecemos el recibo por los 4
+    // canales y un acceso al detalle del contrato (donde el pago figura listado).
+    cobroOk: function (j) {
+      var saldo = Number(j.saldo) || 0;
+      var wa = j.wa_url
+        ? '<a class="btn ok" href="' + j.wa_url + '" target="_blank" rel="noopener">WhatsApp</a>'
+        : '<button class="btn ghost" type="button" disabled title="El inquilino no tiene un teléfono válido cargado">WhatsApp</button>';
+      Peek.open('Pago registrado &#10003;',
+        '<div class="calc" style="margin-bottom:14px">' +
+          '<div class="l">' + esc(j.quien || 'Inquilino') + '</div>' +
+          '<div class="l tot">' + (saldo > 0 ? 'Queda debiendo' : 'Recibido') +
+            ' <b style="color:' + (saldo > 0 ? 'var(--err)' : 'var(--ok)') + '">' +
+            money(saldo > 0 ? saldo : (Number(j.pagado) || 0)) + '</b></div></div>' +
+        '<p class="hint" style="margin-bottom:10px">Imprimí o enviá el recibo:</p>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
+          '<a class="btn pri" href="' + j.recibo_url + '" target="_blank" rel="noopener">Abrir recibo</a>' +
+          '<a class="btn" href="' + j.pdf_url + '">Descargar PDF</a>' +
+          wa +
+          '<button class="btn" type="button" id="cobro-email" ' +
+            'onclick="Peek.emailRecibo(\'' + j.email_url + '\', \'' + j.recibo_url + '\')">Enviar por email</button>' +
+        '</div>' +
+        '<p class="hint" style="margin-top:10px">Para <b>WhatsApp</b>: descargá el PDF y adjuntalo ' +
+          '(el botón deja el mensaje escrito). <b>Email</b> manda el recibo en PDF al inquilino.</p>',
+        '<a class="btn ghost" href="' + j.detalle_url + '">Ver detalle del contrato</a>' +
+        '<div style="flex:1"></div>' +
+        '<button class="btn pri" type="button" onclick="location.reload()">Seguir cobrando <kbd>&#8629;</kbd></button>');
+    },
+    // Envía el recibo por email. Si el inquilino no tiene email, abre el recibo,
+    // que tiene el campo para cargarlo y reenviar.
+    emailRecibo: function (emailUrl, reciboUrl) {
+      var btn = $('#cobro-email');
+      if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Enviando...'; }
+      var reset = function () { if (btn) { btn.disabled = false; btn.innerHTML = 'Enviar por email'; } };
+      fetch(emailUrl, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}'
+      }).then(function (r) { return r.json(); })
+        .then(function (j) {
+          if (j.ok) {
+            toast('Recibo enviado', j.mensaje || '', 'ok');
+            if (btn) { btn.disabled = true; btn.innerHTML = '&#10003; Enviado'; }
+          } else if (j.need_email) {
+            toast('Falta el email del inquilino', 'Cargalo en el recibo y reenviá.', 'err');
+            window.open(reciboUrl, '_blank', 'noopener');
+            reset();
+          } else {
+            toast('No se pudo enviar', j.error || 'Probá desde el recibo.', 'err');
+            reset();
+          }
+        })
+        .catch(function () { toast('Error de conexión', 'No se pudo enviar el email.', 'err'); reset(); });
     }
   };
   window.Peek = Peek;

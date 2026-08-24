@@ -20,6 +20,15 @@ def test_circuito_completo(client, monkeypatch):
         "cid": ids["c"], "mes": hoy.month, "anio": hoy.year,
         "precio": 180000, "pagado": 180000})
     assert r.status_code == 200 and r.get_json()["ok"] is True
+    # La respuesta trae todo lo necesario para ofrecer el recibo apenas se cobra
+    # (imprimir / PDF / email / WhatsApp), como el flujo clásico.
+    j = r.get_json()
+    for campo in ("pago_id", "recibo_url", "pdf_url", "email_url", "detalle_url"):
+        assert campo in j, f"falta {campo} en la respuesta de /cobros/rapido"
+    # El pago guardado figura en el detalle clásico del contrato (no "desaparece").
+    det = cl.get(f"/cobros/contrato/{ids['c']}")
+    assert det.status_code == 200
+    assert str(180000) in det.get_data(as_text=True).replace(".", "").replace(",", "")
 
     # 3) Mockear el Facturador: emite con CAE (sin tocar ARCA ni la red).
     import app.facturador as fact

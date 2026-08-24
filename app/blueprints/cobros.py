@@ -505,11 +505,23 @@ def rapido():
         db.session.rollback()
         return jsonify(ok=False, error="Ya existe un pago para ese período. "
                        "Actualizá la página para verlo."), 409
+    # Datos para ofrecer el recibo apenas se guarda (imprimir / PDF / email / WhatsApp),
+    # igual que el flujo clásico. El WhatsApp deja el mensaje escrito; el PDF se adjunta aparte.
+    inq = contrato.inquilino
+    direccion = contrato.inmueble.direccion if contrato.inmueble else ""
+    periodo_txt = f"{MESES_ES[mes]} de {anio}" if mes else ""
+    msj_wa = (f"Hola {inq.nombre if inq else ''}! Te enviamos tu recibo de pago del "
+              f"alquiler de {direccion}"
+              + (f" correspondiente a {periodo_txt}" if periodo_txt else "") + ". ¡Muchas gracias!")
+    wa_url = (link_whatsapp(inq.telefono, msj_wa)
+              if (inq and whatsapp_valido(inq.telefono)) else None)
     return jsonify(ok=True, pago_id=pago.id, estado=estado,
                    pagado=float(pagado), saldo=float(saldo), total=float(total),
-                   moneda=pago.moneda,
+                   moneda=pago.moneda, quien=(inq.nombre if inq else ""),
                    recibo_url=url_for("recibos.recibo", pid=pago.id),
                    pdf_url=url_for("recibos.recibo_pdf", pid=pago.id),
+                   email_url=url_for("recibos.recibo_email", pid=pago.id),
+                   wa_url=wa_url, tiene_email=bool(inq and inq.email),
                    abonar_url=url_for("cobros.abonar", pid=pago.id),
                    detalle_url=url_for("cobros.detalle", cid=contrato.id))
 
