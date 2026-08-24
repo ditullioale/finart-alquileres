@@ -64,9 +64,18 @@ def test_cobranzas_y_liquidaciones_en_los_dos_disenos(client):
         assert nueva.status_code == 200 and "aurora.css" in nueva.get_data(as_text=True)
 
 
+def test_listados_y_ajustes_en_los_dos_disenos(client):
+    cl, _app, _ = client
+    for url in ("/contratos/", "/personas/", "/inmuebles/", "/aumentos/", "/ajustes/"):
+        clasica = cl.get(url + "?ui=clasica")
+        assert clasica.status_code == 200 and "aurora.css" not in clasica.get_data(as_text=True)
+        nueva = cl.get(url + "?ui=nueva")
+        assert nueva.status_code == 200 and "aurora.css" in nueva.get_data(as_text=True)
+
+
 def test_pantalla_sin_migrar_sigue_usando_el_clasico(client):
     """Sólo se rediseña de a una pantalla: el resto no cambia."""
     cl, _app, _ = client
-    html = cl.get("/personas/?ui=nueva").get_data(as_text=True)
+    html = cl.get("/recibos/manuales?ui=nueva").get_data(as_text=True)
     assert 'class="sidebar"' in html
     assert "aurora.css" not in html

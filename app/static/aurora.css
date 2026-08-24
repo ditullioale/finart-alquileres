@@ -142,8 +142,9 @@ body.light .head{background:rgba(255,255,255,.78)}
 .wrap.wide{max-width:1440px}
 
 /* ===== tipografía ======================================================== */
-h1{font-size:21px;font-weight:600;letter-spacing:-.025em;margin:0}
-h2{font-size:13px;font-weight:600;letter-spacing:-.01em;margin:0}
+h1{font-size:21px;font-weight:600;letter-spacing:-.025em;margin:0;color:var(--tx)}
+h2{font-size:13px;font-weight:600;letter-spacing:-.01em;margin:0;color:var(--tx)}
+h3{color:var(--tx)}
 .sub{color:var(--tx-3);font-size:13px;margin:4px 0 0}
 .eyebrow{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--tx-3);font-weight:600}
 .pagehead{display:flex;align-items:flex-end;gap:14px;margin-bottom:18px}
@@ -170,7 +171,8 @@ h2{font-size:13px;font-weight:600;letter-spacing:-.01em;margin:0}
 .btngrp{display:flex;gap:7px;flex-wrap:wrap}
 
 /* ===== superficies ======================================================= */
-.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh);
+  padding:0;text-align:left;position:static;overflow:visible}
 .card-h{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line)}
 .card-h .sp{flex:1}
 .card-b{padding:16px}
@@ -406,3 +408,85 @@ body.light .seg button.on{box-shadow:0 1px 2px rgba(16,24,40,.1)}
 @keyframes spin{to{transform:rotate(360deg)}}
 .kpi .v small{font-weight:450}
 @media(max-width:980px){ .burger{display:grid} }
+
+/* ===== estados en claro ==================================================
+   Los verdes/amarillos del tema oscuro son claros a propósito; sobre fondo
+   blanco quedan por debajo de 4.5:1, así que en claro usamos las variables. */
+body.light .chip.ok,body.light .tag.ok,body.light .avatar.ok,body.light .fact .v.ok,
+body.light .btn.ok,body.light .toast.ok .ic{color:var(--ok)}
+body.light .chip.warn,body.light .tag.warn,body.light .avatar.warn,body.light .banner.warn{color:var(--warn)}
+body.light .chip.err,body.light .tag.err,body.light .avatar.err,body.light .fact .v.err,
+body.light .banner.err,body.light .toast.err .ic{color:var(--err)}
+body.light .chip.info,body.light .banner.info{color:var(--info)}
+body.light .chip.acc,body.light .tab.on .n{color:var(--acc)}
+body.light .btn.ok{border-color:rgba(18,128,92,.3)}
+body.light .banner.warn{border-color:rgba(165,106,8,.3)}
+body.light .banner.err{border-color:rgba(198,44,51,.3)}
+body.light .banner.info{border-color:rgba(26,114,196,.3)}
+.err{color:var(--err)}
+.warnc{color:var(--warn)}
+
+/* ===== listados ========================================================== */
+.filtros{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.filtros .inp{width:auto}
+.buscar{position:relative}
+.buscar svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--tx-3)}
+.buscar .inp{padding-left:31px;width:260px}
+table.t th a{display:inline-flex;align-items:center;gap:4px;color:inherit}
+table.t th a:hover{color:var(--tx-2)}
+table.t th a.on{color:var(--tx)}
+table.t th .arr{font-size:9px;opacity:.7}
+table.t td b{font-weight:550}
+.acts{display:flex;gap:6px;justify-content:flex-end;align-items:center}
+
+/* menú de fila (⋯) */
+.rmenu{position:relative;display:inline-block}
+.rmenu>summary{list-style:none;width:27px;height:27px;border:1px solid var(--line-2);border-radius:6px;
+  display:grid;place-items:center;cursor:pointer;color:var(--tx-2);background:var(--surface-2)}
+.rmenu>summary::-webkit-details-marker{display:none}
+.rmenu>summary:hover{background:var(--surface-3);color:var(--tx)}
+.rmenu .pop{position:absolute;right:0;top:31px;z-index:40;min-width:196px;padding:5px;
+  background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r);box-shadow:var(--sh-lg)}
+.rmenu .pop a,.rmenu .pop button{display:flex;align-items:center;gap:8px;width:100%;padding:7px 9px;
+  border:0;background:none;border-radius:6px;font-size:13px;color:var(--tx-2);cursor:pointer;text-align:left}
+.rmenu .pop a:hover,.rmenu .pop button:hover{background:var(--surface-2);color:var(--tx)}
+.rmenu .pop button.peligro{color:var(--err)}
+.rmenu .pop hr{border:0;border-top:1px solid var(--line);margin:5px 0}
+.rmenu .pop form{margin:0}
+
+/* ===== ingreso (login y pantallas sin sesión) ============================ */
+.auth{min-height:100vh;display:grid;place-items:center;padding:24px;position:relative;z-index:1}
+.auth-card{width:min(392px,100%);background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-lg);box-shadow:var(--sh);padding:26px 26px 22px}
+.auth-mark{width:36px;height:36px;border-radius:11px;background:linear-gradient(145deg,var(--acc),#4b3fd6);
+  display:grid;place-items:center;color:#fff;box-shadow:0 4px 16px rgba(124,108,255,.35);margin-bottom:14px}
+.auth-card h1{font-size:19px}
+.auth-card .sub{margin-bottom:18px}
+.auth-card .btn{width:100%;justify-content:center;height:36px}
+.auth-f{margin-top:16px;padding-top:14px;border-top:1px solid var(--line);
+  font-size:12.5px;color:var(--tx-3);display:flex;flex-direction:column;gap:7px;align-items:center}
+.auth-f a{color:var(--acc);font-weight:500}
+.auth-msg{display:flex;gap:9px;padding:10px 12px;border-radius:var(--r);font-size:12.5px;margin-bottom:14px;
+  background:var(--err-soft);color:var(--err)}
+.auth-msg.ok{background:var(--ok-soft);color:var(--ok)}
+.auth-card .field{margin-bottom:12px}
+.auth-card .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.auth-card .req{color:var(--err)}
+.auth-sec{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--tx-3);
+  font-weight:600;margin:18px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.auth-benes{list-style:none;padding:12px 14px;margin:0 0 16px;background:var(--surface-2);
+  border:1px solid var(--line);border-radius:var(--r);font-size:12.5px;color:var(--tx-2)}
+.auth-benes li{display:flex;align-items:center;gap:8px;padding:3px 0}
+.auth-benes svg{color:var(--ok);flex:none}
+@media(max-width:560px){ .auth-card .grid2{grid-template-columns:1fr} }
+
+/* ===== formularios largos (ajustes) ====================================== */
+.gridf{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}
+.gridf .full{grid-column:1/-1}
+.gridf .field{margin:0}
+.formbtns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.btn.peligro{color:var(--err);border-color:var(--line-2)}
+.btn.peligro:hover{background:var(--err-soft)}
+.banner.ok{background:var(--ok-soft);border-color:rgba(49,196,141,.3);color:var(--ok)}
+body.light .banner.ok{border-color:rgba(18,128,92,.3)}
+@media(max-width:720px){ .gridf{grid-template-columns:1fr} }

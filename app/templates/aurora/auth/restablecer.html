@@ -1,0 +1,36 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Nueva contraseña{% endblock %}
+
+{% block content %}
+<div class="auth">
+  <div class="auth-card">
+    <div class="auth-mark">{{ icon('lock', 19) }}</div>
+    <h1>Elegí tu nueva contraseña</h1>
+    <p class="sub">Después vas a ingresar con ella.</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+      <div class="auth-msg {{ 'ok' if cat == 'ok' }}">
+        {{ icon('check-circle', 15) if cat == 'ok' else icon('alert-triangle', 15) }}<div>{{ msg }}</div>
+      </div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="post" action="{{ url_for('auth.restablecer', token=token) }}">
+      <div class="field">
+        <label for="nueva">Nueva contraseña</label>
+        <input class="inp" id="nueva" name="nueva" type="password" autocomplete="new-password"
+               placeholder="Al menos 6 caracteres" autofocus required>
+      </div>
+      <div class="field">
+        <label for="repetir">Repetir nueva contraseña</label>
+        <input class="inp" id="repetir" name="repetir" type="password" autocomplete="new-password" required>
+      </div>
+      <button class="btn pri" type="submit">Guardar contraseña</button>
+    </form>
+
+    <div class="auth-f"><a href="{{ url_for('auth.login') }}">Volver a ingresar</a></div>
+  </div>
+</div>
+{% endblock %}

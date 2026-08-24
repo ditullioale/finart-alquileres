@@ -59,7 +59,7 @@ def listar():
                           joinedload(Contrato.propietario),
                           joinedload(Contrato.inmueble))
     contratos = query.all()
-    return render_template("contratos/list.html", contratos=contratos,
+    return render_ui("contratos/list.html", contratos=contratos,
                            q=q, estado=estado, estados=ESTADOS)
 
 

@@ -1,0 +1,90 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Inmuebles{% endblock %}
+{% block crumb %}<b>Inmuebles</b><span class="sep">·</span>{{ inmuebles|length }}{% endblock %}
+
+{% block acciones %}
+<a class="btn pri sm" href="{{ url_for('inmuebles.nuevo') }}">{{ icon('plus', 13) }} Nuevo inmueble</a>
+{% endblock %}
+
+{% macro th(label, key, cls='') %}
+  {% set cur = request.args.get('sort') %}
+  {% set curdir = request.args.get('dir', 'asc') %}
+  {% set nd = 'desc' if (cur == key and curdir == 'asc') else 'asc' %}
+  <th class="{{ cls }}"><a class="{{ 'on' if cur == key }}"
+    href="{{ url_for('inmuebles.listar', **dict(request.args, sort=key, dir=nd)) }}">{{ label }}<span
+    class="arr">{{ '▲' if cur == key and curdir == 'asc' else ('▼' if cur == key else '') }}</span></a></th>
+{% endmacro %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Inmuebles</h1>
+    <p class="sub">Las propiedades que administrás, alquiladas o disponibles.</p>
+  </div>
+  <div class="sp" style="flex:1"></div>
+  <form method="get" class="filtros">
+    {% if estado %}<input type="hidden" name="estado" value="{{ estado }}">{% endif %}
+    <div class="buscar">{{ icon('search', 14) }}
+      <input class="inp" name="q" value="{{ q }}" placeholder="Dirección, código o localidad">
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-h">
+    <div class="tabs">
+      <a class="tab {{ 'on' if not estado }}" href="{{ url_for('inmuebles.listar', q=q) }}">Todos</a>
+      {% for e in estados %}
+      <a class="tab {{ 'on' if estado == e }}" href="{{ url_for('inmuebles.listar', q=q, estado=e) }}">{{ e }}</a>
+      {% endfor %}
+    </div>
+    <div class="sp"></div>
+    <span class="mut" style="font-size:12.5px">{{ inmuebles|length }} inmueble(s)</span>
+  </div>
+
+  {% if inmuebles %}
+  <table class="t">
+    <thead>
+      <tr>{{ th('Dirección', 'direccion') }}{{ th('Tipo', 'tipo') }}{{ th('Localidad', 'localidad') }}
+          {{ th('Propietario', 'propietario') }}{{ th('Precio ref.', 'precio', 'r') }}{{ th('Estado', 'estado') }}<th></th></tr>
+    </thead>
+    <tbody>
+      {% for i in inmuebles %}
+      <tr>
+        <td><a href="{{ url_for('inmuebles.editar', iid=i.id) }}"><b>{{ i.direccion }}</b></a>
+          {% if i.codigo %}<div class="mut" style="font-size:12px">{{ i.codigo }}</div>{% endif %}</td>
+        <td class="mut">{{ i.tipo or '—' }}</td>
+        <td class="mut">{{ i.localidad or '—' }}</td>
+        <td class="mut">{{ i.propietario.nombre if i.propietario else '—' }}</td>
+        <td class="r">{{ ((i.moneda|simbolo) ~ ' ' ~ (i.precio_referencia|money)) if i.precio_referencia else '—' }}</td>
+        <td><span class="chip {{ 'ok' if i.estado == 'Alquilado' else ('info' if i.estado == 'Disponible' else '') }}">{{ i.estado }}</span></td>
+        <td>
+          <div class="acts">
+            <a class="btn sm" href="{{ url_for('inmuebles.editar', iid=i.id) }}">Editar</a>
+            <details class="rmenu">
+              <summary title="Más acciones">⋯</summary>
+              <div class="pop">
+                <form method="post" action="{{ url_for('inmuebles.eliminar', iid=i.id) }}"
+                      onsubmit="return confirm('¿Eliminar este inmueble?')">
+                  <button type="submit" class="peligro">{{ icon('alert-triangle', 14) }} Eliminar</button>
+                </form>
+              </div>
+            </details>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">
+    <div class="ic">{{ icon('building', 20) }}</div>
+    <b>No hay inmuebles {{ 'con ese filtro' if q or estado else 'cargados' }}</b>
+    <p>El inmueble es lo que después vas a asociar a un contrato.</p>
+    <a class="btn pri" href="{{ url_for('inmuebles.nuevo') }}" style="margin-top:6px">{{ icon('plus', 14) }} Nuevo inmueble</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

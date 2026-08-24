@@ -1,0 +1,77 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Solicitar acceso{% endblock %}
+
+{% block content %}
+<div class="auth">
+  <div class="auth-card" style="width:min(560px,100%)">
+    <div class="auth-mark">{{ icon('home', 19) }}</div>
+    <h1>Probá Gestión de Alquileres</h1>
+    <p class="sub">Dejanos los datos de tu inmobiliaria y te habilitamos el acceso. Sin instalar nada:
+      entrás desde el navegador o el celular.</p>
+
+    <ul class="auth-benes">
+      <li>{{ icon('check-circle', 14) }} Contratos, cobranzas y liquidaciones en un solo lugar</li>
+      <li>{{ icon('check-circle', 14) }} Recordatorios de pago y recibos por WhatsApp</li>
+      <li>{{ icon('check-circle', 14) }} Los datos de tu inmobiliaria quedan aislados y privados</li>
+    </ul>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+      <div class="auth-msg {{ 'ok' if cat == 'ok' }}">
+        {{ icon('check-circle', 15) if cat == 'ok' else icon('alert-triangle', 15) }}<div>{{ msg }}</div>
+      </div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="post">
+      <div class="auth-sec">Datos de la inmobiliaria</div>
+      <div class="field">
+        <label for="nombre_inmobiliaria">Nombre de la inmobiliaria <span class="req">*</span></label>
+        <input class="inp" id="nombre_inmobiliaria" name="nombre_inmobiliaria"
+               value="{{ datos.nombre_inmobiliaria or '' }}" placeholder="Ej: Inmobiliaria del Sur" autofocus required>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="nombre_contacto">Tu nombre (contacto)</label>
+          <input class="inp" id="nombre_contacto" name="nombre_contacto" value="{{ datos.nombre_contacto or '' }}"
+                 placeholder="Nombre y apellido"></div>
+        <div class="field"><label for="localidad">Localidad</label>
+          <input class="inp" id="localidad" name="localidad" value="{{ datos.localidad or '' }}"
+                 placeholder="Ej: Rosario, Santa Fe"></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="email">Email <span class="req">*</span></label>
+          <input class="inp" id="email" name="email" type="email" value="{{ datos.email or '' }}"
+                 placeholder="tu@correo.com" required></div>
+        <div class="field"><label for="telefono">Teléfono</label>
+          <input class="inp" id="telefono" name="telefono" value="{{ datos.telefono or '' }}"
+                 placeholder="Ej: 341 555-5555"></div>
+      </div>
+
+      <div class="auth-sec">Tu acceso</div>
+      <p class="hint" style="margin-top:0">Con estos datos vas a ingresar una vez que aprobemos la solicitud.</p>
+      <div class="field">
+        <label for="username">Usuario <span class="req">*</span></label>
+        <input class="inp" id="username" name="username" value="{{ datos.username or '' }}"
+               placeholder="Elegí un usuario" autocomplete="username" required>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="password">Contraseña <span class="req">*</span></label>
+          <input class="inp" id="password" name="password" type="password" autocomplete="new-password"
+                 placeholder="Mínimo 8 caracteres" required></div>
+        <div class="field"><label for="password2">Repetir contraseña <span class="req">*</span></label>
+          <input class="inp" id="password2" name="password2" type="password" autocomplete="new-password"
+                 placeholder="Repetila" required></div>
+      </div>
+
+      <button class="btn pri" type="submit">Enviar solicitud</button>
+
+      <div class="banner warn" style="margin:14px 0 0">{{ icon('alert-triangle', 15) }}
+        <div>Al enviar, tu solicitud queda <b>pendiente de aprobación</b>. Te avisamos y ahí ya podés ingresar.</div>
+      </div>
+    </form>
+
+    <div class="auth-f"><span>¿Ya tenés cuenta? <a href="{{ url_for('auth.login') }}">Ingresá acá</a></span></div>
+  </div>
+</div>
+{% endblock %}

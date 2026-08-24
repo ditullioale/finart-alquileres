@@ -1,0 +1,145 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}{{ 'Editar' if persona.id else 'Nueva' }} persona{% endblock %}
+{% block crumb %}
+<a href="{{ url_for('personas.listar') }}">Personas</a><span class="sep">›</span>
+<b>{{ persona.nombre if persona.id else 'Nueva' }}</b>
+{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>{{ 'Editar' if persona.id else 'Nueva' }} persona</h1>
+    <p class="sub">Propietarios, inquilinos, fiadores y garantes. El CUIT es el dato que necesita ARCA para facturar.</p>
+  </div>
+</div>
+
+<form method="post" class="card" style="max-width:820px">
+  <div class="card-b">
+    <div class="gridf">
+      <div class="field full"><label>Nombre y apellido <span class="req">*</span></label>
+        <input class="inp" name="nombre" value="{{ persona.nombre or '' }}" required autofocus></div>
+
+      <div class="field"><label>DNI</label>
+        <input class="inp" name="dni" id="dni" value="{{ persona.dni or '' }}"></div>
+
+      <div class="field"><label>CUIT / CUIL</label>
+        <input class="inp" name="cuit" id="cuit" value="{{ persona.cuit or '' }}">
+        <div class="filtros" style="margin-top:7px">
+          <span class="mut" style="font-size:12px">Calcular desde el DNI:</span>
+          <button type="button" class="btn sm" onclick="calcularCuit('M')">Varón</button>
+          <button type="button" class="btn sm" onclick="calcularCuit('F')">Mujer</button>
+        </div>
+        <div id="cuit-hint" class="mut" style="font-size:12px;margin-top:5px"></div></div>
+
+      <div class="field full"><label>Domicilio</label>
+        <input class="inp" name="domicilio" value="{{ persona.domicilio or '' }}"></div>
+
+      <div class="field"><label>Localidad</label>
+        <input class="inp" name="localidad" value="{{ persona.localidad or '' }}"></div>
+
+      <div class="field"><label>Condición IVA</label>
+        <input class="inp" name="cond_iva" value="{{ persona.cond_iva or 'Consumidor Final' }}"></div>
+
+      <div class="field"><label>Teléfono</label>
+        <input class="inp" name="telefono" id="telefono" value="{{ persona.telefono or '' }}"
+               placeholder="Ej: 11 2345-6789">
+        <div id="tel-check" class="mut" style="font-size:12px;margin-top:5px"></div></div>
+
+      <div class="field"><label>Email</label>
+        <input class="inp" name="email" value="{{ persona.email or '' }}"></div>
+
+      <div class="field full">
+        <div class="filtros" style="gap:18px">
+          <label style="display:flex;align-items:center;gap:7px;font-size:13px">
+            <input type="checkbox" name="es_propietario" {{ 'checked' if persona.es_propietario }}> Es propietario</label>
+          <label style="display:flex;align-items:center;gap:7px;font-size:13px">
+            <input type="checkbox" name="es_inquilino" {{ 'checked' if persona.es_inquilino }}> Es inquilino</label>
+        </div>
+      </div>
+
+      <div class="field full"><label>Observaciones</label>
+        <textarea class="inp" name="observaciones" rows="3">{{ persona.observaciones or '' }}</textarea></div>
+    </div>
+
+    <div class="formbtns">
+      <a class="btn" href="{{ url_for('personas.listar') }}">Cancelar</a>
+      <button class="btn pri" type="submit">{{ icon('check', 13) }} Guardar</button>
+    </div>
+  </div>
+</form>
+
+<script>
+// Réplica en JS de normalizar_whatsapp() (app/utils.py) para dar feedback
+// inmediato al cargar el teléfono, sin esperar a guardar.
+function normalizarWhatsapp(tel) {
+  let d = (tel || '').trim().replace(/\.0+$/, '').replace(/\D/g, '');
+  if (!d) return null;
+  if (d.startsWith('549')) d = d.slice(3);
+  else if (d.startsWith('54')) d = d.slice(2);
+  if (d.startsWith('0')) d = d.slice(1);
+  if (d.length === 12) {
+    for (const i of [2, 3, 4]) {
+      if (d.slice(i, i + 2) === '15') { d = d.slice(0, i) + d.slice(i + 2); break; }
+    }
+  }
+  if (d.length === 11 && d.startsWith('9')) d = d.slice(1);
+  if (d.length !== 10) return null;
+  return '549' + d;
+}
+
+const telInput = document.getElementById('telefono');
+const telCheck = document.getElementById('tel-check');
+
+function actualizarCheck() {
+  const valor = telInput.value.trim();
+  if (!valor) { telCheck.textContent = ''; return; }
+  const numero = normalizarWhatsapp(valor);
+  if (numero) {
+    telCheck.textContent = 'Válido para WhatsApp (+' + numero + ')';
+    telCheck.className = 'ok';
+  } else {
+    telCheck.textContent = 'Falta el código de área o el número está incompleto';
+    telCheck.className = 'warnc';
+  }
+  telCheck.style.fontSize = '12px';
+}
+telInput.addEventListener('input', actualizarCheck);
+actualizarCheck();
+
+// Calcular CUIT desde el DNI: no se puede derivar el prefijo (20 varón /
+// 27 mujer) del DNI solo -- depende del sexo registrado en AFIP, que no
+// guardamos -- así que lo elegís vos acá con el botón y se arma el CUIT
+// con el algoritmo oficial (módulo 11, coeficientes 5,4,3,2,7,6,5,4,3,2),
+// incluido el caso especial: si el resto da 1, el prefijo pasa a 23 y el
+// verificador es 9 (venía de varón) o 4 (venía de mujer). Solo llena el
+// campo -- se guarda recién cuando confirmás y le das Guardar.
+function calcularCuit(sexo) {
+  const hint = document.getElementById('cuit-hint');
+  const dni = (document.getElementById('dni').value || '').replace(/\D/g, '');
+  if (dni.length !== 7 && dni.length !== 8) {
+    hint.textContent = 'Cargá primero un DNI válido (7 u 8 dígitos) y probá de nuevo.';
+    hint.className = 'err';
+    hint.style.fontSize = '12px';
+    return;
+  }
+  const dni8 = dni.padStart(8, '0');
+  const prefijo = sexo === 'M' ? '20' : '27';
+  const base = prefijo + dni8;
+  const coefs = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
+  let suma = 0;
+  for (let i = 0; i < 10; i++) suma += parseInt(base[i], 10) * coefs[i];
+  const resto = suma % 11;
+  let prefFinal = prefijo, verif;
+  if (resto === 0) verif = 0;
+  else if (resto === 1) { prefFinal = '23'; verif = sexo === 'M' ? 9 : 4; }
+  else verif = 11 - resto;
+  document.getElementById('cuit').value = prefFinal + '-' + dni8 + '-' + verif;
+  hint.textContent = 'Calculado a partir del DNI (' + (sexo === 'M' ? 'varón' : 'mujer') +
+    '). Revisalo antes de guardar: hace la cuenta, no confirma que sea el CUIT real.';
+  hint.className = 'mut';
+  hint.style.fontSize = '12px';
+}
+</script>
+{% endblock %}

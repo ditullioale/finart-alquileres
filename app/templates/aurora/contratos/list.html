@@ -1,0 +1,115 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Contratos{% endblock %}
+{% block crumb %}<b>Contratos</b><span class="sep">·</span>{{ contratos|length }}{% endblock %}
+
+{% block acciones %}
+<a class="btn pri sm" href="{{ url_for('contratos.crear') }}">{{ icon('plus', 13) }} Nuevo contrato</a>
+{% endblock %}
+
+{# Encabezado ordenable: conserva el filtro actual y alterna asc/desc. #}
+{% macro th(label, key, cls='') %}
+  {% set cur = request.args.get('sort') %}
+  {% set curdir = request.args.get('dir', 'asc') %}
+  {% set nd = 'desc' if (cur == key and curdir == 'asc') else 'asc' %}
+  <th class="{{ cls }}"><a class="{{ 'on' if cur == key }}"
+    href="{{ url_for('contratos.listar', **dict(request.args, sort=key, dir=nd)) }}">{{ label }}<span
+    class="arr">{{ '▲' if cur == key and curdir == 'asc' else ('▼' if cur == key else '') }}</span></a></th>
+{% endmacro %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Contratos</h1>
+    <p class="sub">Desde acá entrás a la ficha de cada contrato, cobrás y registrás aumentos.</p>
+  </div>
+  <div class="sp" style="flex:1"></div>
+  <form method="get" class="filtros">
+    {% if estado %}<input type="hidden" name="estado" value="{{ estado }}">{% endif %}
+    <div class="buscar">{{ icon('search', 14) }}
+      <input class="inp" name="q" value="{{ q }}" placeholder="Inquilino, propietario, inmueble o código">
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-h">
+    <div class="tabs">
+      <a class="tab {{ 'on' if not estado }}" href="{{ url_for('contratos.listar', q=q) }}">Todos</a>
+      {% for e in estados %}
+      <a class="tab {{ 'on' if estado == e }}" href="{{ url_for('contratos.listar', q=q, estado=e) }}">{{ e }}s</a>
+      {% endfor %}
+    </div>
+    <div class="sp"></div>
+    <span class="mut" style="font-size:12.5px">{{ contratos|length }} contrato(s)</span>
+  </div>
+
+  {% if contratos %}
+  <table class="t">
+    <thead>
+      <tr>{{ th('Inquilino', 'inquilino') }}{{ th('Inmueble', 'inmueble') }}{{ th('Propietario', 'propietario') }}
+          {{ th('Precio actual', 'precio', 'r') }}{{ th('Ajuste', 'ajuste') }}{{ th('Estado', 'estado') }}<th></th></tr>
+    </thead>
+    <tbody>
+      {% for c in contratos %}
+      <tr>
+        <td><a href="{{ url_for('contratos.ver', cid=c.id) }}"><b>{{ c.inquilino.nombre if c.inquilino else '—' }}</b></a></td>
+        <td>{{ c.inmueble.direccion }}
+          {% if c.inmueble.localidad %}<div class="mut" style="font-size:12px">{{ c.inmueble.localidad }}</div>{% endif %}</td>
+        <td class="mut">{{ c.propietario.nombre if c.propietario else '—' }}</td>
+        <td class="r">{{ c.moneda|simbolo }} {{ c.precio_actual|money }}</td>
+        <td class="mut">
+          {% if c.metodo_ajuste == 'indice' %}{{ c.indice_tipo }}
+          {% elif c.metodo_ajuste == 'porcentaje' %}{{ c.porcentaje_ajuste }}%
+          {% else %}—{% endif %}
+        </td>
+        <td><span class="chip {{ 'ok' if c.estado == 'Vigente' else '' }}">{{ c.estado }}</span></td>
+        <td>
+          <div class="acts">
+            {% if c.estado == 'Vigente' %}
+            <a class="btn ok sm" href="{{ url_for('cobros.nuevo', cid=c.id) }}">{{ icon('banknote', 13) }} Cobrar</a>
+            {% endif %}
+            <details class="rmenu">
+              <summary title="Más acciones">⋯</summary>
+              <div class="pop">
+                <a href="{{ url_for('contratos.ver', cid=c.id) }}">{{ icon('file-text', 14) }} Ver ficha</a>
+                {% if c.documento_html %}
+                <a href="{{ url_for('contratos.documento', cid=c.id) }}" target="_blank" rel="noopener">{{ icon('scroll', 14) }} Ver contrato</a>
+                {% endif %}
+                {% if c.inquilino %}
+                  {% set wa = wa_link(c.inquilino.telefono, "Hola " ~ c.inquilino.nombre ~ "! Te escribo por el alquiler de " ~ c.inmueble.direccion ~ ".") %}
+                  {% if wa %}<a href="{{ wa }}" target="_blank" rel="noopener">{{ icon('message-circle', 14) }} WhatsApp</a>{% endif %}
+                {% endif %}
+                <hr>
+                {% if c.estado == 'Vigente' %}
+                <form method="post" action="{{ url_for('contratos.rescindir', cid=c.id) }}"
+                      onsubmit="return confirm('¿Rescindir el contrato de {{ c.inquilino.nombre if c.inquilino else '' }}? El inmueble queda disponible y se conserva el historial de pagos.')">
+                  <button type="submit">{{ icon('x', 14) }} Rescindir</button>
+                </form>
+                {% endif %}
+                <form method="post" action="{{ url_for('contratos.eliminar', cid=c.id) }}"
+                      onsubmit="return confirm('¿Eliminar definitivamente este contrato? Solo se permite si no tiene pagos registrados.')">
+                  <button type="submit" class="peligro">{{ icon('alert-triangle', 14) }} Eliminar</button>
+                </form>
+              </div>
+            </details>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">
+    <div class="ic">{{ icon('file-text', 20) }}</div>
+    <b>No hay contratos {{ 'con ese filtro' if q or estado else 'todavía' }}</b>
+    <p>{{ 'Probá con otra búsqueda o sacá el filtro de estado.' if q or estado
+          else 'Podés generar el documento desde cero o registrar uno que ya está firmado.' }}</p>
+    {% if not (q or estado) %}
+    <a class="btn pri" href="{{ url_for('contratos.crear') }}" style="margin-top:6px">{{ icon('plus', 14) }} Nuevo contrato</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

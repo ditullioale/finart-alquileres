@@ -1,0 +1,173 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Aumentos · {{ meses[mes] }} {{ anio }}{% endblock %}
+{% block crumb %}<b>Aumentos</b><span class="sep">·</span>{{ meses[mes]|lower }} {{ anio }}{% endblock %}
+
+{% block acciones %}
+<a class="btn sm" href="{{ url_for('aumentos.indices') }}">{{ icon('bar-chart', 13) }} Índices</a>
+{% endblock %}
+
+{% macro fila_pendiente(it, atrasado=false) %}
+<tr>
+  <td class="{{ 'err' if atrasado }}"><b>{{ it.fecha.strftime('%d/%m/%Y') }}</b></td>
+  <td>{{ it.c.inmueble.direccion }}</td>
+  <td class="mut">{{ it.c.inquilino.nombre if it.c.inquilino else '—' }}</td>
+  <td class="mut">
+    {% if it.c.metodo_ajuste == 'indice' %}{{ indice_nombre.get(it.c.indice_tipo, it.c.indice_tipo) }}
+    {% else %}+{{ it.c.porcentaje_ajuste }}%{% endif %}
+  </td>
+  <td class="r">{{ it.c.moneda|simbolo }} {{ it.c.precio_actual|money }}</td>
+  <td>
+    <div class="acts">
+      {% if it.hecho %}
+      <span class="chip ok">{{ icon('check-circle', 12) }} Ya aplicado</span>
+      {% else %}
+      <a class="btn pri sm" href="{{ url_for('aumentos.aplicar', cid=it.c.id) }}">Aplicar</a>
+      <details class="rmenu">
+        <summary title="Más acciones">⋯</summary>
+        <div class="pop">
+          <a href="{{ url_for('contratos.ver', cid=it.c.id) }}">{{ icon('file-text', 14) }} Ver ficha</a>
+          {% if it.c.inquilino %}
+            {% set msj = "Hola " ~ it.c.inquilino.nombre ~ "! Te escribo para avisarte que corresponde el ajuste del alquiler de " ~ it.c.inmueble.direccion ~ ". Te paso el nuevo monto en breve. ¡Gracias!" %}
+            {% set wa = wa_link(it.c.inquilino.telefono, msj) %}
+            {% if wa %}<a href="{{ wa }}" target="_blank" rel="noopener">{{ icon('message-circle', 14) }} Avisar el ajuste</a>{% endif %}
+          {% endif %}
+          <hr>
+          <form method="post" action="{{ url_for('aumentos.marcar_aplicado', cid=it.c.id) }}"
+                onsubmit="return confirm('Marcar el aumento de {{ it.fecha.strftime('%m/%Y') }} como YA aplicado, sin cambiar el precio de {{ it.c.moneda|simbolo }} {{ it.c.precio_actual|money }}?')">
+            <button type="submit" title="Registra que el aumento ya se hizo, sin tocar el precio">{{ icon('check-circle', 14) }} Ya está aplicado</button>
+          </form>
+        </div>
+      </details>
+      {% endif %}
+    </div>
+  </td>
+</tr>
+{% endmacro %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Aumentos</h1>
+    <p class="sub">Los ajustes que corresponden por índice o por porcentaje, mes a mes.</p>
+  </div>
+  <div class="sp" style="flex:1"></div>
+  <form method="get" class="filtros">
+    <select class="inp" name="mes" onchange="this.form.submit()">
+      {% for m in range(1, 13) %}<option value="{{ m }}" {{ 'selected' if mes == m }}>{{ meses[m] }}</option>{% endfor %}
+    </select>
+    <select class="inp" name="anio" onchange="this.form.submit()">
+      {% for a in anios %}<option value="{{ a }}" {{ 'selected' if anio == a }}>{{ a }}</option>{% endfor %}
+    </select>
+  </form>
+</div>
+
+{% if es_mes_actual and atrasados %}
+<div class="banner warn">
+  {{ icon('alert-triangle', 16) }}
+  <div><b>{{ atrasados|length }} aumento(s) de meses anteriores sin registrar.</b>
+    Están más abajo: si el precio ya está actualizado, usá «Ya está aplicado».</div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-h">
+    <h2>Aumentan en {{ meses[mes]|lower }} {{ anio }}</h2>
+    <span class="chip">{{ del_mes|length }}</span>
+  </div>
+  {% if del_mes %}
+  <table class="t">
+    <thead><tr><th>Fecha</th><th>Inmueble</th><th>Inquilino</th><th>Método</th><th class="r">Precio actual</th><th></th></tr></thead>
+    <tbody>{% for it in del_mes %}{{ fila_pendiente(it) }}{% endfor %}</tbody>
+  </table>
+  {% else %}
+  <div class="empty"><div class="ic">{{ icon('check-circle', 20) }}</div>
+    <b>Ningún contrato aumenta en {{ meses[mes]|lower }} {{ anio }}</b>
+    <p>Cambiá el mes arriba para ver otro período.</p></div>
+  {% endif %}
+</div>
+
+{% if es_mes_actual and atrasados %}
+<div class="card" style="margin-top:16px">
+  <div class="card-h">
+    <h2 class="warnc">Atrasados: correspondían a meses ya pasados</h2>
+    <span class="chip warn">{{ atrasados|length }}</span>
+  </div>
+  <table class="t">
+    <thead><tr><th>Correspondía</th><th>Inmueble</th><th>Inquilino</th><th>Método</th><th class="r">Precio actual</th><th></th></tr></thead>
+    <tbody>{% for it in atrasados %}{{ fila_pendiente(it, atrasado=true) }}{% endfor %}</tbody>
+  </table>
+</div>
+{% endif %}
+
+{% if es_mes_actual and proximos %}
+<div class="card" style="margin-top:16px">
+  <div class="card-h"><h2>Próximos (1 a 2 meses)</h2><span class="chip">{{ proximos|length }}</span></div>
+  <table class="t">
+    <thead><tr><th>Fecha</th><th>Inmueble</th><th>Inquilino</th><th></th></tr></thead>
+    <tbody>
+      {% for it in proximos %}
+      <tr>
+        <td>{{ it.fecha.strftime('%m/%Y') }}</td>
+        <td>{{ it.c.inmueble.direccion }}</td>
+        <td class="mut">{{ it.c.inquilino.nombre if it.c.inquilino else '—' }}</td>
+        <td><div class="acts"><a class="btn sm" href="{{ url_for('aumentos.aplicar', cid=it.c.id) }}">Adelantar</a></div></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<div class="card" style="margin-top:16px">
+  <div class="card-h"><h2>Últimos aumentos aplicados</h2></div>
+  {% if ultimos %}
+  <table class="t">
+    <thead><tr><th>Vigencia</th><th>Contrato</th><th>Método</th><th class="r">Anterior</th><th class="r">Nuevo</th></tr></thead>
+    <tbody>
+      {% for a in ultimos %}
+      <tr>
+        <td>{{ a.fecha_vigencia.strftime('%d/%m/%Y') if a.fecha_vigencia }}</td>
+        <td><a href="{{ url_for('contratos.ver', cid=a.contrato_id) }}"><b>{{ a.contrato.inmueble.direccion }}</b></a></td>
+        <td class="mut">{% if a.metodo == 'porcentaje' %}+{{ a.porcentaje }}%{% else %}Índice {{ a.indice_tipo }}{% endif %}</td>
+        <td class="r mut">{{ a.precio_anterior|money }}</td>
+        <td class="r"><b>{{ a.precio_nuevo|money }}</b></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty"><div class="ic">{{ icon('trending-up', 20) }}</div>
+    <b>Todavía no se aplicaron aumentos</b></div>
+  {% endif %}
+</div>
+
+{% if current_user.rol == 'admin' %}
+<details class="card" style="margin-top:16px">
+  <summary class="card-h" style="cursor:pointer;list-style:none">
+    {{ icon('settings', 15) }}<h2>Configurar el ajuste de todos los contratos vigentes</h2>
+    <div class="sp"></div><span class="mut" style="font-size:12.5px">masivo</span>
+  </summary>
+  <div class="card-b">
+    <p class="hint" style="margin-top:0">Deja todos tus contratos vigentes con ajuste <b>por índice</b> cada X meses.
+      El próximo aumento se cuenta desde la fecha de inicio de cada contrato. Sólo afecta a tu inmobiliaria.</p>
+    <form method="post" action="{{ url_for('aumentos.config_masiva') }}" class="filtros"
+          onsubmit="return confirm('¿Seguro? Se va a cambiar el método de ajuste de tus contratos vigentes.')">
+      <div class="field" style="margin:0"><label>Índice</label>
+        <select class="inp" name="indice_tipo">
+          {% for t in ['ICL', 'IPC', 'CasaPropia'] %}<option value="{{ t }}">{{ indice_nombre.get(t, t) }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field" style="margin:0"><label>Cada cuántos meses</label>
+        <input class="inp" type="number" name="cada_meses" value="4" min="1" max="60" style="width:110px">
+      </div>
+      <label class="hint" style="display:flex;gap:7px;align-items:center;margin:18px 0 0">
+        <input type="checkbox" name="solo_sin_ajuste"> Sólo los que hoy están «sin ajuste»
+      </label>
+      <button class="btn" type="submit" style="margin-top:17px">Aplicar a todos los vigentes</button>
+    </form>
+  </div>
+</details>
+{% endif %}
+{% endblock %}

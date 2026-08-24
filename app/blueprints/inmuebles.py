@@ -1,5 +1,5 @@
 """ABM de Inmuebles."""
-from flask import (Blueprint, render_template, redirect, url_for, request,
+from flask import (Blueprint, redirect, url_for, request,
                    flash, abort, jsonify)
 from flask_login import login_required
 from sqlalchemy.orm import aliased
@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 
 from .. import db
 from ..models import Inmueble, Persona
+from ..ui import render_ui
 
 
 def _guardar_o_avisar(inmueble, propietarios):
@@ -18,7 +19,7 @@ def _guardar_o_avisar(inmueble, propietarios):
     except IntegrityError:
         db.session.rollback()
         flash("Ya existe un inmueble con ese código. Usá otro (o dejalo vacío).", "error")
-        return render_template("inmuebles/form.html", inmueble=inmueble,
+        return render_ui("inmuebles/form.html", inmueble=inmueble,
                                propietarios=propietarios, estados=ESTADOS, tipos=TIPOS)
 
 inmuebles_bp = Blueprint("inmuebles", __name__, url_prefix="/inmuebles")
@@ -56,7 +57,7 @@ def listar():
         query = query.order_by(Inmueble.direccion)
     from sqlalchemy.orm import joinedload
     inmuebles = query.options(joinedload(Inmueble.propietario)).all()
-    return render_template("inmuebles/list.html", inmuebles=inmuebles,
+    return render_ui("inmuebles/list.html", inmuebles=inmuebles,
                            q=q, estado=estado, estados=ESTADOS)
 
 
@@ -120,7 +121,7 @@ def nuevo():
         _leer_form(inmueble)
         if not inmueble.direccion:
             flash("La dirección es obligatoria.", "error")
-            return render_template("inmuebles/form.html", inmueble=inmueble,
+            return render_ui("inmuebles/form.html", inmueble=inmueble,
                                    propietarios=propietarios, estados=ESTADOS, tipos=TIPOS)
         db.session.add(inmueble)
         err = _guardar_o_avisar(inmueble, propietarios)
@@ -128,7 +129,7 @@ def nuevo():
             return err
         flash("Inmueble creado correctamente.", "ok")
         return redirect(url_for("inmuebles.listar"))
-    return render_template("inmuebles/form.html", inmueble=Inmueble(),
+    return render_ui("inmuebles/form.html", inmueble=Inmueble(),
                            propietarios=propietarios, estados=ESTADOS, tipos=TIPOS)
 
 
@@ -168,14 +169,14 @@ def editar(iid):
         _leer_form(inmueble)
         if not inmueble.direccion:
             flash("La dirección es obligatoria.", "error")
-            return render_template("inmuebles/form.html", inmueble=inmueble,
+            return render_ui("inmuebles/form.html", inmueble=inmueble,
                                    propietarios=propietarios, estados=ESTADOS, tipos=TIPOS)
         err = _guardar_o_avisar(inmueble, propietarios)
         if err:
             return err
         flash("Inmueble actualizado.", "ok")
         return redirect(url_for("inmuebles.listar"))
-    return render_template("inmuebles/form.html", inmueble=inmueble,
+    return render_ui("inmuebles/form.html", inmueble=inmueble,
                            propietarios=propietarios, estados=ESTADOS, tipos=TIPOS)
 
 

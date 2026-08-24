@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from .. import db
 from ..models import Persona, Fiador
 from ..utils import normalizar_whatsapp, whatsapp_valido
+from ..ui import render_ui
 
 personas_bp = Blueprint("personas", __name__, url_prefix="/personas")
 
@@ -60,7 +61,7 @@ def listar():
     else:
         query = query.order_by(Persona.nombre)
     personas = query.all()
-    return render_template("personas/list.html", personas=personas, q=q, rol=rol)
+    return render_ui("personas/list.html", personas=personas, q=q, rol=rol)
 
 
 @personas_bp.route("/exportar-dni-sin-cuit")
@@ -221,12 +222,12 @@ def nueva():
         error = _validar(persona)
         if error:
             flash(error, "error")
-            return render_template("personas/form.html", persona=persona)
+            return render_ui("personas/form.html", persona=persona)
         db.session.add(persona)
         db.session.commit()
         flash("Persona creada correctamente.", "ok")
         return redirect(url_for("personas.listar"))
-    return render_template("personas/form.html", persona=Persona())
+    return render_ui("personas/form.html", persona=Persona())
 
 
 @personas_bp.route("/<int:pid>/editar", methods=["GET", "POST"])
@@ -238,11 +239,11 @@ def editar(pid):
         error = _validar(persona)
         if error:
             flash(error, "error")
-            return render_template("personas/form.html", persona=persona)
+            return render_ui("personas/form.html", persona=persona)
         db.session.commit()
         flash("Persona actualizada.", "ok")
         return redirect(url_for("personas.listar"))
-    return render_template("personas/form.html", persona=persona)
+    return render_ui("personas/form.html", persona=persona)
 
 
 @personas_bp.route("/telefonos")

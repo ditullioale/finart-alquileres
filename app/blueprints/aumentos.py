@@ -11,6 +11,7 @@ from ..models import Contrato, Aumento, IndiceValor
 from ..utils import (parse_num, parse_fecha, parse_periodo, periodo_date,
                      proximo_ajuste, add_months, INDICE_NOMBRE, MESES_ES, q2)
 from ..indices_oficiales import traer_icl_bcra
+from ..ui import render_ui
 
 aumentos_bp = Blueprint("aumentos", __name__, url_prefix="/aumentos")
 
@@ -82,7 +83,7 @@ def index():
     atrasados.sort(key=lambda x: x["fecha"])
     proximos.sort(key=lambda x: x["fecha"])
     ultimos = Aumento.query.order_by(Aumento.creado.desc()).limit(20).all()
-    return render_template("aumentos/index.html", del_mes=del_mes,
+    return render_ui("aumentos/index.html", del_mes=del_mes,
                            atrasados=atrasados, proximos=proximos, ultimos=ultimos,
                            indice_nombre=INDICE_NOMBRE, meses=MESES_ES,
                            mes=mes, anio=anio, es_mes_actual=es_mes_actual,

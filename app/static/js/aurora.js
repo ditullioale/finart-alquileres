@@ -374,5 +374,17 @@
     var destino = atajos[e.key.toLowerCase()];
     if (destino) { e.preventDefault(); location.href = destino; }
   });
+  /* ---- menús de fila (details.rmenu) ----------------------------------- */
+  document.addEventListener('click', function (e) {
+    var abierto = e.target.closest('details.rmenu[open]');
+    Array.prototype.forEach.call(document.querySelectorAll('details.rmenu[open]'), function (d) {
+      if (d !== abierto) d.removeAttribute('open');
+    });
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    Array.prototype.forEach.call(document.querySelectorAll('details.rmenu[open]'), function (d) {
+      d.removeAttribute('open');
+    });
+  });
 })();
-
