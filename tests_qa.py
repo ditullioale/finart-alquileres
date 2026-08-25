@@ -633,6 +633,28 @@ def run():
               q(lambda: Pago.query.filter_by(contrato_id=ids["c2"], periodo_mes=8,
                 periodo_anio=2098).count()) == 1)
 
+        seccion("Seguimiento de casos (notas del contrato)")
+        from app.models import SeguimientoNota as _SN
+        _cs = cl.post(f"/contratos/{ids['c']}/seguimiento",
+                      data={"texto": "Llamé por la deuda, quedó en pagar el viernes."},
+                      follow_redirects=True)
+        check("agregar una nota de seguimiento (200)", _cs.status_code == 200)
+        check("la nota queda guardada con autor y texto",
+              q(lambda: (lambda n: n is not None and bool(n.autor)
+                         and "viernes" in (n.texto or ""))(
+                         _SN.query.filter_by(contrato_id=ids["c"]).first())))
+        check("la ficha del contrato muestra la nota de seguimiento",
+              "quedó en pagar el viernes" in
+              cl.get(f"/contratos/{ids['c']}?t=seguimiento").get_data(as_text=True))
+        cl.post(f"/contratos/{ids['c']}/seguimiento", data={"texto": "   "},
+                follow_redirects=True)
+        check("una nota vacía no se guarda (sigue habiendo 1)",
+              q(lambda: _SN.query.filter_by(contrato_id=ids["c"]).count()) == 1)
+        _nid = q(lambda: _SN.query.filter_by(contrato_id=ids["c"]).first().id)
+        cl.post(f"/contratos/seguimiento/{_nid}/eliminar")
+        check("eliminar la nota la borra de la base",
+              q(lambda: db.session.get(_SN, _nid) is None))
+
         seccion("Liquidaciones: anti doble-generación (idempotencia)")
         from app.models import Liquidacion as _Liq0
 

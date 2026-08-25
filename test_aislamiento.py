@@ -236,6 +236,9 @@ def main():
         _pb = db.session.get(Pago, bp)
     check("A no pudo anular el pago de B (sigue 'Pagado')",
           _pb is not None and _pb.estado == "Pagado")
+    check("A no puede agregar una nota de seguimiento al contrato de B (404)",
+          cA.post(f"/contratos/{bc}/seguimiento",
+                  data={"texto": "hackeo"}).status_code == 404)
 
     seccion("Auditoría: cada inmobiliaria ve solo su bitácora")
     with app.app_context():

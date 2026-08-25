@@ -197,4 +197,45 @@
     </div>
   </form>
 </div>
+
+<div class="panel" style="margin-top:16px">
+  <h2>📝 Seguimiento de casos</h2>
+  <p class="hint">Notas de gestiones, llamados, reclamos, acuerdos o cualquier cuestión relativa al contrato.</p>
+  <form method="post" action="{{ url_for('contratos.agregar_nota', cid=c.id) }}"
+        class="cardform" style="margin:10px 0 16px;max-width:640px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>Nueva nota</label>
+    <textarea name="texto" rows="3" required
+      placeholder="Ej: Llamé por la deuda de julio. Quedó en transferir el viernes 15."
+      style="width:100%;resize:vertical"></textarea>
+    <div class="formbtns">
+      <button class="btn ok" type="submit">Agregar nota</button>
+    </div>
+  </form>
+  {% if notas %}
+  <div class="table-wrap">
+  <table class="grid">
+    <thead><tr><th>Fecha</th><th>Autor</th><th>Nota</th><th></th></tr></thead>
+    <tbody>
+      {% for n in notas %}
+      <tr>
+        <td>{{ n.creado.strftime('%d/%m/%Y %H:%M') if n.creado else '—' }}</td>
+        <td>{{ n.autor or '—' }}</td>
+        <td style="white-space:pre-wrap">{{ n.texto }}</td>
+        <td class="actions">
+          <form method="post" action="{{ url_for('contratos.eliminar_nota', nid=n.id) }}"
+                onsubmit="return confirm('¿Eliminar esta nota de seguimiento?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="link-danger" type="submit">Eliminar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="hint">Todavía no hay notas de seguimiento.</p>
+  {% endif %}
+</div>
 {% endblock %}

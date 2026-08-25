@@ -504,6 +504,25 @@ class GastoExtra(db.Model):
     pago = db.relationship("Pago", back_populates="gastos")
 
 
+class SeguimientoNota(db.Model):
+    """Nota de seguimiento de un contrato: gestiones, llamados, reclamos, acuerdos
+    o cualquier cuestión relativa al caso. Queda con autor y fecha."""
+    __tablename__ = "seguimiento_notas"
+
+    id = db.Column(db.Integer, primary_key=True)
+    inmobiliaria_id = db.Column(db.Integer, db.ForeignKey("inmobiliarias.id"),
+                                index=True, nullable=False)
+    contrato_id = db.Column(db.Integer, db.ForeignKey("contratos.id"),
+                            nullable=False, index=True)
+    texto = db.Column(db.Text, nullable=False)
+    autor = db.Column(db.String(80))
+    creado = db.Column(db.DateTime, default=datetime.utcnow)
+
+    contrato = db.relationship("Contrato", backref=db.backref(
+        "seguimiento_notas", cascade="all, delete-orphan",
+        order_by="SeguimientoNota.creado.desc()"))
+
+
 # --------------------------------------------------------------------------- #
 #  Ajustes de la inmobiliaria (fila única)
 # --------------------------------------------------------------------------- #

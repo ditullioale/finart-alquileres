@@ -132,6 +132,7 @@ def ver(cid):
     return render_ui("contratos/ver.html", c=contrato,
                      indice_nombre=INDICE_NOMBRE, cat_docs=CATEGORIAS_DOC,
                      resumen=resumen, hoy=hoy, meses=MESES_ES,
+                     notas=contrato.seguimiento_notas,
                      **_ficha_360(contrato, hoy))
 
 
@@ -442,6 +443,38 @@ def eliminar(cid):
     db.session.commit()
     flash("Contrato eliminado.", "ok")
     return redirect(url_for("contratos.listar"))
+
+
+# --------------------------------------------------------------------------- #
+#  Seguimiento de casos: notas del contrato (gestiones, llamados, reclamos...)
+# --------------------------------------------------------------------------- #
+@contratos_bp.route("/<int:cid>/seguimiento", methods=["POST"])
+@login_required
+def agregar_nota(cid):
+    from flask_login import current_user
+    from ..models import SeguimientoNota
+    c = db.session.get(Contrato, cid) or abort(404)
+    texto = (request.form.get("texto") or "").strip()
+    if not texto:
+        flash("Escribí el texto de la nota de seguimiento.", "error")
+        return redirect(url_for("contratos.ver", cid=c.id, t="seguimiento"))
+    autor = getattr(current_user, "username", None) or "—"
+    db.session.add(SeguimientoNota(contrato_id=c.id, texto=texto[:5000], autor=autor))
+    db.session.commit()
+    flash("Nota de seguimiento agregada.", "ok")
+    return redirect(url_for("contratos.ver", cid=c.id, t="seguimiento"))
+
+
+@contratos_bp.route("/seguimiento/<int:nid>/eliminar", methods=["POST"])
+@login_required
+def eliminar_nota(nid):
+    from ..models import SeguimientoNota
+    n = db.session.get(SeguimientoNota, nid) or abort(404)
+    cid = n.contrato_id
+    db.session.delete(n)
+    db.session.commit()
+    flash("Nota de seguimiento eliminada.", "ok")
+    return redirect(url_for("contratos.ver", cid=cid, t="seguimiento"))
 
 
 def _validar(c: Contrato, excluir_id=None):

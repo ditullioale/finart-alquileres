@@ -54,7 +54,8 @@
                        ('pagos', 'Pagos', pagos|length),
                        ('aumentos', 'Aumentos', c.aumentos|length),
                        ('liquidaciones', 'Liquidaciones', liquidaciones|length),
-                       ('docs', 'Documentos', c.documentos|length)] %}
+                       ('docs', 'Documentos', c.documentos|length),
+                       ('seguimiento', 'Seguimiento', notas|length)] %}
     <a class="sheet-tab {{ 'on' if tab == k }}" href="{{ url_for('contratos.ver', cid=c.id, t=k) }}">
       {{ t }}{% if n %}<span class="n">{{ n }}</span>{% endif %}</a>
     {% endfor %}
@@ -307,6 +308,47 @@
   </table>
   {% else %}<div class="card-b"><p class="hint">Este contrato todavía no se liquidó.</p></div>{% endif %}
 </div>
+
+{% elif tab == 'seguimiento' %}
+<div class="card">
+  <div class="card-h"><h2>Seguimiento de casos</h2><div class="sp"></div>
+    <button class="btn pri sm" type="button" onclick="document.getElementById('dlgNota').showModal()">{{ icon('plus', 13) }} Nueva nota</button></div>
+  {% if notas %}
+  <div class="card-b" style="display:flex;flex-direction:column;gap:14px">
+    {% for n in notas %}
+    <div class="split" style="align-items:flex-start;gap:12px">
+      <div class="avatar">{{ (n.autor or '?')[:2]|upper }}</div>
+      <div style="flex:1;min-width:0">
+        <div class="mut" style="font-size:12px">{{ n.autor or '—' }} · {{ n.creado.strftime('%d/%m/%Y %H:%M') if n.creado else '' }}</div>
+        <div style="white-space:pre-wrap;margin-top:2px">{{ n.texto }}</div>
+      </div>
+      <form method="post" action="{{ url_for('contratos.eliminar_nota', nid=n.id) }}" style="margin:0"
+            onsubmit="return confirm('¿Eliminar esta nota de seguimiento?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn ghost sm" type="submit" title="Eliminar nota">Eliminar</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card-b"><p class="hint">Todavía no hay notas de seguimiento. Usá <b>+ Nueva nota</b> para registrar gestiones, llamados, reclamos, acuerdos o cualquier cuestión del contrato.</p></div>
+  {% endif %}
+</div>
+
+<dialog id="dlgNota" style="border:1px solid var(--line);border-radius:var(--r-lg);padding:0;max-width:540px;width:92%;background:var(--surface);color:var(--tx);box-shadow:0 24px 70px rgba(0,0,0,.4)">
+  <form method="post" action="{{ url_for('contratos.agregar_nota', cid=c.id) }}" style="padding:20px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h2 style="margin:0 0 4px">Nueva nota de seguimiento</h2>
+    <p class="mut" style="font-size:13px;margin:0 0 14px">{{ c.numero or '#' ~ c.id }} · {{ inq }}</p>
+    <textarea class="inp" name="texto" rows="5" required
+      placeholder="Ej: Llamé por la deuda de julio. Quedó en transferir el viernes 15."
+      style="width:100%;resize:vertical"></textarea>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button class="btn ghost" type="button" onclick="document.getElementById('dlgNota').close()">Cancelar</button>
+      <button class="btn pri" type="submit">Guardar nota</button>
+    </div>
+  </form>
+</dialog>
 
 {% else %}
 <div class="card">
