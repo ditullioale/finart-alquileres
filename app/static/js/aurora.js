@@ -72,11 +72,18 @@
       var mora = Number(r.mora) || 0;
       var total = (Number(r.monto) || 0) + mora;
       Peek.open('Registrar cobro',
-        '<div class="split" style="margin-bottom:16px">' +
+        '<div class="split" style="margin-bottom:14px">' +
           '<div class="avatar" style="width:34px;height:34px">' + ini(r.quien) + '</div>' +
           '<div><div style="font-weight:550">' + esc(r.quien) + '</div>' +
           '<div class="mut" style="font-size:12px">' + esc(r.det || '') + '</div></div></div>' +
-        '<div class="field"><label>Mora' +
+        // El alquiler del período es el dato principal: va arriba y destacado.
+        '<div class="calc" style="margin-bottom:14px"><div class="l tot"><span>' +
+          esc(r.periodo || 'Alquiler') + '</span><b>' + money(Number(r.monto) || 0) + '</b></div></div>' +
+        '<div class="field"><label>Importe recibido</label>' +
+          '<div class="inp-money"><span class="cur">$</span>' +
+          '<input class="inp num" id="cobro-monto" value="' + total.toLocaleString('es-AR') + '"></div>' +
+          '<p class="hint">Alquiler + mora + gastos. Podés escribirlo con puntos o sin ellos.</p></div>' +
+        '<div class="field"><label>Mora <span class="mut" style="font-weight:400">· solo si paga tarde</span>' +
           '<span style="float:right;display:flex;gap:6px">' +
           '<button type="button" class="btn ghost sm" style="padding:1px 9px" onclick="Peek.calcularMora()">↻ Calcular</button>' +
           '<button type="button" class="btn ghost sm" style="padding:1px 9px" onclick="Peek.sacarMora()">Sacar mora</button>' +
@@ -84,10 +91,6 @@
           '<div class="inp-money"><span class="cur">$</span>' +
           '<input class="inp num" id="cobro-mora" value="' + mora.toLocaleString('es-AR') + '" oninput="Peek.moraTocada=true;Peek.syncMonto();Peek.recalc()"></div>' +
           '<p class="hint" id="cobro-mora-hint">Se suma al importe recibido. Poné 0 (o tocá "Sacar mora" / "Calcular") si esta vez no la cobrás.</p></div>' +
-        '<div class="field"><label>Importe recibido</label>' +
-          '<div class="inp-money"><span class="cur">$</span>' +
-          '<input class="inp num" id="cobro-monto" value="' + total.toLocaleString('es-AR') + '"></div>' +
-          '<p class="hint">Podés escribirlo con puntos o sin ellos.</p></div>' +
         '<div class="field"><label>Medio de pago</label>' +
           '<div class="seg" id="cobro-forma">' +
           '<button type="button" class="on">Transferencia</button>' +
