@@ -64,9 +64,9 @@
           <a href="{{ url_for('liquidaciones.ver', pid=propietario_id, mes=p.periodo_mes, anio=p.periodo_anio, contrato=c.id) }}" target="_blank">Liquidación</a>
           {% endif %}
           <a href="{{ url_for('cobros.editar', pid=p.id) }}">Editar</a>
-          <form method="post" action="{{ url_for('cobros.anular', pid=p.id) }}"
-                onsubmit="return confirm('¿Anular este pago? Queda como anulado (no se borra) y el período podrá cobrarse de nuevo.')">
-            <button class="link-danger" type="submit">Anular</button>
+          <form method="post" action="{{ url_for('cobros.eliminar', pid=p.id) }}"
+                onsubmit="return confirm('¿Eliminar este pago? Se borra definitivamente (no queda guardado) y el período queda libre para cobrarlo de nuevo.')">
+            <button class="link-danger" type="submit">Eliminar</button>
           </form>
         {% endif %}
       </td>

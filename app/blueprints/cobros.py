@@ -645,11 +645,19 @@ def anular(pid):
     return redirect(url_for("cobros.detalle", cid=cid))
 
 
-# Alias viejo: por si quedó algún enlace a /eliminar, ahora anula (no borra).
 @cobros_bp.route("/pago/<int:pid>/eliminar", methods=["POST"])
 @login_required
 def eliminar(pid):
-    return anular(pid)
+    """Elimina el pago DEFINITIVAMENTE (no deja rastro). Borra también sus gastos
+    extra (cascade). El período queda libre para volver a cobrarlo."""
+    pago = db.session.get(Pago, pid) or abort(404)
+    cid = pago.contrato_id
+    periodo = (f"{MESES_ES[pago.periodo_mes]} {pago.periodo_anio}"
+               if pago.periodo_mes else "")
+    db.session.delete(pago)
+    db.session.commit()
+    flash(f"Pago{(' de ' + periodo) if periodo else ''} eliminado.", "ok")
+    return redirect(url_for("cobros.detalle", cid=cid))
 
 
 @cobros_bp.route("/pago/<int:pid>/abonar", methods=["GET", "POST"])

@@ -605,6 +605,34 @@ def run():
               q(lambda: Pago.query.filter_by(contrato_id=ids["c2"], periodo_mes=7,
                 periodo_anio=2098).filter(Pago.estado != "Anulado").count()) == 1)
 
+        # La liquidación toma SOLO el pago activo, nunca el anulado (aunque el
+        # anulado conserve pagado>0). Bug reportado: "los toma todos".
+        from app.blueprints.liquidaciones import _pagos_periodo as _pp
+        _prop2 = q(lambda: (lambda c: c.propietario_id or
+                            (c.inmueble.propietario_id if c.inmueble else None))(
+                            db.session.get(Contrato, ids["c2"])))
+        if _prop2:
+            check("la liquidación NO cuenta el pago anulado (solo el activo)",
+                  q(lambda: len(_pp(_prop2, 7, 2098))) == 1)
+
+        seccion("Eliminar pago (borrado definitivo, sin rastro)")
+        # A diferencia de anular, "Eliminar" borra el pago de verdad: no queda en la
+        # base y el período queda libre para volver a cobrarlo.
+        cl.post("/cobros/rapido", json={"cid": ids["c2"], "mes": 8, "anio": 2098,
+                "precio": 7000, "pagado": 7000})
+        _pel = q(lambda: Pago.query.filter_by(contrato_id=ids["c2"], periodo_mes=8,
+                                              periodo_anio=2098).first().id)
+        cl.post(f"/cobros/pago/{_pel}/eliminar")
+        check("el pago eliminado se borra de la base (no queda rastro)",
+              q(lambda: db.session.get(Pago, _pel) is None))
+        _re2 = cl.post("/cobros/rapido", json={"cid": ids["c2"], "mes": 8, "anio": 2098,
+                       "precio": 7500, "pagado": 7500})
+        check("tras eliminar, se puede volver a cobrar ese período (200)",
+              _re2.status_code == 200)
+        check("tras eliminar y recobrar queda UN solo pago del período (no dos)",
+              q(lambda: Pago.query.filter_by(contrato_id=ids["c2"], periodo_mes=8,
+                periodo_anio=2098).count()) == 1)
+
         seccion("Liquidaciones: anti doble-generación (idempotencia)")
         from app.models import Liquidacion as _Liq0
 

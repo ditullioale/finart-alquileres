@@ -24,7 +24,8 @@ def _pagos_periodo(propietario_id, mes, anio, contrato_id=None, solo_pendientes=
     - solo_pendientes: solo los que aún NO fueron liquidados al propietario.
     """
     pagos = []
-    for p in Pago.query.filter_by(periodo_mes=mes, periodo_anio=anio).all():
+    for p in (Pago.query.filter_by(periodo_mes=mes, periodo_anio=anio)
+              .filter(Pago.estado != "Anulado").all()):
         c = p.contrato
         if not c or float(p.pagado or 0) <= 0:
             continue
@@ -294,7 +295,8 @@ def index():
     anio = parse_num(request.args.get("anio"), entero=True) or hoy.year
 
     por_prop = {}
-    for p in Pago.query.filter_by(periodo_mes=mes, periodo_anio=anio).all():
+    for p in (Pago.query.filter_by(periodo_mes=mes, periodo_anio=anio)
+              .filter(Pago.estado != "Anulado").all()):
         c = p.contrato
         if not c or float(p.pagado or 0) <= 0:
             continue
@@ -476,7 +478,8 @@ def resumen(pid):
         if prop_id != pid:
             continue
         pago = next((p for p in c.pagos
-                     if p.periodo_mes == mes and p.periodo_anio == anio), None)
+                     if p.periodo_mes == mes and p.periodo_anio == anio
+                     and not p.anulado), None)
         pct = _comision_pct(c)
         if pago and float(pago.pagado or 0) > 0:
             alq = float(pago.precio_alquiler or 0)
