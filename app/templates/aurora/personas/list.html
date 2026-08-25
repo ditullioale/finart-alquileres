@@ -1,0 +1,93 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Personas{% endblock %}
+{% block crumb %}<b>Personas</b><span class="sep">·</span>{{ personas|length }}{% endblock %}
+
+{% block acciones %}
+<a class="btn sm" href="{{ url_for('personas.telefonos') }}">{{ icon('message-circle', 13) }} Revisar teléfonos</a>
+<a class="btn pri sm" href="{{ url_for('personas.nueva') }}">{{ icon('plus', 13) }} Nueva persona</a>
+{% endblock %}
+
+{% macro th(label, key, cls='') %}
+  {% set cur = request.args.get('sort') %}
+  {% set curdir = request.args.get('dir', 'asc') %}
+  {% set nd = 'desc' if (cur == key and curdir == 'asc') else 'asc' %}
+  <th class="{{ cls }}"><a class="{{ 'on' if cur == key }}"
+    href="{{ url_for('personas.listar', **dict(request.args, sort=key, dir=nd)) }}">{{ label }}<span
+    class="arr">{{ '▲' if cur == key and curdir == 'asc' else ('▼' if cur == key else '') }}</span></a></th>
+{% endmacro %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Personas</h1>
+    <p class="sub">Propietarios, inquilinos, fiadores y garantes de tu inmobiliaria.</p>
+  </div>
+  <div class="sp" style="flex:1"></div>
+  <form method="get" class="filtros">
+    {% if rol %}<input type="hidden" name="rol" value="{{ rol }}">{% endif %}
+    <div class="buscar">{{ icon('search', 14) }}
+      <input class="inp" name="q" value="{{ q }}" placeholder="Nombre, DNI o CUIT">
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-h">
+    <div class="tabs">
+      <a class="tab {{ 'on' if not rol }}" href="{{ url_for('personas.listar', q=q) }}">Todas</a>
+      <a class="tab {{ 'on' if rol == 'propietario' }}" href="{{ url_for('personas.listar', q=q, rol='propietario') }}">Propietarios</a>
+      <a class="tab {{ 'on' if rol == 'inquilino' }}" href="{{ url_for('personas.listar', q=q, rol='inquilino') }}">Inquilinos</a>
+    </div>
+    <div class="sp"></div>
+    <a class="btn ghost sm" href="{{ url_for('personas.exportar_dni_sin_cuit') }}"
+       title="Descarga los que tienen DNI pero les falta el CUIT, que es el que necesita ARCA">DNI sin CUIT (Excel)</a>
+  </div>
+
+  {% if personas %}
+  <table class="t">
+    <thead>
+      <tr>{{ th('Nombre', 'nombre') }}<th>Rol</th>{{ th('DNI', 'dni') }}{{ th('CUIT', 'cuit') }}
+          {{ th('Teléfono', 'telefono') }}{{ th('Email', 'email') }}<th></th></tr>
+    </thead>
+    <tbody>
+      {% for p in personas %}
+      <tr>
+        <td><a href="{{ url_for('personas.editar', pid=p.id) }}"><b>{{ p.nombre }}</b></a></td>
+        <td><span class="chip">{{ p.roles_texto or '—' }}</span></td>
+        <td class="mut">{{ p.dni or '—' }}</td>
+        <td class="mut">{{ p.cuit or '—' }}</td>
+        <td class="mut">{{ p.telefono or '—' }}</td>
+        <td class="mut">{{ p.email or '—' }}</td>
+        <td>
+          <div class="acts">
+            {% set wa = wa_link(p.telefono, "Hola " ~ p.nombre ~ "!") %}
+            {% if wa %}<a class="btn ghost sm icon" href="{{ wa }}" target="_blank" rel="noopener"
+                          title="Enviar WhatsApp">{{ icon('message-circle', 14) }}</a>{% endif %}
+            <a class="btn sm" href="{{ url_for('personas.editar', pid=p.id) }}">Editar</a>
+            <details class="rmenu">
+              <summary title="Más acciones">⋯</summary>
+              <div class="pop">
+                <form method="post" action="{{ url_for('personas.eliminar', pid=p.id) }}"
+                      onsubmit="return confirm('¿Eliminar a {{ p.nombre }}?')">
+                  <button type="submit" class="peligro">{{ icon('alert-triangle', 14) }} Eliminar</button>
+                </form>
+              </div>
+            </details>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">
+    <div class="ic">{{ icon('users', 20) }}</div>
+    <b>No hay personas {{ 'con ese filtro' if q or rol else 'cargadas' }}</b>
+    <p>Cargá primero al propietario y al inquilino; después vas a poder armar el contrato.</p>
+    <a class="btn pri" href="{{ url_for('personas.nueva') }}" style="margin-top:6px">{{ icon('plus', 14) }} Nueva persona</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Recuperar contraseña{% endblock %}
+
+{% block content %}
+<div class="auth">
+  <div class="auth-card">
+    <div class="auth-mark">{{ icon('key', 19) }}</div>
+    <h1>Recuperar contraseña</h1>
+    <p class="sub">Te mandamos un enlace por email para elegir una nueva.</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+      <div class="auth-msg {{ 'ok' if cat == 'ok' }}">
+        {{ icon('check-circle', 15) if cat == 'ok' else icon('alert-triangle', 15) }}<div>{{ msg }}</div>
+      </div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="post">
+      <div class="field">
+        <label for="ident">Usuario o email</label>
+        <input class="inp" id="ident" name="ident" autofocus required>
+      </div>
+      <button class="btn pri" type="submit">Enviar enlace</button>
+    </form>
+
+    <div class="auth-f"><a href="{{ url_for('auth.login') }}">Volver a ingresar</a></div>
+  </div>
+</div>
+{% endblock %}

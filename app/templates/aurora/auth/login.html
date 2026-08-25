@@ -1,0 +1,39 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Ingresar{% endblock %}
+
+{% block content %}
+<div class="auth">
+  <div class="auth-card">
+    <div class="auth-mark">{{ icon('home', 19) }}</div>
+    <h1>Gestión de Alquileres</h1>
+    <p class="sub">Ingresá para continuar.</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+      <div class="auth-msg {{ 'ok' if cat == 'ok' }}">
+        {{ icon('check-circle', 15) if cat == 'ok' else icon('alert-triangle', 15) }}<div>{{ msg }}</div>
+      </div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="post">
+      <div class="field">
+        <label for="username">Usuario</label>
+        <input class="inp" id="username" name="username" autocomplete="username" autofocus required>
+      </div>
+      <div class="field">
+        <label for="password">Contraseña</label>
+        <input class="inp" id="password" name="password" type="password" autocomplete="current-password" required>
+      </div>
+      <button class="btn pri" type="submit">Ingresar</button>
+    </form>
+
+    <div class="auth-f">
+      <a href="{{ url_for('auth.recuperar') }}">¿Olvidaste tu contraseña?</a>
+      <span>¿Sos una inmobiliaria y querés probarlo?
+        <a href="{{ url_for('auth.registro') }}">Solicitar acceso</a></span>
+    </div>
+  </div>
+</div>
+{% endblock %}

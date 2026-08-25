@@ -1,0 +1,91 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}{{ 'Editar' if inmueble.id else 'Nuevo' }} inmueble{% endblock %}
+{% block crumb %}
+<a href="{{ url_for('inmuebles.listar') }}">Inmuebles</a><span class="sep">›</span>
+<b>{{ inmueble.direccion if inmueble.id else 'Nuevo' }}</b>
+{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>{{ 'Editar' if inmueble.id else 'Nuevo' }} inmueble</h1>
+    <p class="sub">La dirección es lo único obligatorio; el resto lo podés completar después.</p>
+  </div>
+</div>
+
+<form method="post" class="card" style="max-width:820px">
+  <div class="card-b">
+    <div class="gridf">
+      <div class="field"><label>Código</label>
+        <input class="inp" name="codigo" value="{{ inmueble.codigo or '' }}" placeholder="DE17"></div>
+
+      <div class="field"><label>Tipo</label>
+        <select class="inp" name="tipo">
+          <option value="">—</option>
+          {% for t in tipos %}<option value="{{ t }}" {{ 'selected' if inmueble.tipo == t }}>{{ t }}</option>{% endfor %}
+        </select></div>
+
+      <div class="field full"><label>Dirección <span class="req">*</span></label>
+        <input class="inp" name="direccion" value="{{ inmueble.direccion or '' }}" required></div>
+
+      <div class="field"><label>Localidad</label>
+        <input class="inp" name="localidad" value="{{ inmueble.localidad or '' }}"></div>
+
+      <div class="field"><label>Provincia</label>
+        <input class="inp" name="provincia" value="{{ inmueble.provincia or '' }}"></div>
+
+      <div class="field"><label>Barrio</label>
+        <input class="inp" name="barrio" value="{{ inmueble.barrio or '' }}"></div>
+
+      <div class="field"><label>Estado</label>
+        <select class="inp" name="estado">
+          {% for e in estados %}<option value="{{ e }}" {{ 'selected' if inmueble.estado == e }}>{{ e }}</option>{% endfor %}
+        </select></div>
+
+      <div class="field"><label>Dormitorios</label>
+        <input class="inp" name="dormitorios" value="{{ inmueble.dormitorios if inmueble.dormitorios is not none else '' }}"></div>
+
+      <div class="field"><label>Baños</label>
+        <input class="inp" name="banos" value="{{ inmueble.banos if inmueble.banos is not none else '' }}"></div>
+
+      <div class="field"><label>Propietario</label>
+        <select class="inp" name="propietario_id">
+          <option value="">—</option>
+          {% for p in propietarios %}
+            <option value="{{ p.id }}" {{ 'selected' if inmueble.propietario_id == p.id }}>{{ p.nombre }}</option>
+          {% endfor %}
+        </select>
+        <div class="mut" style="font-size:12px;margin-top:5px">¿No aparece? Marcalo como propietario en Personas.</div></div>
+
+      <div class="field"><label>Moneda</label>
+        <select class="inp" name="moneda">
+          <option {{ 'selected' if inmueble.moneda == 'Pesos' }}>Pesos</option>
+          <option {{ 'selected' if inmueble.moneda == 'Dólares' }}>Dólares</option>
+        </select></div>
+
+      <div class="field"><label>Precio de referencia</label>
+        <input class="inp" name="precio_referencia" value="{{ inmueble.precio_referencia if inmueble.precio_referencia is not none else '' }}"></div>
+
+      <div class="field"><label>% Comisión al propietario</label>
+        <input class="inp" name="comision_pct" value="{{ inmueble.comision_pct if inmueble.comision_pct is not none else '' }}"></div>
+
+      <div class="field full"><label>N° de cuenta Litoral Gas</label>
+        <input class="inp" name="cuenta_gas" value="{{ inmueble.cuenta_gas or '' }}" placeholder="Ej: 962500/01">
+        <div class="mut" style="font-size:12px;margin-top:5px">El N° de cliente que figura en Litoral Gas. Sirve para el control de gas.</div></div>
+
+      <div class="field full"><label>Descripción</label>
+        <textarea class="inp" name="descripcion" rows="3">{{ inmueble.descripcion or '' }}</textarea></div>
+
+      <div class="field full"><label>Observaciones</label>
+        <textarea class="inp" name="observaciones" rows="2">{{ inmueble.observaciones or '' }}</textarea></div>
+    </div>
+
+    <div class="formbtns">
+      <a class="btn" href="{{ url_for('inmuebles.listar') }}">Cancelar</a>
+      <button class="btn pri" type="submit">{{ icon('check', 13) }} Guardar</button>
+    </div>
+  </div>
+</form>
+{% endblock %}

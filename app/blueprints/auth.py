@@ -2,7 +2,7 @@
 import math
 from datetime import datetime, timedelta
 
-from flask import (Blueprint, render_template, redirect, url_for, request,
+from flask import (Blueprint, redirect, url_for, request,
                    flash, current_app)
 from flask_login import login_user, logout_user, login_required, current_user
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
@@ -10,6 +10,7 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from .. import db
 from ..models import IntentoLogin, Usuario
 from ..seguridad import validar_password
+from ..ui import render_ui
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -157,7 +158,7 @@ def login():
         if espera:
             flash(f"Demasiados intentos fallidos. Esperá unos {espera} minuto(s) "
                   "e intentá de nuevo.", "error")
-            return render_template("auth/login.html")
+            return render_ui("auth/login.html")
         usuario = Usuario.query.filter_by(username=username).first()
         if usuario and usuario.activo and usuario.check_password(password):
             _olvidar_fallos(clave)
@@ -169,7 +170,7 @@ def login():
         _registrar_fallo(clave)
         flash("Usuario o contraseña incorrectos.", "error")
 
-    return render_template("auth/login.html")
+    return render_ui("auth/login.html")
 
 
 @auth_bp.route("/logout", methods=["POST"])
@@ -193,7 +194,7 @@ def registro():
         if espera:
             flash("Demasiadas solicitudes desde tu conexión. Probá de nuevo en un "
                   f"rato (unos {espera} minuto/s).", "error")
-            return render_template("auth/registro.html", datos=request.form)
+            return render_ui("auth/registro.html", datos=request.form)
         nombre_inmo = request.form.get("nombre_inmobiliaria", "").strip()
         contacto = request.form.get("nombre_contacto", "").strip()
         email = request.form.get("email", "").strip()
@@ -223,7 +224,7 @@ def registro():
 
         if error:
             flash(error, "error")
-            return render_template("auth/registro.html", datos=request.form)
+            return render_ui("auth/registro.html", datos=request.form)
 
         # La solicitud nace SIN verificar; solo llega al superadmin cuando el
         # interesado confirma su email con el enlace que le enviamos.
@@ -256,7 +257,7 @@ def registro():
             flash("¡Solicitud enviada! Te vamos a habilitar el acceso a la brevedad.", "ok")
         return redirect(url_for("auth.login"))
 
-    return render_template("auth/registro.html", datos={})
+    return render_ui("auth/registro.html", datos={})
 
 
 @auth_bp.route("/registro/confirmar/<token>")
@@ -289,7 +290,7 @@ def recuperar():
         if espera:
             flash("Demasiados pedidos desde tu conexión. Probá de nuevo en un rato "
                   f"(unos {espera} minuto/s).", "error")
-            return render_template("auth/recuperar.html")
+            return render_ui("auth/recuperar.html")
         ident = request.form.get("ident", "").strip()
         usuario = (Usuario.query.filter(db.or_(Usuario.username == ident.lower(),
                                                Usuario.email == ident)).first()
@@ -306,7 +307,7 @@ def recuperar():
         flash("Si el usuario existe y tiene email cargado, te enviamos un enlace "
               "para restablecer la contraseña.", "ok")
         return redirect(url_for("auth.login"))
-    return render_template("auth/recuperar.html")
+    return render_ui("auth/recuperar.html")
 
 
 @auth_bp.route("/restablecer/<token>", methods=["GET", "POST"])
@@ -321,13 +322,13 @@ def restablecer(token):
         err = validar_password(nueva)
         if err:
             flash(err, "error")
-            return render_template("auth/restablecer.html", token=token)
+            return render_ui("auth/restablecer.html", token=token)
         if nueva != repetir:
             flash("Las contraseñas no coinciden.", "error")
-            return render_template("auth/restablecer.html", token=token)
+            return render_ui("auth/restablecer.html", token=token)
         usuario.set_password(nueva)
         usuario.must_change_password = False
         db.session.commit()
         flash("Contraseña actualizada. Ya podés iniciar sesión.", "ok")
         return redirect(url_for("auth.login"))
-    return render_template("auth/restablecer.html", token=token)
+    return render_ui("auth/restablecer.html", token=token)

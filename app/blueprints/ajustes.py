@@ -3,13 +3,14 @@ from functools import wraps
 from io import BytesIO
 from datetime import date
 
-from flask import (Blueprint, render_template, redirect, url_for, request,
+from flask import (Blueprint, redirect, url_for, request,
                    flash, abort, make_response)
 from flask_login import login_required, current_user
 
 from .. import db
 from ..models import Ajustes
 from ..utils import parse_num
+from ..ui import render_ui
 
 ajustes_bp = Blueprint("ajustes", __name__, url_prefix="/ajustes")
 
@@ -48,7 +49,7 @@ def index():
     from ..models import GasCredencial
     credenciales_gas = GasCredencial.query.order_by(GasCredencial.id).all()
     from .. import facturador
-    return render_template("ajustes/index.html", a=a, credenciales_gas=credenciales_gas,
+    return render_ui("ajustes/index.html", a=a, credenciales_gas=credenciales_gas,
                            facturador_habilitado=facturador.habilitado())
 
 
