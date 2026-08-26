@@ -2,7 +2,7 @@
 
 Checklist tildable del roadmap. Estado: ✅ hecho · 🟡 parcial · ⬜ pendiente · 🔴 urgente
 
-Última actualización: 24/08/2026
+Última actualización: 26/08/2026
 
 Leyenda de "Quién": **Claude** = lo hago yo en el código · **Ale** = acción tuya (GitHub, legales, comercial)
 
@@ -82,6 +82,9 @@ Leyenda de "Quién": **Claude** = lo hago yo en el código · **Ale** = acción 
 - [x] ✅ Roles ampliados (solo lectura / contador / superadmin — ver Fase 3)
 - [x] ✅ Auditoría (altas, cambios, eliminaciones)
 - [x] ✅ Pruebas de aislamiento entre inmobiliarias (batería adversarial, 90+ pruebas)
+- [x] ✅ Verificación en dos pasos (2FA) por email, opt-in por usuario
+- [x] ✅ Dependencias sin CVEs conocidas (pip-audit) + tokens de servicio en tiempo constante
+- [x] ✅ Certificados de ARCA cifrados en reposo (Fernet, `FACTURADOR_SECRET`)
 - [ ] ⬜ Cifrado de backups y secretos gestionados por el proveedor — **Ale/Claude**
 
 ## Backups y continuidad (sección 4.3)

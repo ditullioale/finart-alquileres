@@ -78,8 +78,16 @@ conmutables**: el **clásico** y **Aurora** (el nuevo, más moderno); se elige c
 - **Auditoría** — registro de acciones (quién/qué/cuándo) vía `after_flush`
   (`app/auditoria.py`), consultable desde la app.
 - **Seguridad** — protección **CSRF**, cookies de sesión endurecidas, **forzar
-  cambio de contraseña** por defecto, **límite de intentos de login**, y montos en
-  **Decimal** exacto (`q2()` en `utils.py`).
+  cambio de contraseña** por defecto, **límite de intentos de login**, comparación de
+  tokens de servicio en **tiempo constante** (`compare_digest`), y montos en **Decimal**
+  exacto (`q2()` en `utils.py`).
+- **Verificación en dos pasos (2FA)** — opcional por usuario (desde "Cambiar
+  contraseña"): al ingresar se pide un **código de un solo uso enviado por email**
+  (vence en 10 minutos; el código se guarda con HMAC de la `SECRET_KEY`, nunca en
+  claro). Recomendado para cuentas de administrador. Se ofrece solo si el usuario
+  tiene email y el servidor puede enviar correos.
+- **Dependencias al día** — las librerías se mantienen en versiones parcheadas
+  (auditadas con `pip-audit`) tanto en el gestor como en el Facturador.
 - **Envío de emails** (`app/emailer.py`) — recuperación de contraseña, verificación
   de email en el registro y **recibos en PDF al inquilino**. Usa la **API HTTP de
   Brevo** (`BREVO_API_KEY`, recomendada en la nube porque no depende de los puertos

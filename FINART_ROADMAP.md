@@ -1,7 +1,7 @@
 # FINART — Roadmap técnico (documento vivo)
 
 > Norte a seguir. Se va marcando: ✅ hecho · 🟡 parcial · ⬜ pendiente.
-> Última actualización: 2026-08-24.
+> Última actualización: 2026-08-26.
 
 **Principio rector:** Finart administra el negocio inmobiliario; el Facturador ARCA
 administra lo fiscal. Ninguno absorbe responsabilidades del otro.
@@ -24,7 +24,8 @@ interfaces que permitan escalar cuando haga falta.
 - ✅ 1.5 Cabeceras de seguridad (CSP, HSTS en https, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy).
 - 🟡 1.6 Secretos fuera de Git (revisar que `.env` esté en `.gitignore`; secretos ya rotados una vez).
 - ⬜ 1.7 Rotación de secretos (tokens de integración, claves admin).
-- ⬜ 1.8 2FA (primero superadmin, luego admins).
+- 🟡 1.8 2FA (segundo factor por **email**, opt-in por usuario, ✅; TOTP con app y forzarlo por rol ⬜).
+- ✅ 1.9 Dependencias parcheadas (auditoría `pip-audit`: gestor y Facturador sin CVEs conocidas) + tokens de servicio comparados en tiempo constante (`compare_digest`).
 
 ## Fase 2 — Multi-tenancy
 - ✅ 2.1 Tenant como frontera (filtro automático por sesión, `with_loader_criteria`).
@@ -77,6 +78,7 @@ interfaces que permitan escalar cuando haga falta.
 ---
 
 ## Hecho recientemente (changelog)
+- **Endurecimiento de seguridad (Fase 1):** auditoría con `pip-audit` y actualización de dependencias con CVEs en los dos repos (gestor: Flask 3.1.3, Werkzeug 3.1.6, python-dotenv 1.2.2; Facturador: starlette 1.6, fastapi 0.141, cryptography 50, python-multipart, zeep, pdfminer). Tokens de servicio (robot de gas, cron de reconciliación, admin del Facturador) comparados en tiempo constante. **2FA por email opt-in** para el ingreso (código de un solo uso, HMAC de la `SECRET_KEY`). Todo con la suite verde (gestor 254 QA + 96 aislamiento; Facturador 82).
 - **ARCA en producción (3.3):** se pasó de homologación a **producción** y se emitió un **CAE real** (certificado, WSFE y punto de venta propios; fix SSL `DH_KEY_TOO_SMALL` con `SECLEVEL=1`). **Re-emisión mode-aware**: un comprobante que fue de prueba (mock/homologación) puede re-emitirse real en producción sin duplicar los que ya son reales, tanto para liquidaciones como para transferencias.
 - **Backups + recuperación (Fase 22):** backups automáticos diarios por **GitHub Actions** (`pg_dump` de las dos bases: gestor y facturador) con **verificación de restauración** en un contenedor y retención de artefactos. Falta la copia fuera del proveedor y el runbook.
 - **Monitoreo (Fase 12):** monitor de **uptime** sobre los health checks + **alerta semanal de vencimiento del certificado ARCA** (`.github/workflows/cert-check.yml`).
