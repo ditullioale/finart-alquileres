@@ -655,6 +655,27 @@ def run():
         check("eliminar la nota la borra de la base",
               q(lambda: db.session.get(_SN, _nid) is None))
 
+        seccion("Tareas pendientes (recordatorios del dashboard)")
+        from app.models import TareaPendiente as _TP
+        _t1 = cl.post("/tareas/nueva", json={"texto": "Llamar al plomero de Galvez 1192"})
+        check("agregar una tarea (JSON ok)",
+              _t1.status_code == 200 and _t1.get_json().get("ok"))
+        _tid = _t1.get_json().get("id")
+        check("la tarea queda pendiente y con autor",
+              q(lambda: (lambda t: t is not None and not t.completada and bool(t.autor))(
+                  db.session.get(_TP, _tid))))
+        check("una tarea vacía no se agrega (400)",
+              cl.post("/tareas/nueva", json={"texto": "   "}).status_code == 400)
+        check("hay 1 tarea pendiente",
+              q(lambda: _TP.query.filter_by(completada=False).count()) == 1)
+        _tc = cl.post(f"/tareas/{_tid}/completar", headers={"Accept": "application/json"})
+        check("completar la tarea responde ok",
+              _tc.status_code == 200 and _tc.get_json().get("ok"))
+        check("la tarea completada deja de figurar como pendiente",
+              q(lambda: _TP.query.filter_by(completada=False).count()) == 0)
+        check("la tarea completada sigue en la base pero tildada",
+              q(lambda: (lambda t: t is not None and t.completada)(db.session.get(_TP, _tid))))
+
         seccion("Liquidaciones: anti doble-generación (idempotencia)")
         from app.models import Liquidacion as _Liq0
 

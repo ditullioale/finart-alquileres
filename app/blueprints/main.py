@@ -120,9 +120,15 @@ def index():
     except SQLAlchemyError:
         sin_facturar = []
 
+    from .tareas import pendientes as _tareas_pendientes
+    try:
+        tareas = _tareas_pendientes()
+    except SQLAlchemyError:
+        tareas = []
+
     return render_ui("main/index.html", stats=stats, pendientes=pendientes,
                      por_vencer=por_vencer, hoy=hoy, cobranzas=cobranzas,
-                     gas_deuda=gas_deuda, sin_facturar=sin_facturar)
+                     gas_deuda=gas_deuda, sin_facturar=sin_facturar, tareas=tareas)
 
 
 @main_bp.route("/acerca")

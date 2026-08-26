@@ -523,6 +523,23 @@ class SeguimientoNota(db.Model):
         order_by="SeguimientoNota.creado.desc()"))
 
 
+class TareaPendiente(db.Model):
+    """Recordatorio de una acción pendiente de la inmobiliaria (llamar a alguien,
+    ir al banco, mandar un contrato...). Se tilda al completarla y deja de figurar."""
+    __tablename__ = "tareas_pendientes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    inmobiliaria_id = db.Column(db.Integer, db.ForeignKey("inmobiliarias.id"),
+                                index=True, nullable=False)
+    texto = db.Column(db.String(300), nullable=False)
+    autor = db.Column(db.String(80))
+    creado = db.Column(db.DateTime, default=datetime.utcnow)
+    completada = db.Column(db.Boolean, default=False, nullable=False,
+                           server_default=db.text("false"))
+    completada_en = db.Column(db.DateTime)
+    completada_por = db.Column(db.String(80))
+
+
 # --------------------------------------------------------------------------- #
 #  Ajustes de la inmobiliaria (fila única)
 # --------------------------------------------------------------------------- #

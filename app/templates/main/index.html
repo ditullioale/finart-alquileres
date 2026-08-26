@@ -101,6 +101,8 @@
     <div class="quick">
       <a class="btn" href="{{ url_for('contratos.crear') }}">{{ icon('plus', 16) }} Nuevo contrato</a>
       <a class="btn sec" href="{{ url_for('inmuebles.nuevo') }}">{{ icon('plus', 16) }} Nuevo inmueble</a>
+      <button class="btn sec" type="button" onclick="Tareas.abrir()">{{ icon('check-circle', 16) }} Tareas pendientes
+        <span class="js-tareas-n" style="{{ '' if tareas else 'display:none' }};background:#2f6fed;color:#fff;border-radius:10px;padding:0 7px;font-size:11px;font-weight:700;margin-left:3px">{{ tareas|length }}</span></button>
     </div>
   </div>
 
@@ -143,4 +145,6 @@
   </table>
 </div>
 {% endif %}
+
+{% include "_tareas.html" %}
 {% endblock %}

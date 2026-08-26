@@ -1,0 +1,99 @@
+{# Menú emergente de Tareas pendientes. Requiere `tareas` en el contexto.
+   Se incluye una sola vez por página; el botón que lo abre llama a Tareas.abrir(). #}
+<dialog id="dlgTareas" style="border:1px solid var(--line,#e5e7eb);border-radius:14px;padding:0;max-width:520px;width:92%;background:var(--surface,#fff);color:var(--tx,#111);box-shadow:0 24px 70px rgba(0,0,0,.35)">
+  <div style="padding:20px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+      <h2 style="margin:0;flex:1;font-size:18px">Tareas pendientes</h2>
+      <button type="button" onclick="document.getElementById('dlgTareas').close()"
+        style="border:0;background:transparent;font-size:22px;line-height:1;cursor:pointer;color:inherit">&times;</button>
+    </div>
+    <form onsubmit="return Tareas.agregar(event)" style="display:flex;gap:8px;margin-bottom:16px">
+      <input id="tarea-txt" required maxlength="300" autocomplete="off"
+        placeholder="Ej: Llamar al plomero de Galvez 1192"
+        style="flex:1;padding:9px 11px;border:1px solid var(--line,#cbd5e1);border-radius:9px;background:transparent;color:inherit;font-size:14px">
+      <button type="submit"
+        style="border:0;border-radius:9px;padding:9px 16px;font-weight:600;cursor:pointer;background:#2f6fed;color:#fff">Agregar</button>
+    </form>
+    <ul id="tareas-list" style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column">
+      {% for t in tareas %}
+      <li data-id="{{ t.id }}" style="display:flex;align-items:flex-start;gap:11px;padding:10px 4px;border-top:1px solid var(--line,#eee)">
+        <input type="checkbox" onchange="Tareas.completar({{ t.id }}, this)" title="Marcar como completada"
+          style="margin-top:2px;width:18px;height:18px;cursor:pointer;flex:none">
+        <div style="flex:1;min-width:0">
+          <div style="white-space:pre-wrap;word-break:break-word">{{ t.texto }}</div>
+          <div style="font-size:11px;opacity:.6;margin-top:2px">{{ t.autor or '' }}{% if t.creado %} &middot; {{ t.creado.strftime('%d/%m %H:%M') }}{% endif %}</div>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    <p id="tareas-vacio" style="opacity:.6;font-size:13px;margin:12px 4px 0;{{ 'display:none' if tareas else '' }}">
+      No hay tareas pendientes. Agregá una arriba y aparecerá acá.</p>
+  </div>
+</dialog>
+
+<script>
+(function(){
+  function csrf(){ var m=document.querySelector('meta[name="csrf-token"]'); return m ? m.getAttribute('content') : ''; }
+  var T = {
+    abrir: function(){ var d=document.getElementById('dlgTareas'); if(d && d.showModal) d.showModal(); },
+    agregar: function(ev){
+      ev.preventDefault();
+      var inp=document.getElementById('tarea-txt'); var txt=(inp.value||'').trim(); if(!txt) return false;
+      var btn=ev.target.querySelector('button[type=submit]'); if(btn) btn.disabled=true;
+      fetch('{{ url_for("tareas.nueva") }}', {method:'POST',
+            headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRFToken':csrf()},
+            body:JSON.stringify({texto:txt})})
+        .then(function(r){ return r.json(); })
+        .then(function(j){ if(btn) btn.disabled=false; if(j && j.ok){ T.pintar(j); inp.value=''; inp.focus(); } })
+        .catch(function(){ if(btn) btn.disabled=false; });
+      return false;
+    },
+    pintar: function(t){
+      var ul=document.getElementById('tareas-list');
+      var li=document.createElement('li'); li.setAttribute('data-id', t.id);
+      li.style.cssText='display:flex;align-items:flex-start;gap:11px;padding:10px 4px;border-top:1px solid var(--line,#eee)';
+      var cb=document.createElement('input'); cb.type='checkbox'; cb.title='Marcar como completada';
+      cb.style.cssText='margin-top:2px;width:18px;height:18px;cursor:pointer;flex:none';
+      cb.addEventListener('change', function(){ T.completar(t.id, cb); });
+      var mid=document.createElement('div'); mid.style.cssText='flex:1;min-width:0';
+      var tx=document.createElement('div'); tx.style.cssText='white-space:pre-wrap;word-break:break-word'; tx.textContent=t.texto;
+      var meta=document.createElement('div'); meta.style.cssText='font-size:11px;opacity:.6;margin-top:2px'; meta.textContent=(t.autor||'')+' · ahora';
+      mid.appendChild(tx); mid.appendChild(meta);
+      li.appendChild(cb); li.appendChild(mid);
+      ul.insertBefore(li, ul.firstChild);
+      var v=document.getElementById('tareas-vacio'); if(v) v.style.display='none';
+      T.badge(1);
+    },
+    completar: function(id, cb){
+      cb.disabled=true;
+      fetch('/tareas/'+id+'/completar', {method:'POST', headers:{'Accept':'application/json','X-CSRFToken':csrf()}})
+        .then(function(r){ return r.json(); })
+        .then(function(j){
+          if(j && j.ok){
+            var li=cb.closest('li'); li.style.transition='opacity .25s'; li.style.opacity='.35';
+            setTimeout(function(){ li.remove(); T.badge(-1);
+              if(!document.querySelectorAll('#tareas-list li').length){ var v=document.getElementById('tareas-vacio'); if(v) v.style.display=''; }
+            }, 250);
+          } else { cb.disabled=false; cb.checked=false; }
+        }).catch(function(){ cb.disabled=false; cb.checked=false; });
+    },
+    badge: function(delta){
+      document.querySelectorAll('.js-tareas-n').forEach(function(b){
+        var n=(parseInt(b.textContent,10)||0)+delta; if(n<0) n=0;
+        b.textContent=n; b.style.display = n>0 ? '' : 'none';
+      });
+    }
+  };
+  window.Tareas = T;
+  // Al entrar a la app, si hay tareas pendientes, se abre solo (una vez por sesión).
+  {% if tareas %}
+  try{
+    if(!sessionStorage.getItem('tareas_auto')){
+      sessionStorage.setItem('tareas_auto','1');
+      if(document.readyState!=='loading') T.abrir();
+      else document.addEventListener('DOMContentLoaded', T.abrir);
+    }
+  }catch(e){}
+  {% endif %}
+})();
+</script>

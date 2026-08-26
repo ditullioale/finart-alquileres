@@ -38,7 +38,7 @@ def _usuario_cargado():
 _TENANT_MODEL_NAMES = ["Persona", "Inmueble", "Contrato", "Aumento", "Pago",
                        "GasEstado", "ReciboManual", "Liquidacion",
                        "RegistroAuditoria", "DocumentoContrato", "Ajustes",
-                       "GasCredencial"]
+                       "GasCredencial", "SeguimientoNota", "TareaPendiente"]
 
 
 _MODELOS_CACHE = None

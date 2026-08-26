@@ -6,6 +6,8 @@
 {% block crumb %}<b>Hoy</b><span class="sep">·</span>{{ hoy.strftime('%d/%m/%Y') }}{% endblock %}
 
 {% block acciones %}
+<button class="btn ghost sm" type="button" onclick="Tareas.abrir()">{{ icon('check-circle', 14) }} Tareas
+  <span class="n js-tareas-n" style="{{ '' if tareas else 'display:none' }}">{{ tareas|length }}</span></button>
 <a class="btn ghost sm" href="{{ url_for('cobros.recordatorios') }}">{{ icon('message-circle', 14) }} Recordatorios</a>
 <a class="btn pri sm" href="{{ url_for('cobros.index') }}">{{ icon('zap', 14) }} Ir a cobranzas <kbd>B</kbd></a>
 {% endblock %}
@@ -150,4 +152,6 @@
   Esta bandeja reemplaza al panel de métricas: cada línea es algo que se puede resolver sin cambiar de pantalla.
   ¿Preferís el diseño anterior? <a href="?ui=clasica">Volvé al clásico</a>.
 </p>
+
+{% include "_tareas.html" %}
 {% endblock %}

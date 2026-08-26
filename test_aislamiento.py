@@ -239,6 +239,13 @@ def main():
     check("A no puede agregar una nota de seguimiento al contrato de B (404)",
           cA.post(f"/contratos/{bc}/seguimiento",
                   data={"texto": "hackeo"}).status_code == 404)
+    # Tareas pendientes: una tarea de A no la puede tocar B.
+    _ta = cA.post("/tareas/nueva", json={"texto": "tarea privada de A"})
+    _taid = _ta.get_json().get("id") if _ta.is_json else 0
+    check("B no puede completar una tarea de A (404)",
+          cB.post(f"/tareas/{_taid}/completar").status_code == 404)
+    check("B no puede eliminar una tarea de A (404)",
+          cB.post(f"/tareas/{_taid}/eliminar").status_code == 404)
 
     seccion("Auditoría: cada inmobiliaria ve solo su bitácora")
     with app.app_context():
