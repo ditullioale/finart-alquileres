@@ -1,11 +1,11 @@
-Flask==3.0.3
+Flask==3.1.3
 Flask-SQLAlchemy==3.1.1
 Flask-Login==0.6.3
 Flask-WTF==1.2.1
 Flask-Migrate==4.0.7
 SQLAlchemy==2.0.34
-python-dotenv==1.0.1
-Werkzeug==3.0.4
+python-dotenv==1.2.2
+Werkzeug==3.1.6
 # Driver de PostgreSQL (para uso multiusuario en red):
 psycopg2-binary>=2.9.10
 # Para el importador de datos de Inmosoft (Excel):

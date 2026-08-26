@@ -23,4 +23,31 @@
     {% if not forzado %}<a class="btn sec" href="{{ url_for('main.index') }}">Cancelar</a>{% endif %}
   </div>
 </form>
+
+{% if not forzado %}
+<div class="cardform" style="max-width:460px;margin-top:22px">
+  <h2 style="margin-top:0">🔒 Verificación en dos pasos</h2>
+  <p class="hint">Al ingresar, además de la contraseña te pedimos un código de un solo
+    uso enviado a tu email. Recomendado sobre todo para cuentas de administrador.</p>
+  {% if dosfa %}
+  <p style="color:#1f9d55;font-weight:600;margin:6px 0">✓ Activada — el código se envía a {{ current_user.email }}</p>
+  <form method="post" action="{{ url_for('usuarios.toggle_2fa') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="activar" value="0">
+    <div class="formbtns"><button class="btn sec" type="submit">Desactivar</button></div>
+  </form>
+  {% elif not tiene_email %}
+  <p class="hint" style="color:#8a5a00">Primero cargá un email en tu usuario para poder activarla.</p>
+  {% elif not email_servidor %}
+  <p class="hint" style="color:#8a5a00">El servidor todavía no tiene configurado el envío de
+    emails, así que el segundo factor no se puede usar aún.</p>
+  {% else %}
+  <form method="post" action="{{ url_for('usuarios.toggle_2fa') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="activar" value="1">
+    <div class="formbtns"><button class="btn ok" type="submit">Activar segundo factor</button></div>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
 {% endblock %}

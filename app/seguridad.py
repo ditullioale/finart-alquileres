@@ -4,10 +4,22 @@ Un solo lugar para (1) validar contraseñas con la misma regla en todos los fluj
 (registro, restablecer, cambio, alta por admin) y (2) agregar las cabeceras de
 seguridad a cada respuesta. Así no hay reglas distintas repartidas por el código.
 """
+import hmac
+
 from flask import request
 
 # Regla única de contraseñas.
 PASSWORD_MIN = 8
+
+
+def token_igual(recibido, esperado) -> bool:
+    """Compara dos tokens en tiempo constante (evita ataques de timing).
+
+    Devuelve False si falta cualquiera de los dos, así un token vacío o no
+    configurado nunca valida."""
+    if not recibido or not esperado:
+        return False
+    return hmac.compare_digest(str(recibido), str(esperado))
 
 
 def validar_password(pw: str):

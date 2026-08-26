@@ -106,13 +106,46 @@ def cambiar_clave():
             error = "La nueva contraseña debe ser distinta de la actual."
         if error:
             flash(error, "error")
-            return render_template("usuarios/cambiar_clave.html", forzado=forzado)
+            return render_template("usuarios/cambiar_clave.html", forzado=forzado,
+                                   **_ctx_2fa())
         current_user.set_password(nueva)
         current_user.must_change_password = False
         db.session.commit()
         flash("Contraseña actualizada correctamente.", "ok")
         return redirect(url_for("main.index"))
-    return render_template("usuarios/cambiar_clave.html", forzado=forzado)
+    return render_template("usuarios/cambiar_clave.html", forzado=forzado,
+                           **_ctx_2fa())
+
+
+def _ctx_2fa():
+    from ..emailer import email_disponible
+    return dict(dosfa=bool(getattr(current_user, "dosfa_email", False)),
+                tiene_email=bool((current_user.email or "").strip()),
+                email_servidor=email_disponible())
+
+
+@usuarios_bp.route("/dos-factores", methods=["POST"])
+@login_required
+def toggle_2fa():
+    """El propio usuario activa o desactiva el segundo factor por email."""
+    from ..emailer import email_disponible
+    activar = request.form.get("activar") == "1"
+    if activar:
+        if not (current_user.email or "").strip():
+            flash("Cargá un email en tu usuario antes de activar el segundo factor.", "error")
+        elif not email_disponible():
+            flash("El servidor todavía no tiene configurado el envío de emails, así que "
+                  "el segundo factor no se puede usar aún.", "error")
+        else:
+            current_user.dosfa_email = True
+            db.session.commit()
+            flash("Verificación en dos pasos activada: la próxima vez que ingreses "
+                  "te pediremos un código por email.", "ok")
+    else:
+        current_user.dosfa_email = False
+        db.session.commit()
+        flash("Verificación en dos pasos desactivada.", "ok")
+    return redirect(url_for("usuarios.cambiar_clave"))
 
 
 @usuarios_bp.route("/nuevo", methods=["GET", "POST"])

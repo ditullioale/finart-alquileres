@@ -244,10 +244,11 @@ def reconciliar_cron():
     RECONCILIAR_TOKEN. Reconcilia las liquidaciones pendientes de TODAS las inmobiliarias
     (usa el token del facturador de cada una). Idempotente y seguro: solo lee del
     Facturador y actualiza a 'emitida' lo que ya tiene CAE."""
+    from ..seguridad import token_igual
     token_env = os.environ.get("RECONCILIAR_TOKEN")
     if not token_env:
         abort(404)   # función deshabilitada si no se configuró el token
-    if request.headers.get("X-Reconciliar-Token") != token_env:
+    if not token_igual(request.headers.get("X-Reconciliar-Token"), token_env):
         abort(403)
     if not facturador.habilitado():
         return jsonify(ok=True, reconciliadas=0, revisadas=0,

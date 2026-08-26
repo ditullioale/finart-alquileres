@@ -30,6 +30,12 @@ def smtp_configurado():
                 and os.environ.get("SMTP_PASS"))
 
 
+def email_disponible():
+    """True si hay alguna vía de envío configurada (Brevo o SMTP). Se usa para no
+    ofrecer/forzar el 2FA por email cuando el servidor no puede mandar correos."""
+    return bool(_brevo_api_key()) or smtp_configurado()
+
+
 def enviar_email(destino, asunto, cuerpo, adjunto=None):
     """Devuelve True si se envió; False si no (queda en el log).
 

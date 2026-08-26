@@ -27,6 +27,10 @@ class Usuario(UserMixin, db.Model):
     activo = db.Column(db.Boolean, default=True)
     # Obliga a cambiar la contraseña en el próximo ingreso (p.ej. admin inicial).
     must_change_password = db.Column(db.Boolean, default=False)
+    # Segundo factor por email: si está activo, al ingresar pide un código de un
+    # solo uso enviado al email del usuario (opt-in, recomendado para admins).
+    dosfa_email = db.Column(db.Boolean, default=False, nullable=False,
+                            server_default=db.text("false"))
     # Multiempresa: a qué inmobiliaria pertenece el usuario (None = superadmin de plataforma).
     inmobiliaria_id = db.Column(db.Integer, db.ForeignKey("inmobiliarias.id"), index=True)
     creado = db.Column(db.DateTime, default=datetime.utcnow)

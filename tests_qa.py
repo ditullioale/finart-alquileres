@@ -325,6 +325,47 @@ def run():
               q(lambda: IntentoLogin.query.filter(IntentoLogin.clave.like("%|oper"),
                                                   IntentoLogin.fallos >= 5).count()) == 1)
 
+        seccion("Segundo factor por email (2FA opt-in)")
+        import app.emailer as _em2
+        import re as _re2
+        _capt = {}
+
+        def _fake_send(destino, asunto, cuerpo, adjunto=None):
+            m = _re2.search(r"\b(\d{6})\b", cuerpo or "")
+            _capt["c"] = m.group(1) if m else None
+            _capt["to"] = destino
+            return True
+
+        def _set2fa(valor):
+            u = Usuario.query.filter_by(username="admin").first()
+            u.dosfa_email = valor
+            if valor and not (u.email or ""):
+                u.email = "admin@ejemplo.test"
+            db.session.commit()
+
+        _orig_disp, _orig_send = _em2.email_disponible, _em2.enviar_email
+        _em2.email_disponible = lambda: True
+        _em2.enviar_email = _fake_send
+        try:
+            q(lambda: _set2fa(True))
+            cl2 = app.test_client()
+            r2 = cl2.post("/login", data={"username": "admin", "password": "admin123"})
+            check("con 2FA activo, el login pide el código (redirige a /login/2fa)",
+                  r2.status_code in (301, 302) and "/login/2fa" in (r2.headers.get("Location") or ""))
+            check("se envió un código de 6 dígitos al email del usuario",
+                  bool(_capt.get("c")) and bool(_capt.get("to")))
+            check("todavía NO está autenticado (falta ingresar el código)",
+                  cl2.get("/").status_code in (301, 302))
+            cl2.post("/login/2fa", data={"codigo": "000000"})
+            check("un código incorrecto no autentica",
+                  cl2.get("/").status_code in (301, 302))
+            cl2.post("/login/2fa", data={"codigo": _capt.get("c")})
+            check("con el código correcto, ingresa (home 200)",
+                  cl2.get("/").status_code == 200)
+        finally:
+            _em2.email_disponible, _em2.enviar_email = _orig_disp, _orig_send
+            q(lambda: _set2fa(False))
+
         seccion("Multiempresa - aislamiento entre inmobiliarias")
 
         def _crear_b():

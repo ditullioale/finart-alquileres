@@ -71,9 +71,10 @@ def importar():
     cuentas y lo guarda. Protegido por un token secreto (no usa login)."""
     import os
     from datetime import date
+    from ..seguridad import token_igual
     esperado = os.environ.get("GAS_IMPORT_TOKEN")
     recibido = request.headers.get("X-Gas-Token") or request.args.get("token")
-    if not esperado or recibido != esperado:
+    if not token_igual(recibido, esperado):
         return jsonify(ok=False, error="Token inválido o no configurado."), 403
 
     datos = request.get_json(silent=True) or {}
@@ -165,9 +166,10 @@ def robot_credenciales():
     (usuario + clave descifrada) para que consulte la deuda de cada una.
     Protegido por el mismo token del robot. Sin usuario => ve todos los Ajustes."""
     import os
+    from ..seguridad import token_igual
     esperado = os.environ.get("GAS_IMPORT_TOKEN")
     recibido = request.headers.get("X-Gas-Token") or request.args.get("token")
-    if not esperado or recibido != esperado:
+    if not token_igual(recibido, esperado):
         return jsonify(ok=False, error="Token inválido o no configurado."), 403
     cuentas = []
     for gc in GasCredencial.query.all():

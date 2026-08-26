@@ -1,9 +1,12 @@
 """Autenticación: login, logout y recuperación de contraseña."""
+import hashlib
+import hmac
 import math
+import secrets
 from datetime import datetime, timedelta
 
 from flask import (Blueprint, redirect, url_for, request,
-                   flash, current_app)
+                   flash, current_app, session)
 from flask_login import login_user, logout_user, login_required, current_user
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
@@ -162,15 +165,103 @@ def login():
         usuario = Usuario.query.filter_by(username=username).first()
         if usuario and usuario.activo and usuario.check_password(password):
             _olvidar_fallos(clave)
-            login_user(usuario)
             destino = request.args.get("next")
             if not destino and usuario.rol == "superadmin":
                 destino = url_for("plataforma.index")
-            return redirect(destino or url_for("main.index"))
+            destino = destino or url_for("main.index")
+            # Segundo factor por email (opt-in): en vez de entrar, mandamos un
+            # código de un solo uso y pedimos confirmarlo.
+            if _debe_pedir_2fa(usuario):
+                if _iniciar_desafio_2fa(usuario, destino):
+                    return redirect(url_for("auth.login_2fa"))
+                flash("No pudimos enviar el código de verificación por email. "
+                      "Reintentá en un momento.", "error")
+                return render_ui("auth/login.html")
+            login_user(usuario)
+            return redirect(destino)
         _registrar_fallo(clave)
         flash("Usuario o contraseña incorrectos.", "error")
 
     return render_ui("auth/login.html")
+
+
+# --------------------------------------------------------------------------- #
+#  Segundo factor por email (código de un solo uso)
+# --------------------------------------------------------------------------- #
+_2FA_MINUTOS = 10
+_2FA_MAX_INTENTOS = 5
+
+
+def _debe_pedir_2fa(usuario):
+    """El usuario activó 2FA, tiene email y el servidor puede mandar correos."""
+    from ..emailer import email_disponible
+    return bool(getattr(usuario, "dosfa_email", False)
+                and usuario.email and email_disponible())
+
+
+def _hash_codigo(codigo):
+    """HMAC del código con la SECRET_KEY: lo que se guarda en la sesión no se puede
+    revertir sin la clave del servidor (aunque la cookie está firmada)."""
+    key = (current_app.config.get("SECRET_KEY") or "x").encode("utf-8")
+    return hmac.new(key, f"2fa:{codigo}".encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def _iniciar_desafio_2fa(usuario, destino):
+    """Genera un código de 6 dígitos, lo manda por email y lo deja pendiente en la
+    sesión (hasheado). Devuelve True si se envió."""
+    from ..emailer import enviar_email
+    codigo = f"{secrets.randbelow(1000000):06d}"
+    session["pend2fa"] = {
+        "uid": usuario.id,
+        "hash": _hash_codigo(codigo),
+        "exp": (datetime.utcnow() + timedelta(minutes=_2FA_MINUTOS)).timestamp(),
+        "tries": 0,
+        "next": destino,
+    }
+    cuerpo = (f"Hola {usuario.nombre or usuario.username}!\n\n"
+              f"Tu código para ingresar es: {codigo}\n\n"
+              f"Vence en {_2FA_MINUTOS} minutos. Si no intentaste ingresar, "
+              "cambiá tu contraseña.")
+    return enviar_email(usuario.email, "Tu código de ingreso", cuerpo)
+
+
+@auth_bp.route("/login/2fa", methods=["GET", "POST"])
+def login_2fa():
+    pend = session.get("pend2fa")
+    if not pend:
+        return redirect(url_for("auth.login"))
+    if datetime.utcnow().timestamp() > pend.get("exp", 0):
+        session.pop("pend2fa", None)
+        flash("El código venció. Ingresá de nuevo.", "error")
+        return redirect(url_for("auth.login"))
+
+    if request.method == "POST":
+        if request.form.get("reenviar"):
+            usuario = db.session.get(Usuario, pend["uid"])
+            if usuario and _iniciar_desafio_2fa(usuario, pend.get("next")):
+                flash("Te enviamos un código nuevo.", "ok")
+            else:
+                flash("No pudimos reenviar el código.", "error")
+            return redirect(url_for("auth.login_2fa"))
+        if pend.get("tries", 0) >= _2FA_MAX_INTENTOS:
+            session.pop("pend2fa", None)
+            flash("Demasiados intentos con el código. Ingresá de nuevo.", "error")
+            return redirect(url_for("auth.login"))
+        codigo = (request.form.get("codigo") or "").strip()
+        if codigo and hmac.compare_digest(_hash_codigo(codigo), pend.get("hash", "")):
+            usuario = db.session.get(Usuario, pend["uid"])
+            destino = pend.get("next")
+            session.pop("pend2fa", None)
+            if not usuario or not usuario.activo:
+                flash("No se pudo completar el ingreso.", "error")
+                return redirect(url_for("auth.login"))
+            login_user(usuario)
+            return redirect(destino or url_for("main.index"))
+        pend["tries"] = pend.get("tries", 0) + 1
+        session["pend2fa"] = pend
+        flash("Código incorrecto. Revisá el email e intentá de nuevo.", "error")
+
+    return render_ui("auth/login_2fa.html")
 
 
 @auth_bp.route("/logout", methods=["POST"])
