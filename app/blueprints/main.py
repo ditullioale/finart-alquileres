@@ -2,7 +2,7 @@
 from datetime import date, timedelta
 
 from flask import Blueprint, render_template, redirect, url_for
-from flask_login import login_required
+from flask_login import login_required, current_user
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..models import Persona, Inmueble, Contrato, GasEstado
@@ -14,8 +14,12 @@ main_bp = Blueprint("main", __name__)
 
 
 @main_bp.route("/")
-@login_required
 def index():
+    # Sin sesión: landing pública del producto (qué es, para inmobiliarias y
+    # para inquilinos/propietarios). Con sesión: el panel de siempre.
+    if not current_user.is_authenticated:
+        return render_template("main/landing.html")
+
     stats = {
         "personas": Persona.query.count(),
         "propietarios": Persona.query.filter_by(es_propietario=True).count(),

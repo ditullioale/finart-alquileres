@@ -145,8 +145,10 @@ def run():
         check("login admin OK", cl.get("/").status_code == 200)
         bad = app.test_client()
         bad.post("/login", data={"username": "admin", "password": "malaclave"})
+        # "/" ahora es la landing pública (200 con o sin sesión): se chequea
+        # contra una ruta protegida en su lugar.
         check("login con clave incorrecta no entra",
-              bad.get("/", follow_redirects=False).status_code in (301, 302))
+              bad.get("/acerca", follow_redirects=False).status_code in (301, 302))
         co = login(app, "oper", "clave123")
         check("operador NO accede a usuarios (403)",
               co.get("/usuarios/").status_code == 403)
@@ -354,11 +356,13 @@ def run():
                   r2.status_code in (301, 302) and "/login/2fa" in (r2.headers.get("Location") or ""))
             check("se envió un código de 6 dígitos al email del usuario",
                   bool(_capt.get("c")) and bool(_capt.get("to")))
+            # "/" ahora es la landing pública (200 con o sin sesión): se
+            # chequea contra una ruta protegida en su lugar.
             check("todavía NO está autenticado (falta ingresar el código)",
-                  cl2.get("/").status_code in (301, 302))
+                  cl2.get("/acerca").status_code in (301, 302))
             cl2.post("/login/2fa", data={"codigo": "000000"})
             check("un código incorrecto no autentica",
-                  cl2.get("/").status_code in (301, 302))
+                  cl2.get("/acerca").status_code in (301, 302))
             cl2.post("/login/2fa", data={"codigo": _capt.get("c")})
             check("con el código correcto, ingresa (home 200)",
                   cl2.get("/").status_code == 200)
