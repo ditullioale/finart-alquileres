@@ -204,7 +204,7 @@ def enlace():
             token = _serializer().dumps(ingresado.lower(), salt=_SALT)
             link = url_for("portal.verificar", token=token, _external=True)
             enviar_email(
-                ingresado, "Tu acceso al portal — FINART",
+                ingresado, "Tu acceso al portal",
                 f"Hola!\n\nEntrá a este enlace para ver tus recibos, tu contrato y "
                 f"tus próximos vencimientos (vence en 20 minutos):\n{link}\n\n"
                 f"Si no lo pediste vos, ignorá este mensaje.")

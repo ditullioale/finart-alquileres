@@ -205,6 +205,7 @@ def _mandar_mail(persona, notificacion):
     Devuelve True si se pudo mandar."""
     from flask import url_for as _url_for, render_template as _render_template
     from ..models import Ajustes
+    from .. import emailer_contenido as contenido
     from ..emailer import enviar_email  # import diferido -- monkeypatch-friendly en tests
 
     a = Ajustes.get()
@@ -212,11 +213,14 @@ def _mandar_mail(persona, notificacion):
     estilo = estilo_tipo(notificacion.tipo)
 
     texto = (f"Hola {persona.nombre},\n\n"
-             f"Tenés una novedad en tu portal de FINART ({notificacion.tipo}):\n\n"
+             f"Tenés una novedad en tu portal de {a.nombre} ({notificacion.tipo}):\n\n"
              f"{notificacion.mensaje}\n\n"
-             f"Entrá para verla: {portal_link}\n")
+             f"Entrá para verla: {portal_link}\n\n"
+             f"Saludos,\n{contenido.firma(a)}\n")
     html = _render_template("email/notificacion_portal.html", nombre=persona.nombre,
                             tipo=notificacion.tipo, mensaje=notificacion.mensaje,
-                            portal_link=portal_link, logo_url=(a.logo_url or None))
-    return enviar_email(persona.email, f"Tenés novedades en tu portal — FINART ({notificacion.tipo})",
+                            portal_link=portal_link, logo_url=(a.logo_url or None),
+                            nombre_inmobiliaria=a.nombre,
+                            firma_lineas=contenido.firma_lineas(a), pie=contenido.pie(a))
+    return enviar_email(persona.email, f"Tenés novedades en tu portal — {a.nombre} ({notificacion.tipo})",
                         texto, html=html)

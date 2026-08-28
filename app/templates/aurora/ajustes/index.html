@@ -53,6 +53,22 @@
         <input class="inp" id="pagare_lugar" name="pagare_lugar" value="{{ a.pagare_lugar or '' }}"></div>
     </div>
 
+    <div class="auth-sec">Mails automáticos</div>
+    <p class="hint" style="margin-top:0">Así se firman el mail de bienvenida al portal y los avisos de
+      notificaciones. Si dejás algún campo vacío, se usa un texto genérico con tu nombre — nunca el de otra
+      inmobiliaria que use el sistema.</p>
+    <div class="gridf">
+      <div class="field full"><label for="email_bio">Quiénes somos <span class="hint">(párrafo del mail de bienvenida)</span></label>
+        <textarea class="inp" id="email_bio" name="email_bio" rows="3"
+                  placeholder="{{ email_bio_default }}">{{ a.email_bio or '' }}</textarea></div>
+      <div class="field full"><label for="email_firma">Firma <span class="hint">(un renglón por línea)</span></label>
+        <textarea class="inp" id="email_firma" name="email_firma" rows="2"
+                  placeholder="{{ email_firma_default }}">{{ a.email_firma or '' }}</textarea></div>
+      <div class="field full"><label for="email_pie">Pie del mail</label>
+        <input class="inp" id="email_pie" name="email_pie" value="{{ a.email_pie or '' }}"
+               placeholder="{{ email_pie_default }}"></div>
+    </div>
+
     <div class="formbtns"><button class="btn pri" type="submit">Guardar ajustes</button></div>
   </form>
 </div>

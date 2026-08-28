@@ -12,6 +12,7 @@ from flask import render_template, url_for
 
 from . import db
 from .models import Ajustes
+from . import emailer_contenido as contenido
 
 
 def enviar_bienvenida_inquilino(persona):
@@ -39,33 +40,34 @@ def enviar_bienvenida_inquilino(persona):
     acceso_texto = "y tu contraseña es tu D.N.I."
     acceso_html = "y tu contraseña es tu D.N.I."
 
+    bio = contenido.bio_bienvenida(a)
+    firma_texto = contenido.firma(a)
+
     texto = (
         f"Hola {nombre},\n\n"
-        "¡Bienvenido/a a FINART! Nos alegra tenerte como parte de nuestra "
+        f"¡Bienvenido/a a {a.nombre}! Nos alegra tenerte como parte de nuestra "
         "comunidad.\n\n"
-        "Somos FINART, una inmobiliaria con más de 40 años en Arroyo Seco -- y "
-        "también un Estudio Jurídico. Además de alquileres y ventas, "
-        "asesoramos en derecho sucesorio, laboral, contractual y de familia.\n\n"
-        "Estamos para acompañarte a lo largo de todo tu contrato. Para que "
-        "tengas todo a mano armamos un portal donde vas a poder ver tus "
+        f"{bio}\n\n"
+        "Para que tengas todo a mano armamos un portal donde vas a poder ver tus "
         "recibos de pago, el estado de tu contrato, tus próximos aumentos y "
         f"la cuenta de gas -- todo en un solo lugar. Entrás con tu email "
         f"({persona.email}) {acceso_texto}.\n\nPortal: {portal_link}\n\n"
         "Cualquier consulta, estamos a tu disposición.\n\n"
         "Saludos cordiales,\n"
-        "Dr. Alejandro R. Di Tullio -- Abogado, Corredor Inmobiliario\n"
-        "Dra. María M. Di Tullio -- Abogado\n\n"
+        f"{firma_texto}\n\n"
         "P.D.: por tu seguridad, no compartas tu DNI de acceso con otras personas."
     )
     html = render_template(
         "email/bienvenida_inquilino.html", nombre=nombre, email=persona.email,
         portal_link=portal_link, logo_url=(a.logo_url or None),
+        nombre_inmobiliaria=a.nombre, bio=bio,
+        firma_lineas=contenido.firma_lineas(a), pie=contenido.pie(a),
         acceso_html=acceso_html)
 
     # Import diferido (como en portal.py/auth.py): así los tests pueden
     # monkeypatchear app.emailer.enviar_email y que surta efecto acá.
     from .emailer import enviar_email
-    enviado = enviar_email(persona.email, "¡Bienvenido/a a FINART!", texto, html=html)
+    enviado = enviar_email(persona.email, f"¡Bienvenido/a a {a.nombre}!", texto, html=html)
     if enviado:
         persona.bienvenida_enviada_at = datetime.utcnow()
         db.session.commit()

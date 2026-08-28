@@ -1,10 +1,10 @@
 {% extends "aurora/base.html" %}
 {% from "_icons.html" import icon %}
-{% block title %}Tu portal — FINART{% endblock %}
+{% block title %}Tu portal{% endblock %}
 
 {% block content %}
 <div class="portal-top">
-  <div class="mark">F</div>
+  <div class="mark">{{ icon('key', 16) }}</div>
   <div class="who"><b>{{ nombre }}</b><small>{{ email }}</small></div>
   <div class="sp"></div>
   <a class="btn ghost sm notif-bell" href="{{ url_for('portal.notificaciones') }}" title="Notificaciones">

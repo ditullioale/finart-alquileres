@@ -579,6 +579,13 @@ class Ajustes(db.Model):
     telefono = db.Column(db.String(60))
     horario = db.Column(db.String(120))
     logo_url = db.Column(db.String(300))
+    # Contenido de los mails automáticos (bienvenida y notificaciones al portal),
+    # configurable por inmobiliaria -- cada una carga el suyo desde Ajustes.
+    # Si quedan vacíos, los mails usan un texto genérico armado con `nombre`
+    # (ver app/emailer_contenido.py) en vez de mencionar a otra inmobiliaria.
+    email_bio = db.Column(db.Text)      # párrafo "quiénes somos" del mail de bienvenida
+    email_firma = db.Column(db.Text)    # firma al pie de los mails (una línea por renglón)
+    email_pie = db.Column(db.String(200))  # línea del footer del mail (ej. "Mi Inmobiliaria — Mi Ciudad")
     recibo_prefijo = db.Column(db.String(8), default="0001")
     recibo_proximo = db.Column(db.Integer, default=1)
     liquidacion_prefijo = db.Column(db.String(8), default="0001")

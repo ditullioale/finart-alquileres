@@ -8,9 +8,9 @@
         <tr>
           <td style="background:#12263f;padding:22px 28px;text-align:center;">
             {% if logo_url %}
-            <img src="{{ logo_url }}" alt="FINART" style="max-height:44px;max-width:220px;">
+            <img src="{{ logo_url }}" alt="{{ nombre_inmobiliaria }}" style="max-height:44px;max-width:220px;">
             {% else %}
-            <span style="color:#ffffff;font-size:20px;font-weight:bold;letter-spacing:.5px;">FINART</span>
+            <span style="color:#ffffff;font-size:20px;font-weight:bold;letter-spacing:.5px;">{{ nombre_inmobiliaria }}</span>
             {% endif %}
           </td>
         </tr>
@@ -20,7 +20,7 @@
               Hola <b>{{ nombre }}</b>,</p>
 
             <p style="margin:0 0 18px 0;font-size:17px;color:#12263f;">
-              Tenés una novedad en tu portal de FINART.</p>
+              Tenés una novedad en tu portal de {{ nombre_inmobiliaria }}.</p>
 
             <span style="display:inline-block;margin:0 0 14px 0;padding:4px 12px;border-radius:20px;
                         font-size:12px;font-weight:bold;color:#ffffff;background:#4b5a70;">{{ tipo }}</span>
@@ -40,15 +40,14 @@
               Cualquier consulta, estamos a tu disposición.</p>
 
             <p style="margin:0 0 4px 0;font-size:13.5px;color:#33404f;">Saludos cordiales,</p>
-            <p style="margin:0 0 2px 0;font-size:13.5px;color:#33404f;">
-              Dr. Alejandro R. Di Tullio — Abogado, Corredor Inmobiliario</p>
-            <p style="margin:0 0 18px 0;font-size:13.5px;color:#33404f;">
-              Dra. María M. Di Tullio — Abogado</p>
+            {% for linea in firma_lineas %}
+            <p style="margin:0 0 2px 0;font-size:13.5px;color:#33404f;">{{ linea }}</p>
+            {% endfor %}
           </td>
         </tr>
         <tr>
           <td style="padding:16px 28px;background:#f7f8fa;font-size:11.5px;color:#8a93a3;text-align:center;">
-            FINART Propiedades — Arroyo Seco
+            {{ pie }}
           </td>
         </tr>
       </table>

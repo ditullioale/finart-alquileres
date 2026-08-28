@@ -331,10 +331,11 @@ def registro():
         link = url_for("auth.confirmar_registro",
                        token=generar_token_alta(sol.id), _external=True)
         enviado = enviar_email(
-            email, "Confirmá tu email — FINART",
+            email, "Confirmá tu email",
             f"Hola {contacto or nombre_inmo}:\n\n"
-            f"Recibimos tu pedido de acceso a FINART. Para confirmar tu email y que "
-            f"tu solicitud pase a revisión, entrá a este enlace (vence en 3 días):\n"
+            f"Recibimos tu pedido de acceso para {nombre_inmo}. Para confirmar tu "
+            f"email y que tu solicitud pase a revisión, entrá a este enlace "
+            f"(vence en 3 días):\n"
             f"{link}\n\nSi no pediste esto, ignorá el mensaje.")
 
         if enviado:

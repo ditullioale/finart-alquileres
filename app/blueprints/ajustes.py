@@ -39,6 +39,9 @@ def index():
         a.telefono = request.form.get("telefono", "").strip()
         a.horario = request.form.get("horario", "").strip()
         a.logo_url = request.form.get("logo_url", "").strip()
+        a.email_bio = request.form.get("email_bio", "").strip() or None
+        a.email_firma = request.form.get("email_firma", "").strip() or None
+        a.email_pie = request.form.get("email_pie", "").strip() or None
         a.recibo_prefijo = request.form.get("recibo_prefijo", "0001").strip() or "0001"
         a.recibo_proximo = parse_num(request.form.get("recibo_proximo"), entero=True) or 1
         a.pagare_meses = parse_num(request.form.get("pagare_meses"), entero=True) or 10
@@ -49,8 +52,16 @@ def index():
     from ..models import GasCredencial
     credenciales_gas = GasCredencial.query.order_by(GasCredencial.id).all()
     from .. import facturador
+    # Los defaults genéricos (si el campo queda vacío) se arman siempre con el
+    # nombre/localidad de ESTA inmobiliaria -- se muestran como referencia en
+    # el formulario, nunca con el texto de otra.
+    partes_pie = [p for p in (a.nombre, a.localidad) if p]
     return render_ui("ajustes/index.html", a=a, credenciales_gas=credenciales_gas,
-                           facturador_habilitado=facturador.habilitado())
+                           facturador_habilitado=facturador.habilitado(),
+                           email_bio_default=(f"Somos {a.nombre}. Estamos para acompañarte "
+                                              "a lo largo de todo tu contrato."),
+                           email_firma_default=f"El equipo de {a.nombre}",
+                           email_pie_default=(" — ".join(partes_pie) if partes_pie else a.nombre))
 
 
 @ajustes_bp.route("/facturador", methods=["POST"])
