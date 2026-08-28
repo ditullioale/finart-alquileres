@@ -7,7 +7,7 @@
   <div class="auth-card">
     <div class="auth-mark">{{ icon('key', 19) }}</div>
     <h1>Portal de inquilinos y propietarios</h1>
-    <p class="sub">Ingresá tu email y te mandamos un enlace para entrar, sin contraseña.</p>
+    <p class="sub">Ingresá con tu email y tu DNI.</p>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% for cat, msg in messages %}
@@ -23,7 +23,12 @@
         <input class="inp" id="email" name="email" type="email" autocomplete="email"
                value="{{ email or '' }}" autofocus required placeholder="tu@email.com">
       </div>
-      <button class="btn pri" type="submit">{{ icon('key', 15) }} Enviar enlace de acceso</button>
+      <div class="field">
+        <label for="dni">DNI</label>
+        <input class="inp" id="dni" name="dni" type="text" inputmode="numeric"
+               autocomplete="off" required placeholder="30111222 (sin puntos)">
+      </div>
+      <button class="btn pri" type="submit">{{ icon('key', 15) }} Ingresar</button>
     </form>
 
     <ul class="auth-benes">
@@ -34,6 +39,7 @@
     </ul>
 
     <div class="auth-f">
+      <a href="{{ url_for('portal.enlace') }}">¿No tenés tu DNI a mano? Pedí un enlace por mail</a>
       <a href="{{ url_for('main.index') }}">← Volver al inicio</a>
     </div>
   </div>

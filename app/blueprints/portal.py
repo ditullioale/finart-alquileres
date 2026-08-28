@@ -1,11 +1,14 @@
 """Portal de autoservicio para inquilinos y propietarios (sin usuario de staff).
 
-Acceso sin contraseña: la persona ingresa su email, le llega un enlace de un
-solo uso (magic link) válido por 20 minutos, y al abrirlo queda "adentro" de
-este portal -- una sesión propia (``session['portal_email']``), completamente
-aparte del login de personal (Usuario / flask_login) que usa el resto del
-sistema. Nunca se cruzan: quien entra por acá nunca ve el panel de gestión, y
-un operador nunca entra por este camino.
+Acceso con email + DNI (a pedido explícito de Ale, aun avisando que el DNI no
+es un dato secreto: circula en recibos, contratos y trámites, así que alguien
+que lo conozca podría entrar). Además queda, como alternativa/recuperación,
+el enlace de un solo uso por email (magic link, 20 minutos) que ya existía
+-- útil si alguien no tiene el DNI a mano. Cualquiera de las dos vías abre la
+misma sesión propia (``session['portal_email']``), completamente aparte del
+login de personal (Usuario / flask_login) que usa el resto del sistema. Nunca
+se cruzan: quien entra por acá nunca ve el panel de gestión, y un operador
+nunca entra por este camino.
 
 Todo lo que se muestra sale de buscar, por email, las Personas (inquilino y/o
 propietario) que coincidan -- en cualquier inmobiliaria del sistema, porque
@@ -44,6 +47,11 @@ def _email_valido(email):
         return False
     local, dominio = email.split("@")
     return bool(local) and "." in dominio and not dominio.startswith(".")
+
+
+def _normalizar_dni(dni):
+    """Solo los dígitos, sin puntos ni espacios (ej. '30.111.222' -> '30111222')."""
+    return "".join(ch for ch in (dni or "") if ch.isdigit())
 
 
 def _personas_del_email(email):
@@ -104,6 +112,7 @@ def portal_login_required(f):
 
 @portal_bp.route("/acceder", methods=["GET", "POST"])
 def acceder():
+    """Login principal: email + DNI (a modo de contraseña)."""
     email, _ = _sesion_activa()
     if email:
         return redirect(url_for("portal.panel"))
@@ -111,14 +120,56 @@ def acceder():
     if request.method == "POST":
         from .auth import _throttle_publico
         ingresado = request.form.get("email", "").strip()
-        espera = _throttle_publico("portal_acceder", maximo=6)
+        dni = _normalizar_dni(request.form.get("dni", ""))
+        # Throttle por conexión (no por email): frena la fuerza bruta sobre el
+        # DNI -- que, a diferencia de una contraseña, no es un secreto fuerte
+        # (7-8 dígitos, y circula en recibos y contratos) -- sin necesidad de
+        # bloquear la cuenta de nadie.
+        espera = _throttle_publico("portal_acceder", maximo=8)
+        if espera:
+            flash(f"Demasiados intentos desde tu conexión. Probá de nuevo en unos "
+                  f"{espera} minuto(s), o pedí un enlace por mail.", "error")
+            return render_template("aurora/portal/acceder.html", email=ingresado)
+
+        error_generico = "Revisá el email y el DNI: no coinciden con ningún registro."
+        if not _email_valido(ingresado) or len(dni) < 7:
+            flash(error_generico, "error")
+            return render_template("aurora/portal/acceder.html", email=ingresado)
+
+        personas = _personas_del_email(ingresado)
+        coincide = any(_normalizar_dni(p.dni) == dni for p in personas if p.dni)
+        if not coincide:
+            # Mismo mensaje exista o no el email, y sin importar si falló el
+            # email o el DNI: no da pistas de qué dato estuvo mal.
+            flash(error_generico, "error")
+            return render_template("aurora/portal/acceder.html", email=ingresado)
+
+        session.clear()
+        session["portal_email"] = ingresado.lower()
+        return redirect(url_for("portal.panel"))
+
+    return render_template("aurora/portal/acceder.html")
+
+
+@portal_bp.route("/enlace", methods=["GET", "POST"])
+def enlace():
+    """Alternativa al login con DNI: pedir un enlace de acceso de un solo uso
+    por email, para quien no tenga el DNI a mano."""
+    email, _ = _sesion_activa()
+    if email:
+        return redirect(url_for("portal.panel"))
+
+    if request.method == "POST":
+        from .auth import _throttle_publico
+        ingresado = request.form.get("email", "").strip()
+        espera = _throttle_publico("portal_enlace", maximo=6)
         if espera:
             flash(f"Demasiados pedidos desde tu conexión. Probá de nuevo en unos "
                   f"{espera} minuto(s).", "error")
-            return render_template("aurora/portal/acceder.html")
+            return render_template("aurora/portal/enlace.html")
         if not _email_valido(ingresado):
             flash("Ingresá un email válido.", "error")
-            return render_template("aurora/portal/acceder.html", email=ingresado)
+            return render_template("aurora/portal/enlace.html", email=ingresado)
 
         if _personas_del_email(ingresado):
             from ..emailer import enviar_email
@@ -133,9 +184,9 @@ def acceder():
         # inquilino o propietario en el sistema.
         flash("Si ese email está registrado como inquilino o propietario, te "
               "enviamos un enlace de acceso. Revisá tu casilla (y spam).", "ok")
-        return redirect(url_for("portal.acceder"))
+        return redirect(url_for("portal.enlace"))
 
-    return render_template("aurora/portal/acceder.html")
+    return render_template("aurora/portal/enlace.html")
 
 
 @portal_bp.route("/verificar/<token>")
@@ -144,14 +195,14 @@ def verificar(token):
         email = _serializer().loads(token, salt=_SALT, max_age=_MAX_AGE)
     except SignatureExpired:
         flash("Ese enlace venció. Pedí uno nuevo.", "error")
-        return redirect(url_for("portal.acceder"))
+        return redirect(url_for("portal.enlace"))
     except (BadSignature, Exception):
         flash("Ese enlace no es válido.", "error")
-        return redirect(url_for("portal.acceder"))
+        return redirect(url_for("portal.enlace"))
 
     if not _personas_del_email(email):
         flash("No encontramos una cuenta activa con ese email.", "error")
-        return redirect(url_for("portal.acceder"))
+        return redirect(url_for("portal.enlace"))
 
     session.clear()
     session["portal_email"] = email

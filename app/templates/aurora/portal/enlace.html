@@ -1,0 +1,35 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Pedir enlace de acceso — Portal{% endblock %}
+
+{% block content %}
+<div class="auth">
+  <div class="auth-card">
+    <div class="auth-mark">{{ icon('key', 19) }}</div>
+    <h1>¿No tenés tu DNI a mano?</h1>
+    <p class="sub">Ingresá tu email y te mandamos un enlace para entrar por esta vez, sin DNI.</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+      <div class="auth-msg {{ 'ok' if cat == 'ok' }}">
+        {{ icon('check-circle', 15) if cat == 'ok' else icon('alert-triangle', 15) }}<div>{{ msg }}</div>
+      </div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="post">
+      <div class="field">
+        <label for="email">Email</label>
+        <input class="inp" id="email" name="email" type="email" autocomplete="email"
+               value="{{ email or '' }}" autofocus required placeholder="tu@email.com">
+      </div>
+      <button class="btn pri" type="submit">{{ icon('key', 15) }} Enviar enlace de acceso</button>
+    </form>
+
+    <div class="auth-f">
+      <a href="{{ url_for('portal.acceder') }}">← Volver a ingresar con email y DNI</a>
+      <a href="{{ url_for('main.index') }}">Volver al inicio</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

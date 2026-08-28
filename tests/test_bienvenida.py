@@ -47,10 +47,22 @@ def test_no_manda_si_no_tiene_email(app_seeded, monkeypatch):
         assert "to" not in capt
 
 
+def test_no_manda_si_no_tiene_dni(app_seeded, monkeypatch):
+    capt = _capturar_email(monkeypatch)
+    with app_seeded.app_context():
+        p = Persona(nombre="Test Dos B", email="dosb@mail.com", es_inquilino=True)
+        db.session.add(p); db.session.commit()
+        enviado, motivo = enviar_bienvenida_inquilino(p)
+        assert not enviado
+        assert "DNI" in motivo
+        assert "to" not in capt
+
+
 def test_manda_y_marca_timestamp(app_seeded, monkeypatch):
     capt = _capturar_email(monkeypatch)
     with app_seeded.test_request_context():
-        p = Persona(nombre="Test Tres", email="tres@mail.com", es_inquilino=True)
+        p = Persona(nombre="Test Tres", email="tres@mail.com", dni="30111333",
+                    es_inquilino=True)
         db.session.add(p); db.session.commit()
         enviado, motivo = enviar_bienvenida_inquilino(p)
         assert enviado
@@ -63,7 +75,8 @@ def test_manda_y_marca_timestamp(app_seeded, monkeypatch):
 def test_no_reenvia_si_ya_se_mando(app_seeded, monkeypatch):
     capt = _capturar_email(monkeypatch)
     with app_seeded.test_request_context():
-        p = Persona(nombre="Test Cuatro", email="cuatro@mail.com", es_inquilino=True)
+        p = Persona(nombre="Test Cuatro", email="cuatro@mail.com", dni="30111444",
+                    es_inquilino=True)
         db.session.add(p); db.session.commit()
         enviar_bienvenida_inquilino(p)
         assert "to" in capt
@@ -79,9 +92,9 @@ def test_no_reenvia_si_ya_se_mando(app_seeded, monkeypatch):
 # Inmueble nuevos (nunca ids["inq"] directo) para no ensuciar el estado de
 # bienvenida_enviada_at entre pruebas.
 
-def _crear_inquilino(app, nombre, email=None):
+def _crear_inquilino(app, nombre, email=None, dni="30222333"):
     with app.app_context():
-        p = Persona(nombre=nombre, email=email, es_inquilino=True)
+        p = Persona(nombre=nombre, email=email, dni=dni, es_inquilino=True)
         db.session.add(p); db.session.commit()
         return p.id
 
@@ -168,7 +181,7 @@ def test_generador_con_enviar_bienvenida_manda_mail(client, monkeypatch):
     capt = _capturar_email(monkeypatch)
     payload = {
         "loc": {"nombre": "Propietario Gen"},
-        "lat": {"nombre": "Inquilino Generador", "email": "gen.inq@mail.com"},
+        "lat": {"nombre": "Inquilino Generador", "email": "gen.inq@mail.com", "dni": "30333444"},
         "inm": {"dir": "Calle Generador 123"},
         "econ": {"canon": "150000", "plazo": "24"},
         "fiadores": [], "coLoc": [], "coLat": [],

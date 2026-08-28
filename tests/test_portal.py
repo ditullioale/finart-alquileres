@@ -1,5 +1,10 @@
-"""Pruebas del portal de autoservicio (inquilinos/propietarios), Fase acceso
-sin contraseña: magic link, panel de solo lectura y descarga de recibos."""
+"""Pruebas del portal de autoservicio (inquilinos/propietarios).
+
+Dos formas de entrar, ambas abren la misma sesión de portal:
+- Login principal con email + DNI (/portal/acceder).
+- Enlace de un solo uso por email (/portal/enlace + /portal/verificar/<token>),
+  para quien no tenga el DNI a mano.
+"""
 import re
 
 import pytest
@@ -16,7 +21,7 @@ def _capturar_email(monkeypatch):
     """Reemplaza enviar_email por una captura, igual que hace tests_qa.py para 2FA."""
     capt = {}
 
-    def _fake(destino, asunto, cuerpo, adjunto=None):
+    def _fake(destino, asunto, cuerpo, adjunto=None, html=None):
         m = re.search(r"(https?://\S+/portal/verificar/\S+)", cuerpo or "")
         capt["to"] = destino
         capt["asunto"] = asunto
@@ -32,10 +37,64 @@ def _token_de(link):
     return link.rstrip("/").rsplit("/", 1)[-1]
 
 
-def test_acceder_con_email_conocido_envia_link(app_seeded, monkeypatch):
+def _crear_persona(app, nombre, email, dni, es_inquilino=True):
+    with app.app_context():
+        p = Persona(nombre=nombre, email=email, dni=dni, es_inquilino=es_inquilino)
+        db.session.add(p); db.session.commit()
+        return p.id
+
+
+# --- Login principal: email + DNI -------------------------------------------
+
+def test_login_dni_correcto_entra_al_panel(app_seeded):
+    _crear_persona(app_seeded, "Persona Dni Uno", "dniuno@mail.com", "30111555")
+    cl = app_seeded.test_client()
+    r = cl.post("/portal/acceder", data={"email": "dniuno@mail.com", "dni": "30111555"},
+                follow_redirects=True)
+    assert r.status_code == 200
+    body = r.data.decode("utf-8", "ignore")
+    assert "Persona Dni Uno" in body or "dniuno@mail.com" in body
+
+
+def test_login_dni_acepta_puntos_y_espacios(app_seeded):
+    _crear_persona(app_seeded, "Persona Dni Dos", "dnidos@mail.com", "30.111.666")
+    cl = app_seeded.test_client()
+    r = cl.post("/portal/acceder", data={"email": "dnidos@mail.com", "dni": "30 111 666"},
+                follow_redirects=True)
+    assert r.status_code == 200
+    assert "Persona Dni Dos" in r.data.decode("utf-8", "ignore")
+
+
+def test_login_dni_incorrecto_error_generico(app_seeded):
+    _crear_persona(app_seeded, "Persona Dni Tres", "dnitres@mail.com", "30111777")
+    cl = app_seeded.test_client()
+    r = cl.post("/portal/acceder", data={"email": "dnitres@mail.com", "dni": "11111111"},
+                follow_redirects=True)
+    assert r.status_code == 200
+    assert "no coinciden" in r.data.decode("utf-8", "ignore")
+
+
+def test_login_email_desconocido_mismo_error_generico(app_seeded):
+    cl = app_seeded.test_client()
+    r = cl.post("/portal/acceder", data={"email": "nadie@noexiste.com", "dni": "12345678"},
+                follow_redirects=True)
+    assert r.status_code == 200
+    assert "no coinciden" in r.data.decode("utf-8", "ignore")
+
+
+def test_panel_sin_sesion_redirige_a_acceder(app_seeded):
+    cl = app_seeded.test_client()
+    r = cl.get("/portal/", follow_redirects=True)
+    assert r.status_code == 200
+    assert "email y tu DNI" in r.data.decode("utf-8", "ignore")
+
+
+# --- Enlace de un solo uso (respaldo sin DNI) --------------------------------
+
+def test_enlace_con_email_conocido_envia_link(app_seeded, monkeypatch):
     capt = _capturar_email(monkeypatch)
     cl = app_seeded.test_client()
-    r = cl.post("/portal/acceder", data={"email": EMAIL_INQ}, follow_redirects=True)
+    r = cl.post("/portal/enlace", data={"email": EMAIL_INQ}, follow_redirects=True)
     assert r.status_code == 200
     assert capt.get("to") == EMAIL_INQ
     assert capt.get("link"), "el mail debería incluir el enlace de verificación"
@@ -43,10 +102,10 @@ def test_acceder_con_email_conocido_envia_link(app_seeded, monkeypatch):
     assert "enviamos un enlace de acceso" in body
 
 
-def test_acceder_con_email_desconocido_mismo_mensaje_sin_enviar(app_seeded, monkeypatch):
+def test_enlace_con_email_desconocido_mismo_mensaje_sin_enviar(app_seeded, monkeypatch):
     capt = _capturar_email(monkeypatch)
     cl = app_seeded.test_client()
-    r = cl.post("/portal/acceder", data={"email": "nadie@noexiste.com"},
+    r = cl.post("/portal/enlace", data={"email": "nadie@noexiste.com"},
                 follow_redirects=True)
     assert r.status_code == 200
     assert "to" not in capt, "no debe enviarse ningún email para un email no registrado"
@@ -54,10 +113,10 @@ def test_acceder_con_email_desconocido_mismo_mensaje_sin_enviar(app_seeded, monk
     assert "enviamos un enlace de acceso" in body  # mismo mensaje: no hay enumeración
 
 
-def test_acceder_con_email_invalido_muestra_error(app_seeded, monkeypatch):
+def test_enlace_con_email_invalido_muestra_error(app_seeded, monkeypatch):
     capt = _capturar_email(monkeypatch)
     cl = app_seeded.test_client()
-    r = cl.post("/portal/acceder", data={"email": "no-es-un-email"},
+    r = cl.post("/portal/enlace", data={"email": "no-es-un-email"},
                 follow_redirects=True)
     assert r.status_code == 200
     assert "to" not in capt
@@ -67,7 +126,7 @@ def test_acceder_con_email_invalido_muestra_error(app_seeded, monkeypatch):
 def test_verificar_token_valido_entra_al_panel(app_seeded, monkeypatch):
     capt = _capturar_email(monkeypatch)
     cl = app_seeded.test_client()
-    cl.post("/portal/acceder", data={"email": EMAIL_INQ})
+    cl.post("/portal/enlace", data={"email": EMAIL_INQ})
     token = _token_de(capt["link"])
 
     r = cl.get(f"/portal/verificar/{token}", follow_redirects=True)
@@ -77,7 +136,7 @@ def test_verificar_token_valido_entra_al_panel(app_seeded, monkeypatch):
     assert "Local San Martin 830" in body  # dirección del inmueble del contrato sembrado
 
 
-def test_verificar_token_invalido_rebota_a_acceder(app_seeded):
+def test_verificar_token_invalido_rebota_con_error(app_seeded):
     cl = app_seeded.test_client()
     r = cl.get("/portal/verificar/esto-no-es-un-token-valido", follow_redirects=True)
     assert r.status_code == 200
@@ -88,20 +147,13 @@ def test_verificar_token_expirado_rebota_con_error(app_seeded, monkeypatch):
     import app.blueprints.portal as portal_mod
     capt = _capturar_email(monkeypatch)
     cl = app_seeded.test_client()
-    cl.post("/portal/acceder", data={"email": EMAIL_INQ})
+    cl.post("/portal/enlace", data={"email": EMAIL_INQ})
     token = _token_de(capt["link"])
 
     monkeypatch.setattr(portal_mod, "_MAX_AGE", -1)  # cualquier token ya "vencido"
     r = cl.get(f"/portal/verificar/{token}", follow_redirects=True)
     assert r.status_code == 200
     assert "venció" in r.data.decode("utf-8", "ignore")
-
-
-def test_panel_sin_sesion_redirige_a_acceder(app_seeded):
-    cl = app_seeded.test_client()
-    r = cl.get("/portal/", follow_redirects=True)
-    assert r.status_code == 200
-    assert "Ingresá tu email" in r.data.decode("utf-8", "ignore")
 
 
 def test_recibo_pdf_ajeno_da_404(app_seeded, monkeypatch):
@@ -119,7 +171,7 @@ def test_recibo_pdf_ajeno_da_404(app_seeded, monkeypatch):
 
     capt = _capturar_email(monkeypatch)
     cl = app_seeded.test_client()
-    cl.post("/portal/acceder", data={"email": EMAIL_INQ})
+    cl.post("/portal/enlace", data={"email": EMAIL_INQ})
     token = _token_de(capt["link"])
     cl.get(f"/portal/verificar/{token}")
 

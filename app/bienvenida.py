@@ -23,6 +23,10 @@ def enviar_bienvenida_inquilino(persona):
         return False, "la persona no está marcada como inquilino"
     if not persona.email:
         return False, "no tiene un email cargado"
+    if not persona.dni:
+        # El login del portal es email + DNI: sin DNI cargado, la invitación
+        # sería inútil (no podría entrar con lo que le decimos en el mail).
+        return False, "no tiene DNI cargado (hace falta para el login del portal)"
     if persona.bienvenida_enviada_at:
         return False, "ya se le había mandado antes"
 
@@ -30,12 +34,10 @@ def enviar_bienvenida_inquilino(persona):
     portal_link = url_for("portal.acceder", _external=True)
     nombre = persona.nombre
 
-    # NOTA: el acceso al portal hoy es sin contraseña (magic link por email).
-    # Este texto todavía no menciona "tu contraseña es tu DNI" porque el
-    # portal no valida contraseña ninguna -- pendiente de definir con Ale si
-    # se agrega un login real por DNI o se deja así. Ver conversación.
-    acceso_texto = "y te mandamos un enlace de acceso cada vez que lo pedís (sin contraseña)"
-    acceso_html = "y te mandamos un enlace de acceso cada vez que lo pedís (sin contraseña)"
+    # El acceso al portal es email + DNI (decisión de Ale, con la salvedad de
+    # que el DNI no es un dato secreto -- ver conversación del 2026-08-28).
+    acceso_texto = "y tu contraseña es tu D.N.I."
+    acceso_html = "y tu contraseña es tu D.N.I."
 
     texto = (
         f"Hola {nombre},\n\n"
@@ -52,7 +54,8 @@ def enviar_bienvenida_inquilino(persona):
         "Cualquier consulta, estamos a tu disposición.\n\n"
         "Saludos cordiales,\n"
         "Dr. Alejandro R. Di Tullio -- Abogado, Corredor Inmobiliario\n"
-        "Dra. María M. Di Tullio -- Abogado"
+        "Dra. María M. Di Tullio -- Abogado\n\n"
+        "P.D.: por tu seguridad, no compartas tu DNI de acceso con otras personas."
     )
     html = render_template(
         "email/bienvenida_inquilino.html", nombre=nombre, email=persona.email,
