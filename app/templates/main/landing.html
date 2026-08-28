@@ -1,59 +1,33 @@
-{% extends "base.html" %}
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
 {% block title %}Gestión de Alquileres — administrá tu inmobiliaria{% endblock %}
 {% block content %}
-<style>
-  .land{max-width:960px;margin:0 auto;padding:48px 20px 64px}
-  .land-hero{text-align:center;margin-bottom:40px}
-  .land-hero .logo{font-size:44px;line-height:1}
-  .land-hero h1{font-size:28px;margin:14px 0 6px;color:var(--b)}
-  .land-hero p{color:var(--muted);font-size:16px;max-width:560px;margin:0 auto}
-  .land-cta{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:44px}
-  @media(max-width:680px){.land-cta{grid-template-columns:1fr}}
-  .land-card{background:#fff;border:1px solid var(--bd);border-radius:14px;padding:26px;
-    display:flex;flex-direction:column;gap:10px}
-  .land-card h2{font-size:18px;margin:0;display:flex;align-items:center;gap:8px}
-  .land-card p{color:var(--muted);font-size:14px;margin:0;flex:1}
-  .land-card .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
-  .land-badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.03em;
-    color:var(--a);background:#eaf1fe;border-radius:20px;padding:3px 10px;width:fit-content}
-  .land-feats{margin-bottom:36px}
-  .land-feats h3{text-align:center;font-size:15px;color:var(--muted);
-    text-transform:uppercase;letter-spacing:.04em;margin-bottom:18px;font-weight:700}
-  .land-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-  @media(max-width:680px){.land-grid{grid-template-columns:1fr 1fr}}
-  .land-feat{padding:16px;border-radius:10px;background:#fff;border:1px solid var(--bd);
-    font-size:13.5px;display:flex;align-items:center;gap:9px}
-  .land-foot{text-align:center;color:var(--muted);font-size:12.5px}
-  .land-foot a{color:var(--muted)}
-</style>
 
 <div class="land">
   <div class="land-hero">
-    <div class="logo">🏠</div>
+    <div class="mark">{{ icon('home', 26) }}</div>
     <h1>Gestión de Alquileres</h1>
     <p>Contratos, cobranzas, aumentos, recibos y control de gas de tu inmobiliaria,
        todo en un solo sistema — con acceso propio para tus inquilinos y propietarios.</p>
   </div>
 
   <div class="land-cta">
-    <div class="land-card">
-      <span class="land-badge">Inmobiliarias</span>
-      <h2>🏢 Soy una inmobiliaria</h2>
+    <div class="card land-card">
+      <h2><span class="ic">{{ icon('building', 17) }}</span> Soy una inmobiliaria</h2>
       <p>Administrá tus contratos, cobranzas, aumentos por índice o porcentaje, recibos,
          liquidaciones a propietarios y el control de deuda de gas — automatizado.</p>
       <div class="row">
-        <a class="btn" href="{{ url_for('auth.login') }}">Ingresar</a>
-        <a class="btn sec" href="{{ url_for('auth.registro') }}">Solicitar acceso</a>
+        <a class="btn pri" href="{{ url_for('auth.login') }}">Ingresar</a>
+        <a class="btn" href="{{ url_for('auth.registro') }}">Solicitar acceso</a>
       </div>
     </div>
 
-    <div class="land-card">
-      <span class="land-badge">Inquilinos y propietarios</span>
-      <h2>🔑 Soy inquilino o propietario</h2>
+    <div class="card land-card">
+      <h2><span class="ic">{{ icon('key', 17) }}</span> Soy inquilino o propietario</h2>
       <p>Vas a poder ver tus recibos de pago, el estado de tu contrato, próximos
-         aumentos y la deuda de gas, todo desde acá.</p>
+         aumentos y la deuda de gas, todo desde acá — sin contraseña, con tu email.</p>
       <div class="row">
-        <span class="btn sec" style="cursor:default;opacity:.75">Muy pronto</span>
+        <a class="btn pri" href="{{ url_for('portal.acceder') }}">Acceder al portal</a>
       </div>
     </div>
   </div>
@@ -61,12 +35,12 @@
   <div class="land-feats">
     <h3>Qué incluye</h3>
     <div class="land-grid">
-      <div class="land-feat">📄 Contratos y generador</div>
-      <div class="land-feat">💵 Cobranzas y mora</div>
-      <div class="land-feat">📈 Aumentos (ICL / IPC / %)</div>
-      <div class="land-feat">🧾 Recibos y pagarés</div>
-      <div class="land-feat">🔥 Control de gas automático</div>
-      <div class="land-feat">📊 Liquidaciones a propietarios</div>
+      <div class="land-feat"><span class="ic">{{ icon('file-text', 15) }}</span> Contratos y generador</div>
+      <div class="land-feat"><span class="ic">{{ icon('banknote', 15) }}</span> Cobranzas y mora</div>
+      <div class="land-feat"><span class="ic">{{ icon('trending-up', 15) }}</span> Aumentos (ICL / IPC / %)</div>
+      <div class="land-feat"><span class="ic">{{ icon('receipt', 15) }}</span> Recibos y pagarés</div>
+      <div class="land-feat"><span class="ic">{{ icon('flame', 15) }}</span> Control de gas automático</div>
+      <div class="land-feat"><span class="ic">{{ icon('bar-chart', 15) }}</span> Liquidaciones a propietarios</div>
     </div>
   </div>
 

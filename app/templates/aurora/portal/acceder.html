@@ -1,0 +1,41 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Acceder — Portal de inquilinos y propietarios{% endblock %}
+
+{% block content %}
+<div class="auth">
+  <div class="auth-card">
+    <div class="auth-mark">{{ icon('key', 19) }}</div>
+    <h1>Portal de inquilinos y propietarios</h1>
+    <p class="sub">Ingresá tu email y te mandamos un enlace para entrar, sin contraseña.</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+      <div class="auth-msg {{ 'ok' if cat == 'ok' }}">
+        {{ icon('check-circle', 15) if cat == 'ok' else icon('alert-triangle', 15) }}<div>{{ msg }}</div>
+      </div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="post">
+      <div class="field">
+        <label for="email">Email</label>
+        <input class="inp" id="email" name="email" type="email" autocomplete="email"
+               value="{{ email or '' }}" autofocus required placeholder="tu@email.com">
+      </div>
+      <button class="btn pri" type="submit">{{ icon('key', 15) }} Enviar enlace de acceso</button>
+    </form>
+
+    <ul class="auth-benes">
+      <li>{{ icon('receipt', 14) }} Tus recibos de pago</li>
+      <li>{{ icon('file-text', 14) }} El estado de tu contrato</li>
+      <li>{{ icon('trending-up', 14) }} Próximos aumentos</li>
+      <li>{{ icon('flame', 14) }} Deuda de gas del inmueble</li>
+    </ul>
+
+    <div class="auth-f">
+      <a href="{{ url_for('main.index') }}">← Volver al inicio</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,111 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Tu portal — FINART{% endblock %}
+
+{% block content %}
+<div class="portal-top">
+  <div class="mark">F</div>
+  <div class="who"><b>{{ nombre }}</b><small>{{ email }}</small></div>
+  <div class="sp"></div>
+  <form method="post" action="{{ url_for('portal.salir') }}" style="margin:0">
+    <button class="btn ghost sm" type="submit">{{ icon('log-out', 14) }} Salir</button>
+  </form>
+</div>
+
+<div class="portal-wrap">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="toasts" id="toasts">
+      {% for cat, msg in messages %}
+      <div class="toast {{ 'err' if cat != 'ok' else 'ok' }}">
+        <div class="ic">{{ icon('check-circle', 15) if cat=='ok' else icon('alert-triangle', 15) }}</div>
+        <div><b>{{ msg }}</b></div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  {% endwith %}
+
+  {% if not items %}
+  <div class="portal-empty">
+    {{ icon('file-text', 22) }}
+    <p>Todavía no encontramos contratos asociados a tu email. Si esto no es lo
+       que esperabas, contactá a tu inmobiliaria.</p>
+  </div>
+  {% else %}
+    {% for it in items %}
+    {% set c = it.contrato %}
+    <div class="card portal-contrato">
+      <div class="card-h">
+        {{ icon('building', 16) }}
+        <div>
+          <div class="dir">{{ it.direccion }}</div>
+          <div class="rol">{{ it.rol }} · Contrato {{ c.numero or ('#' ~ c.id) }}</div>
+        </div>
+        <div class="sp"></div>
+        <span class="chip {{ 'ok' if c.estado == 'Vigente' else 'info' }}">{{ c.estado }}</span>
+      </div>
+      <div class="card-b">
+        <div class="portal-kv">
+          <div class="it">
+            <div class="l">Alquiler actual</div>
+            <div class="v">{{ c.moneda|simbolo }} {{ (c.precio_actual or c.precio_inicial)|money }}</div>
+          </div>
+          <div class="it">
+            <div class="l">Próximo aumento</div>
+            <div class="v">{{ it.proximo_aumento.strftime('%d/%m/%Y') if it.proximo_aumento else 'Sin ajuste programado' }}</div>
+          </div>
+          <div class="it">
+            <div class="l">Estado de cuenta</div>
+            <div class="v">
+              {% if it.deuda > 0 %}
+                <span class="chip err">{{ icon('alert-triangle', 12) }} Debe {{ c.moneda|simbolo }} {{ it.deuda|money }}</span>
+              {% else %}
+                <span class="chip ok">{{ icon('check-circle', 12) }} Al día</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        {% if it.gas %}
+        <div class="it" style="margin-bottom:14px">
+          <div class="l">{{ icon('flame', 12) }} Gas — cuenta {{ it.gas.cuenta }}</div>
+          <div class="v">
+            {% if it.gas.tiene_deuda %}
+              <span class="chip err">Con deuda{{ ' — $ ' ~ it.gas.deuda_total|money if it.gas.deuda_total }}</span>
+            {% else %}
+              <span class="chip ok">Al día</span>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="portal-pagos-h">Últimos pagos</div>
+        {% if not it.pagos %}
+          <div class="portal-empty" style="padding:14px 0">Todavía no hay pagos registrados.</div>
+        {% else %}
+        <div class="rows">
+          {% for p in it.pagos %}
+          <div class="row">
+            <div class="who"><b>{{ meses[p.periodo_mes] if p.periodo_mes else '—' }} {{ p.periodo_anio or '' }}</b>
+              <span>{{ p.fecha_pago.strftime('%d/%m/%Y') if p.fecha_pago else 'Sin fecha de pago' }}</span></div>
+            <div class="mid">
+              <span class="chip {{ 'ok' if p.estado == 'Pagado' else ('err' if p.estado == 'Anulado' else 'warn') }}">{{ p.estado }}</span>
+            </div>
+            <div class="amt">{{ c.moneda|simbolo }} {{ p.total|money }}</div>
+            <div class="act">
+              {% if p.estado == 'Pagado' %}
+              <a class="btn ghost sm icon" title="Descargar recibo"
+                 href="{{ url_for('portal.recibo_pdf', pid=p.id) }}">{{ icon('receipt', 14) }}</a>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}

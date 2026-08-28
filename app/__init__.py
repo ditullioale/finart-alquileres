@@ -75,9 +75,11 @@ def create_app(config_class=Config):
     from .blueprints.health import health_bp
     from .blueprints.asistente_web import asistente_bp
     from .blueprints.tareas import tareas_bp
+    from .blueprints.portal import portal_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
+    app.register_blueprint(portal_bp)
     app.register_blueprint(personas_bp)
     app.register_blueprint(inmuebles_bp)
     app.register_blueprint(contratos_bp)
