@@ -193,6 +193,10 @@ class Persona(db.Model):
     es_inquilino = db.Column(db.Boolean, default=False)
     observaciones = db.Column(db.Text)
     creado = db.Column(db.DateTime, default=datetime.utcnow)
+    # Se completa la primera (y única) vez que se le manda el mail de
+    # bienvenida al portal como inquilino -- evita reenviarlo si se vuelve a
+    # tocar la persona en otra alta/edición o en el generador de contratos.
+    bienvenida_enviada_at = db.Column(db.DateTime)
 
     # Relaciones
     inmuebles = db.relationship("Inmueble", back_populates="propietario",

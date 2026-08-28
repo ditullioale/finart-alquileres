@@ -36,26 +36,28 @@ def email_disponible():
     return bool(_brevo_api_key()) or smtp_configurado()
 
 
-def enviar_email(destino, asunto, cuerpo, adjunto=None):
+def enviar_email(destino, asunto, cuerpo, adjunto=None, html=None):
     """Devuelve True si se envió; False si no (queda en el log).
 
     adjunto opcional: tupla (nombre_archivo, datos_bytes, mimetype) — p. ej. el PDF
-    del recibo."""
+    del recibo. html opcional: versión con formato del mismo mensaje (p. ej. el
+    de bienvenida al portal, con el logo); si no se pasa, va solo texto plano
+    como hasta ahora -- 'cuerpo' siempre viaja como respaldo en texto plano."""
     remitente = os.environ.get("EMAIL_FROM") or os.environ.get("SMTP_USER")
     if not destino:
         print(f"[EMAIL sin destino] {asunto}")
         return False
     # 1) API HTTP de Brevo (recomendada: no depende de puertos SMTP).
     if _brevo_api_key():
-        return _enviar_por_brevo_api(remitente, destino, asunto, cuerpo, adjunto)
+        return _enviar_por_brevo_api(remitente, destino, asunto, cuerpo, adjunto, html)
     # 2) SMTP clásico.
     if not smtp_configurado():
         print(f"[EMAIL sin SMTP] Para: {destino} | {asunto}\n{cuerpo}")
         return False
-    return _enviar_por_smtp(remitente, destino, asunto, cuerpo, adjunto)
+    return _enviar_por_smtp(remitente, destino, asunto, cuerpo, adjunto, html)
 
 
-def _enviar_por_brevo_api(remitente, destino, asunto, cuerpo, adjunto):
+def _enviar_por_brevo_api(remitente, destino, asunto, cuerpo, adjunto, html=None):
     import requests
     sender = {"email": remitente}
     nombre_remitente = os.environ.get("EMAIL_FROM_NAME")
@@ -67,6 +69,8 @@ def _enviar_por_brevo_api(remitente, destino, asunto, cuerpo, adjunto):
         "subject": asunto,
         "textContent": cuerpo,
     }
+    if html:
+        payload["htmlContent"] = html
     if adjunto:
         nombre, datos, _mime = adjunto
         payload["attachment"] = [{
@@ -89,16 +93,23 @@ def _enviar_por_brevo_api(remitente, destino, asunto, cuerpo, adjunto):
         return False
 
 
-def _enviar_por_smtp(remitente, destino, asunto, cuerpo, adjunto):
+def _enviar_por_smtp(remitente, destino, asunto, cuerpo, adjunto, html=None):
     try:
-        if adjunto:
+        if adjunto or html:
             msg = MIMEMultipart()
-            msg.attach(MIMEText(cuerpo, "plain", "utf-8"))
-            nombre, datos, mime = adjunto
-            subtipo = (mime or "application/octet-stream").split("/", 1)[-1]
-            parte = MIMEApplication(datos, _subtype=subtipo)
-            parte.add_header("Content-Disposition", "attachment", filename=nombre)
-            msg.attach(parte)
+            if html:
+                alt = MIMEMultipart("alternative")
+                alt.attach(MIMEText(cuerpo, "plain", "utf-8"))
+                alt.attach(MIMEText(html, "html", "utf-8"))
+                msg.attach(alt)
+            else:
+                msg.attach(MIMEText(cuerpo, "plain", "utf-8"))
+            if adjunto:
+                nombre, datos, mime = adjunto
+                subtipo = (mime or "application/octet-stream").split("/", 1)[-1]
+                parte = MIMEApplication(datos, _subtype=subtipo)
+                parte.add_header("Content-Disposition", "attachment", filename=nombre)
+                msg.attach(parte)
         else:
             msg = MIMEText(cuerpo, "plain", "utf-8")
         msg["Subject"] = asunto

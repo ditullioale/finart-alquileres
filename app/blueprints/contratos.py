@@ -350,6 +350,13 @@ def nuevo():
             if old:
                 old.estado = "Finalizado"
         db.session.commit()
+        if request.form.get("enviar_bienvenida") and c.inquilino:
+            from ..bienvenida import enviar_bienvenida_inquilino
+            enviado, motivo = enviar_bienvenida_inquilino(c.inquilino)
+            if enviado:
+                flash(f"Se envió el mail de bienvenida a {c.inquilino.email}.", "ok")
+            elif motivo != "ya se le había mandado antes":
+                flash(f"No se mandó el mail de bienvenida: {motivo}.", "error")
         if renovar_de:
             flash("Renovación registrada correctamente. El contrato anterior quedó finalizado.", "ok")
         else:
@@ -535,9 +542,12 @@ def _generador_html():
     api_inm = url_for("contratos.api_inmuebles")
     barra = f"""
     <div style="position:sticky;top:0;z-index:50;display:flex;gap:10px;align-items:center;
-                background:#12263f;color:#fff;padding:9px 16px">
+                background:#12263f;color:#fff;padding:9px 16px;flex-wrap:wrap">
       <a href="{volver_url}" style="color:#cfe0f5;text-decoration:none;font-size:14px">← Volver al sistema</a>
       <span style="flex:1"></span>
+      <label id="sysBienvenidaWrap" style="display:none;align-items:center;gap:6px;font-size:13px;color:#cfe0f5;cursor:pointer">
+        <input type="checkbox" id="sysEnviarBienvenida" checked>
+        Enviar mail de bienvenida al inquilino (tiene email cargado)</label>
       <button onclick="guardarEnSistema()" style="background:#1f9d55;color:#fff;border:0;
               border-radius:8px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer">
         💾 Guardar contrato en el sistema</button>
@@ -578,7 +588,8 @@ def _generador_html():
               punitorio:g('punitorio'),fechaFirma:g('fechaFirma')},
         fiadores:fiadores,
         documento:(document.getElementById('contrato')?.innerHTML||''),
-        pagares:(document.getElementById('pagares')?.innerHTML||'')
+        pagares:(document.getElementById('pagares')?.innerHTML||''),
+        enviarBienvenida:!!(g('latEmail') && document.getElementById('sysEnviarBienvenida')?.checked)
       };
       const box = document.getElementById('sysMsg');
       box.style.display='block'; box.style.background='#fff8e6'; box.style.color='#8a5a00';
@@ -612,6 +623,17 @@ def _generador_html():
         }).catch(e=>{ box.style.background='#fdecec'; box.style.color='#9c2020';
           box.textContent='⚠️ Error de conexión: '+e.message; });
     }
+
+    // Mail de bienvenida: solo se ofrece si el locatario tiene un email
+    // cargado en el paso del generador.
+    (function(){
+      var elEmail = document.getElementById('latEmail');
+      var wrap = document.getElementById('sysBienvenidaWrap');
+      if(!elEmail || !wrap) return;
+      function actualizar(){ wrap.style.display = elEmail.value.trim() ? 'flex' : 'none'; }
+      elEmail.addEventListener('input', actualizar);
+      actualizar();
+    })();
     </script>
     """ % (save_url, csrf_token)
 
@@ -852,6 +874,14 @@ def desde_generador():
                 contrato.colocatarios.append(per)
 
     db.session.commit()
+
+    mensaje = "Contrato dado de alta desde el generador."
+    if d.get("enviarBienvenida") and inquilino:
+        from ..bienvenida import enviar_bienvenida_inquilino
+        enviado, motivo = enviar_bienvenida_inquilino(inquilino)
+        mensaje += (f" Se envió el mail de bienvenida a {inquilino.email}."
+                    if enviado else f" No se mandó el mail de bienvenida: {motivo}.")
+
     return jsonify(ok=True, contrato_id=contrato.id,
                    ver_url=url_for("contratos.ver", cid=contrato.id),
-                   mensaje="Contrato dado de alta desde el generador.")
+                   mensaje=mensaje)

@@ -26,11 +26,15 @@
       <span class="hint">¿No está? <a href="#" onclick="abrirAlta('inmueble');return false;"><b>+ cargalo acá</b></a> sin salir, o <a href="{{ url_for('inmuebles.nuevo') }}" target="_blank">en detalle</a>.</span></div>
     <div><label>Número de contrato</label><input name="numero" value="{{ c.numero or '' }}" placeholder="opcional"></div>
     <div><label>Inquilino *</label>
-      <select name="inquilino_id" class="js-search" data-ph="Buscar inquilino…" required>
+      <select name="inquilino_id" id="inquilino_id" class="js-search" data-ph="Buscar inquilino…" required>
         <option value="">— elegí —</option>
-        {% for p in inquilinos %}<option value="{{ p.id }}" {{ 'selected' if c.inquilino_id==p.id }}>{{ p.nombre }}</option>{% endfor %}
+        {% for p in inquilinos %}<option value="{{ p.id }}" data-email="{{ p.email or '' }}"
+          {{ 'selected' if c.inquilino_id==p.id }}>{{ p.nombre }}</option>{% endfor %}
       </select>
-      <span class="hint">¿No está? <a href="#" onclick="abrirAlta('inquilino');return false;"><b>+ cargalo acá</b></a> sin salir, o <a href="{{ url_for('personas.nueva') }}" target="_blank">en detalle</a>.</span></div>
+      <span class="hint">¿No está? <a href="#" onclick="abrirAlta('inquilino');return false;"><b>+ cargalo acá</b></a> sin salir, o <a href="{{ url_for('personas.nueva') }}" target="_blank">en detalle</a>.</span>
+      <label class="chk" id="bienvenida-wrap" style="display:none;margin-top:6px">
+        <input type="checkbox" name="enviar_bienvenida" checked>
+        Enviarle un mail de bienvenida al portal (tiene email cargado)</label></div>
     <div><label>Propietario</label>
       <select name="propietario_id" id="propietario_id" class="js-search" data-ph="Buscar propietario…">
         <option value="">— (toma el del inmueble) —</option>
@@ -251,6 +255,21 @@ document.querySelectorAll('select.js-search').forEach(function(sel){
   inp.addEventListener('input', function(){ pintar(inp.value); });
   inp.addEventListener('blur', function(){ setTimeout(function(){ list.style.display='none'; }, 150); });
 });
+
+// Mail de bienvenida: solo se ofrece si el inquilino elegido tiene email
+// cargado (si ya se le mandó antes, el sistema simplemente no reenvía, sin
+// que haga falta saberlo acá).
+(function(){
+  var selInq = document.getElementById('inquilino_id');
+  var wrap = document.getElementById('bienvenida-wrap');
+  if(!selInq || !wrap) return;
+  function actualizar(){
+    var o = selInq.options[selInq.selectedIndex];
+    wrap.style.display = (o && o.dataset.email) ? '' : 'none';
+  }
+  selInq.addEventListener('change', actualizar);
+  actualizar();
+})();
 
 // ===== Alta rápida de inmueble / inquilino (sin salir del formulario) =====
 var ALTA_TIPO = null;
