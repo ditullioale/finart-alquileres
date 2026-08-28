@@ -296,6 +296,7 @@ def contratos():
             ver_url=url_for("contratos.ver", cid=c.id),
             cobrar_url=url_for("cobros.nuevo", cid=c.id),
             documento_url=url_for("contratos.documento", cid=c.id),
+            notificar_url=(url_for("notificaciones.nueva", persona_id=inq.id) if inq else None),
         ))
     return jsonify(estados=estados, filas=filas)
 

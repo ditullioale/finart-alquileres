@@ -57,6 +57,7 @@ export default function ListaContratos() {
             <a href={c.ver_url}>👁 Ver</a>
             {c.tiene_documento && <a href={c.documento_url} target="_blank" rel="noreferrer">📄 Ver contrato</a>}
             {c.wa && <a href={c.wa} target="_blank" rel="noreferrer">🟢 Contactar por WhatsApp</a>}
+            {c.notificar_url && <a href={c.notificar_url}>✉️ Enviar comunicación</a>}
             {c.vigente && <button className="warn" type="button" onClick={() => rescindir(c)}>⛔ Rescindir</button>}
             <button className="danger" type="button" onClick={() => eliminar(c)}>🗑 Eliminar</button>
           </RowMenu>

@@ -80,6 +80,7 @@
                 {% if c.inquilino %}
                   {% set wa = wa_link(c.inquilino.telefono, "Hola " ~ c.inquilino.nombre ~ "! Te escribo por el alquiler de " ~ c.inmueble.direccion ~ ".") %}
                   {% if wa %}<a href="{{ wa }}" target="_blank" rel="noopener">{{ icon('message-circle', 14) }} WhatsApp</a>{% endif %}
+                  <a href="{{ url_for('notificaciones.nueva', persona_id=c.inquilino.id) }}">{{ icon('bell', 14) }} Enviar comunicación</a>
                 {% endif %}
                 <hr>
                 {% if c.estado == 'Vigente' %}

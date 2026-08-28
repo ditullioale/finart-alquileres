@@ -24,6 +24,7 @@
 {% block acciones %}
 <a class="btn sm" href="{{ url_for('contratos.editar', cid=c.id) }}">{{ icon('file-pen', 13) }} Editar</a>
 <a class="btn sm" href="{{ url_for('contratos.renovar', cid=c.id) }}">{{ icon('refresh-cw', 13) }} Renovar</a>
+{% if c.inquilino %}<a class="btn sm" href="{{ url_for('notificaciones.nueva', persona_id=c.inquilino.id) }}">{{ icon('bell', 13) }} Comunicación</a>{% endif %}
 {% if cobro %}<button class="btn pri sm" onclick='Peek.cobro({{ cobrable|tojson }})'>{{ icon('banknote', 13) }} Cobrar</button>
 {% else %}<a class="btn sm" href="{{ url_for('cobros.detalle', cid=c.id) }}">{{ icon('banknote', 13) }} Cobros</a>{% endif %}
 {% endblock %}
