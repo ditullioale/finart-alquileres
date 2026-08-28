@@ -197,6 +197,19 @@ class Persona(db.Model):
     # bienvenida al portal como inquilino -- evita reenviarlo si se vuelve a
     # tocar la persona en otra alta/edición o en el generador de contratos.
     bienvenida_enviada_at = db.Column(db.DateTime)
+    # Contraseña propia del portal de autoservicio (opcional): si está
+    # cargada, reemplaza al DNI como clave de acceso para esta persona. Se
+    # completa desde "Cambiar contraseña" dentro del portal -- nunca desde
+    # el sistema de gestión.
+    portal_password_hash = db.Column(db.String(255))
+
+    def set_portal_password(self, password):
+        self.portal_password_hash = generate_password_hash(password)
+
+    def check_portal_password(self, password):
+        if not self.portal_password_hash:
+            return False
+        return check_password_hash(self.portal_password_hash, password)
 
     # Relaciones
     inmuebles = db.relationship("Inmueble", back_populates="propietario",

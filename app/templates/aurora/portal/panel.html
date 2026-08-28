@@ -7,6 +7,7 @@
   <div class="mark">F</div>
   <div class="who"><b>{{ nombre }}</b><small>{{ email }}</small></div>
   <div class="sp"></div>
+  <a class="btn ghost sm" href="{{ url_for('portal.cambiar_clave') }}">{{ icon('lock', 14) }} Cambiar contraseña</a>
   <form method="post" action="{{ url_for('portal.salir') }}" style="margin:0">
     <button class="btn ghost sm" type="submit">{{ icon('log-out', 14) }} Salir</button>
   </form>

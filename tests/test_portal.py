@@ -86,7 +86,7 @@ def test_panel_sin_sesion_redirige_a_acceder(app_seeded):
     cl = app_seeded.test_client()
     r = cl.get("/portal/", follow_redirects=True)
     assert r.status_code == 200
-    assert "email y tu DNI" in r.data.decode("utf-8", "ignore")
+    assert "email y tu contraseña" in r.data.decode("utf-8", "ignore")
 
 
 # --- Enlace de un solo uso (respaldo sin DNI) --------------------------------
@@ -154,6 +154,75 @@ def test_verificar_token_expirado_rebota_con_error(app_seeded, monkeypatch):
     r = cl.get(f"/portal/verificar/{token}", follow_redirects=True)
     assert r.status_code == 200
     assert "venció" in r.data.decode("utf-8", "ignore")
+
+
+# --- Cambiar contraseña ------------------------------------------------------
+
+def test_cambiar_clave_sin_sesion_redirige_a_acceder(app_seeded):
+    cl = app_seeded.test_client()
+    r = cl.get("/portal/cambiar-clave", follow_redirects=True)
+    assert r.status_code == 200
+    assert "email y tu contraseña" in r.data.decode("utf-8", "ignore")
+
+
+def test_cambiar_clave_reemplaza_el_dni(app_seeded):
+    pid = _crear_persona(app_seeded, "Persona Clave Uno", "claveuno@mail.com", "30444555")
+    cl = app_seeded.test_client()
+    cl.post("/portal/acceder", data={"email": "claveuno@mail.com", "dni": "30444555"})
+
+    r = cl.post("/portal/cambiar-clave", data={
+        "actual": "30444555", "nueva": "unaClaveSegura9", "repetir": "unaClaveSegura9",
+    }, follow_redirects=True)
+    assert r.status_code == 200
+    assert "Contraseña actualizada" in r.data.decode("utf-8", "ignore")
+
+    with app_seeded.app_context():
+        p = db.session.get(Persona, pid)
+        assert p.portal_password_hash is not None
+
+    cl.post("/portal/salir")
+    # El DNI solo ya no alcanza para entrar...
+    r2 = cl.post("/portal/acceder", data={"email": "claveuno@mail.com", "dni": "30444555"},
+                 follow_redirects=True)
+    assert "no coinciden" in r2.data.decode("utf-8", "ignore")
+    # ...pero la contraseña nueva sí.
+    r3 = cl.post("/portal/acceder",
+                 data={"email": "claveuno@mail.com", "dni": "unaClaveSegura9"},
+                 follow_redirects=True)
+    assert "Persona Clave Uno" in r3.data.decode("utf-8", "ignore")
+
+
+def test_cambiar_clave_actual_incorrecta_no_cambia_nada(app_seeded):
+    _crear_persona(app_seeded, "Persona Clave Dos", "clavedos@mail.com", "30555666")
+    cl = app_seeded.test_client()
+    cl.post("/portal/acceder", data={"email": "clavedos@mail.com", "dni": "30555666"})
+
+    r = cl.post("/portal/cambiar-clave", data={
+        "actual": "00000000", "nueva": "otraClaveOk9", "repetir": "otraClaveOk9",
+    }, follow_redirects=True)
+    assert "no es correcta" in r.data.decode("utf-8", "ignore")
+
+
+def test_cambiar_clave_nueva_debil_rechazada(app_seeded):
+    _crear_persona(app_seeded, "Persona Clave Tres", "clavetres@mail.com", "30666777")
+    cl = app_seeded.test_client()
+    cl.post("/portal/acceder", data={"email": "clavetres@mail.com", "dni": "30666777"})
+
+    r = cl.post("/portal/cambiar-clave", data={
+        "actual": "30666777", "nueva": "12345678", "repetir": "12345678",
+    }, follow_redirects=True)
+    assert "solo números" in r.data.decode("utf-8", "ignore")
+
+
+def test_cambiar_clave_no_coincide_repetir(app_seeded):
+    _crear_persona(app_seeded, "Persona Clave Cuatro", "clavecuatro@mail.com", "30777888")
+    cl = app_seeded.test_client()
+    cl.post("/portal/acceder", data={"email": "clavecuatro@mail.com", "dni": "30777888"})
+
+    r = cl.post("/portal/cambiar-clave", data={
+        "actual": "30777888", "nueva": "unaClaveOk9", "repetir": "otraClaveOk9",
+    }, follow_redirects=True)
+    assert "no coinciden" in r.data.decode("utf-8", "ignore")
 
 
 def test_recibo_pdf_ajeno_da_404(app_seeded, monkeypatch):

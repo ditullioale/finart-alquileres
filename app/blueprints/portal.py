@@ -1,14 +1,18 @@
 """Portal de autoservicio para inquilinos y propietarios (sin usuario de staff).
 
-Acceso con email + DNI (a pedido explícito de Ale, aun avisando que el DNI no
-es un dato secreto: circula en recibos, contratos y trámites, así que alguien
-que lo conozca podría entrar). Además queda, como alternativa/recuperación,
-el enlace de un solo uso por email (magic link, 20 minutos) que ya existía
--- útil si alguien no tiene el DNI a mano. Cualquiera de las dos vías abre la
-misma sesión propia (``session['portal_email']``), completamente aparte del
-login de personal (Usuario / flask_login) que usa el resto del sistema. Nunca
-se cruzan: quien entra por acá nunca ve el panel de gestión, y un operador
-nunca entra por este camino.
+Acceso con email + clave (a pedido explícito de Ale, aun avisando que el DNI
+no es un dato secreto: circula en recibos, contratos y trámites, así que
+alguien que lo conozca podría entrar). Por default esa clave ES el DNI, pero
+cada persona puede reemplazarla por una propia desde "Cambiar contraseña"
+dentro del portal (``Persona.portal_password_hash``) -- a partir de ahí deja
+de aceptarse el DNI para esa persona y se valida solo contra la nueva clave.
+Además queda, como alternativa/recuperación, el enlace de un solo uso por
+email (magic link, 20 minutos) que ya existía -- útil si alguien no tiene su
+clave a mano. Cualquiera de las tres vías abre la misma sesión propia
+(``session['portal_email']``), completamente aparte del login de personal
+(Usuario / flask_login) que usa el resto del sistema. Nunca se cruzan: quien
+entra por acá nunca ve el panel de gestión, y un operador nunca entra por
+este camino.
 
 Todo lo que se muestra sale de buscar, por email, las Personas (inquilino y/o
 propietario) que coincidan -- en cualquier inmobiliaria del sistema, porque
@@ -52,6 +56,14 @@ def _email_valido(email):
 def _normalizar_dni(dni):
     """Solo los dígitos, sin puntos ni espacios (ej. '30.111.222' -> '30111222')."""
     return "".join(ch for ch in (dni or "") if ch.isdigit())
+
+
+def _clave_valida(persona, clave):
+    """True si `clave` abre la sesión de esta persona: su contraseña propia
+    si ya la cambió, o su DNI (normalizado) si todavía no."""
+    if persona.portal_password_hash:
+        return persona.check_portal_password(clave)
+    return bool(persona.dni) and _normalizar_dni(persona.dni) == _normalizar_dni(clave)
 
 
 def _personas_del_email(email):
@@ -112,7 +124,8 @@ def portal_login_required(f):
 
 @portal_bp.route("/acceder", methods=["GET", "POST"])
 def acceder():
-    """Login principal: email + DNI (a modo de contraseña)."""
+    """Login principal: email + clave (el DNI por default, o la propia si la
+    persona ya la cambió)."""
     email, _ = _sesion_activa()
     if email:
         return redirect(url_for("portal.panel"))
@@ -120,7 +133,7 @@ def acceder():
     if request.method == "POST":
         from .auth import _throttle_publico
         ingresado = request.form.get("email", "").strip()
-        dni = _normalizar_dni(request.form.get("dni", ""))
+        clave = request.form.get("dni", "")
         # Throttle por conexión (no por email): frena la fuerza bruta sobre el
         # DNI -- que, a diferencia de una contraseña, no es un secreto fuerte
         # (7-8 dígitos, y circula en recibos y contratos) -- sin necesidad de
@@ -131,16 +144,16 @@ def acceder():
                   f"{espera} minuto(s), o pedí un enlace por mail.", "error")
             return render_template("aurora/portal/acceder.html", email=ingresado)
 
-        error_generico = "Revisá el email y el DNI: no coinciden con ningún registro."
-        if not _email_valido(ingresado) or len(dni) < 7:
+        error_generico = "Revisá el email y la clave: no coinciden con ningún registro."
+        if not _email_valido(ingresado) or not clave:
             flash(error_generico, "error")
             return render_template("aurora/portal/acceder.html", email=ingresado)
 
         personas = _personas_del_email(ingresado)
-        coincide = any(_normalizar_dni(p.dni) == dni for p in personas if p.dni)
+        coincide = any(_clave_valida(p, clave) for p in personas)
         if not coincide:
             # Mismo mensaje exista o no el email, y sin importar si falló el
-            # email o el DNI: no da pistas de qué dato estuvo mal.
+            # email o la clave: no da pistas de qué dato estuvo mal.
             flash(error_generico, "error")
             return render_template("aurora/portal/acceder.html", email=ingresado)
 
@@ -213,6 +226,39 @@ def verificar(token):
 def salir():
     session.pop("portal_email", None)
     return redirect(url_for("portal.acceder"))
+
+
+@portal_bp.route("/cambiar-clave", methods=["GET", "POST"])
+@portal_login_required
+def cambiar_clave(email, personas):
+    """Reemplaza el DNI (o la clave anterior) por una elegida por la persona.
+    Se aplica a todas sus Personas con este email (puede haber más de una si
+    alquila con más de una inmobiliaria), para que la clave nueva sirva en
+    cualquier contrato suyo."""
+    if request.method == "POST":
+        from ..seguridad import validar_password
+        actual = request.form.get("actual", "")
+        nueva = request.form.get("nueva", "")
+        repetir = request.form.get("repetir", "")
+
+        if not any(_clave_valida(p, actual) for p in personas):
+            flash("Tu clave actual no es correcta.", "error")
+            return render_template("aurora/portal/cambiar_clave.html")
+        error = validar_password(nueva)
+        if error:
+            flash(error, "error")
+            return render_template("aurora/portal/cambiar_clave.html")
+        if nueva != repetir:
+            flash("Las contraseñas nuevas no coinciden.", "error")
+            return render_template("aurora/portal/cambiar_clave.html")
+
+        for p in personas:
+            p.set_portal_password(nueva)
+        db.session.commit()
+        flash("Contraseña actualizada. Usala la próxima vez que entres.", "ok")
+        return redirect(url_for("portal.panel"))
+
+    return render_template("aurora/portal/cambiar_clave.html")
 
 
 @portal_bp.route("/")

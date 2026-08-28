@@ -6,8 +6,8 @@
 <div class="auth">
   <div class="auth-card">
     <div class="auth-mark">{{ icon('key', 19) }}</div>
-    <h1>¿No tenés tu DNI a mano?</h1>
-    <p class="sub">Ingresá tu email y te mandamos un enlace para entrar por esta vez, sin DNI.</p>
+    <h1>¿No te acordás tu contraseña?</h1>
+    <p class="sub">Ingresá tu email y te mandamos un enlace para entrar por esta vez, sin contraseña.</p>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% for cat, msg in messages %}
@@ -27,7 +27,7 @@
     </form>
 
     <div class="auth-f">
-      <a href="{{ url_for('portal.acceder') }}">← Volver a ingresar con email y DNI</a>
+      <a href="{{ url_for('portal.acceder') }}">← Volver a ingresar con email y contraseña</a>
       <a href="{{ url_for('main.index') }}">Volver al inicio</a>
     </div>
   </div>
