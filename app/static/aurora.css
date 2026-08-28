@@ -540,3 +540,21 @@ body.light .banner.ok{border-color:rgba(18,128,92,.3)}
 .portal-pagos-h{font-size:11.5px;color:var(--tx-3);text-transform:uppercase;
   letter-spacing:.05em;font-weight:600;margin:14px 0 8px}
 .portal-empty{color:var(--tx-3);font-size:13px;padding:24px 0;text-align:center}
+
+/* ===== notificaciones del portal ========================================== */
+.notif-bell{position:relative}
+.notif-count{position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;padding:0 4px;
+  border-radius:20px;background:var(--err);color:#fff;font-size:10px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;line-height:1}
+.notif-pop{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:61;
+  width:min(420px,92vw);background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-lg);
+  box-shadow:var(--sh-lg);padding:22px}
+.notif-pop-h{display:flex;align-items:center;gap:9px;margin-bottom:12px}
+.notif-pop-msg{font-size:14.5px;line-height:1.55;color:var(--tx);white-space:pre-wrap;
+  background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r);
+  padding:12px 14px;margin:0 0 10px}
+.notif-list{border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;background:var(--surface)}
+.notif-item{padding:14px 18px;border-bottom:1px solid var(--line)}
+.notif-item:last-child{border-bottom:0}
+.notif-item .hd{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.notif-item .msg{font-size:13px;line-height:1.5;color:var(--tx-2);white-space:pre-wrap;margin:0 0 6px}

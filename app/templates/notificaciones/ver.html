@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Notificación{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div><h1>Notificación</h1></div>
+  <div class="quick"><a class="btn sec" href="{{ url_for('notificaciones.listar') }}">← Volver</a></div>
+</div>
+
+<div class="card" style="text-align:left;padding:20px;max-width:720px;margin-bottom:20px">
+  <span class="badge {{ estilo.badge }}">{{ n.tipo }}</span>
+  <p style="white-space:pre-wrap;margin:14px 0 6px">{{ n.mensaje }}</p>
+  <p class="hint" style="margin:0">
+    Cargada el {{ n.creada_at.strftime('%d/%m/%Y %H:%M') if n.creada_at }}
+    {% if n.creada_por %}por {{ n.creada_por }}{% endif %}.
+  </p>
+</div>
+
+<table class="grid" style="max-width:720px">
+  <thead><tr><th>Destinatario</th><th>Email</th><th>Mail</th><th>Estado</th></tr></thead>
+  <tbody>
+    {% for d in n.destinatarios %}
+    <tr>
+      <td>{{ d.persona.nombre if d.persona else '—' }}</td>
+      <td>{{ d.persona.email if d.persona and d.persona.email else '—' }}</td>
+      <td>{{ 'Enviado' if d.mail_enviado_at else ('Sin email' if d.persona and not d.persona.email else 'No se pudo enviar') }}</td>
+      <td>
+        {% if d.vista_at %}
+        <span class="badge alquilado">Vista el {{ d.vista_at.strftime('%d/%m/%Y %H:%M') }}</span>
+        {% else %}
+        <span class="badge reservado">Pendiente</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

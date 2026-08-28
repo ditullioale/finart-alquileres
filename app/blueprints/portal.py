@@ -21,7 +21,7 @@ contrato donde participa, un resumen de solo lectura: rol, próximo aumento,
 deuda, últimos pagos y estado de la cuenta de gas del inmueble. No hay ninguna
 acción de escritura acá: es consulta pura.
 """
-from datetime import date
+from datetime import date, datetime
 from functools import wraps
 
 from flask import (Blueprint, render_template, redirect, url_for, request,
@@ -30,7 +30,7 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from sqlalchemy.orm import joinedload
 
 from .. import db
-from ..models import Persona, Contrato, Pago, GasEstado
+from ..models import Persona, Contrato, Pago, GasEstado, Notificacion, NotificacionDestinatario
 from ..calculos import proximo_aumento, deuda_real
 from ..utils import MESES_ES
 
@@ -93,6 +93,21 @@ def _contratos_de(personas):
                      joinedload(Contrato.pagos),
                      joinedload(Contrato.aumentos))
             .order_by((Contrato.estado != "Vigente"), Contrato.fecha_inicio.desc())
+            .all())
+
+
+def _notificaciones_de(personas):
+    """Destinatarios de notificación de estas personas (en cualquier
+    inmobiliaria), más nuevos primero -- se usa tanto para el pop-up de
+    pendientes como para el historial completo del portal."""
+    ids = [p.id for p in personas]
+    if not ids:
+        return []
+    return (NotificacionDestinatario.query
+            .join(NotificacionDestinatario.notificacion)
+            .filter(NotificacionDestinatario.persona_id.in_(ids))
+            .options(joinedload(NotificacionDestinatario.notificacion))
+            .order_by(Notificacion.creada_at.desc())
             .all())
 
 
@@ -294,9 +309,37 @@ def panel(email, personas):
             "gas": gas,
         })
 
+    from .notificaciones import estilo_tipo
+
     nombre = personas[0].nombre if personas else email
+    notifs = _notificaciones_de(personas)
+    pendientes = [d for d in notifs if not d.vista_at]
+    # La más vieja primero: si hay varias, no se salta ninguna en el pop-up.
+    pop = pendientes[-1] if pendientes else None
     return render_template("aurora/portal/panel.html", nombre=nombre, email=email,
-                           items=items, meses=MESES_ES, hoy=hoy)
+                           items=items, meses=MESES_ES, hoy=hoy,
+                           notif_pop=pop, notif_pendientes=len(pendientes), estilo_tipo=estilo_tipo)
+
+
+@portal_bp.route("/notificaciones")
+@portal_login_required
+def notificaciones(email, personas):
+    from .notificaciones import estilo_tipo
+    notifs = _notificaciones_de(personas)
+    return render_template("aurora/portal/notificaciones.html", notifs=notifs, estilo_tipo=estilo_tipo)
+
+
+@portal_bp.route("/notificaciones/<int:did>/aceptar", methods=["POST"])
+@portal_login_required
+def notificacion_aceptar(email, personas, did):
+    ids = {p.id for p in personas}
+    d = db.session.get(NotificacionDestinatario, did)
+    if not d or d.persona_id not in ids:
+        abort(404)
+    if not d.vista_at:
+        d.vista_at = datetime.utcnow()
+        db.session.commit()
+    return redirect(url_for("portal.panel"))
 
 
 @portal_bp.route("/recibo/<int:pid>/pdf")

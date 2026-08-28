@@ -65,6 +65,7 @@
       <a class="nav-item {{ 'active' if bp=='inmuebles' }}" href="{{ url_for('inmuebles.listar') }}"><span class="i">{{ icon('building') }}</span> Inmuebles</a>
       <a class="nav-item {{ 'active' if bp=='gas' }}" href="{{ url_for('gas.index') }}"><span class="i">{{ icon('flame') }}</span> Control de gas</a>
       <a class="nav-item {{ 'active' if bp=='personas' }}" href="{{ url_for('personas.listar') }}"><span class="i">{{ icon('users') }}</span> Personas</a>
+      <a class="nav-item {{ 'active' if bp=='notificaciones' }}" href="{{ url_for('notificaciones.listar') }}"><span class="i">{{ icon('bell') }}</span> Notificaciones</a>
 
       <div class="nav-sec">Herramientas</div>
       <a class="nav-item {{ 'active' if ep in ('contratos.crear','contratos.generador') }}" href="{{ url_for('contratos.crear') }}"><span class="i">{{ icon('file-pen') }}</span> Nuevo contrato</a>

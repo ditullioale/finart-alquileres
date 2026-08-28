@@ -75,6 +75,7 @@ def create_app(config_class=Config):
     from .blueprints.health import health_bp
     from .blueprints.asistente_web import asistente_bp
     from .blueprints.tareas import tareas_bp
+    from .blueprints.notificaciones import notificaciones_bp
     from .blueprints.portal import portal_bp
 
     app.register_blueprint(auth_bp)
@@ -95,6 +96,7 @@ def create_app(config_class=Config):
     app.register_blueprint(health_bp)
     app.register_blueprint(asistente_bp)
     app.register_blueprint(tareas_bp)
+    app.register_blueprint(notificaciones_bp)
 
     from . import ui as ui_mod
     ui_mod.registrar(app)

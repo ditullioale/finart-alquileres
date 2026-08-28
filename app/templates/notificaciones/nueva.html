@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Nueva notificación{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Nueva notificación</h1>
+    <p class="sub">Se manda un mail a cada destinatario con este contenido y un link al portal.
+      Ni bien entren la van a ver como aviso a aceptar, y les queda en su historial.</p>
+  </div>
+</div>
+
+<form method="post" class="cardform" style="max-width:820px">
+  <div class="grid2">
+    <div>
+      <label>Tipo de aviso</label>
+      <select name="tipo" id="selTipo">
+        {% for t in tipos %}<option value="{{ t }}" {{ 'selected' if t==tipo_sel }}>{{ t }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <label>Mensaje</label>
+  <textarea name="mensaje" id="txtMensaje" rows="5" placeholder="Ej: Tu contrato tiene un pago pendiente correspondiente a...">{{ mensaje }}</textarea>
+  <div style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap">
+    <button type="button" class="btn sec sm" id="btnTraerDatos">{{ icon('refresh-cw', 13) }} Traer datos de la base</button>
+    <span class="hint" id="datosHint" style="margin:0">Para Mora y Aumento: trae alquiler, deuda, deuda de gas y próximo
+      aumento del primer destinatario tildado, si están cargados.</span>
+  </div>
+  <span class="hint">Este texto va tal cual en el mail y en el aviso del portal.</span>
+
+  <label style="margin-top:18px;display:block">Destinatarios</label>
+  <input type="text" placeholder="Buscar por nombre…" data-live-filter="#notif-personas-body" autocomplete="off" style="margin-bottom:8px">
+
+  <div class="table-wrap" style="max-height:360px;overflow:auto;border:1px solid var(--bd);border-radius:8px">
+    <table class="grid">
+      <thead><tr>
+        <th style="width:34px"><input type="checkbox" id="chkAll"></th>
+        <th>Nombre</th><th>Rol</th><th>Email</th>
+      </tr></thead>
+      <tbody id="notif-personas-body">
+        {% for p in personas %}
+        <tr>
+          <td><input type="checkbox" class="chk-p" name="persona_id" value="{{ p.id }}"
+                     {{ 'checked' if p.id in sel }}></td>
+          <td>{{ p.nombre }}</td>
+          <td>{{ p.roles_texto }}</td>
+          <td>{{ p.email or '—' }}{% if not p.email %} <span class="hint">(sin email: solo la va a ver en el portal)</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <span class="hint"><span id="nSel">0</span> seleccionado(s).</span>
+
+  <div class="formbtns" style="margin-top:18px">
+    <button class="btn" type="submit">Mandar notificación</button>
+    <a class="btn sec" href="{{ url_for('notificaciones.listar') }}">Cancelar</a>
+  </div>
+</form>
+
+<script>
+(function(){
+  var chkAll = document.getElementById('chkAll');
+  var items = Array.prototype.slice.call(document.querySelectorAll('.chk-p'));
+  function recalc(){
+    var n = 0;
+    items.forEach(function(c){ if(c.checked) n++; });
+    document.getElementById('nSel').textContent = n;
+  }
+  chkAll.addEventListener('change', function(){
+    items.forEach(function(c){ if(c.closest('tr').style.display !== 'none') c.checked = chkAll.checked; });
+    recalc();
+  });
+  items.forEach(function(c){ c.addEventListener('change', recalc); });
+  recalc();
+
+  document.getElementById('btnTraerDatos').addEventListener('click', function(){
+    var marcado = items.find(function(c){ return c.checked; });
+    var hint = document.getElementById('datosHint');
+    if(!marcado){ hint.textContent = 'Tildá al menos un destinatario primero.'; return; }
+    var tipo = document.getElementById('selTipo').value;
+    fetch('{{ url_for("notificaciones.datos") }}?persona_id=' + marcado.value + '&tipo=' + encodeURIComponent(tipo))
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if(!j.ok){ hint.textContent = j.motivo || 'No se encontraron datos.'; return; }
+        var txt = document.getElementById('txtMensaje');
+        txt.value = (txt.value ? txt.value.replace(/\s+$/, '') + '\n\n' : '') + j.texto;
+        hint.textContent = 'Datos agregados al mensaje -- revisalos antes de mandar.';
+      })
+      .catch(function(){ hint.textContent = 'No se pudo traer los datos.'; });
+  });
+})();
+</script>
+{% endblock %}

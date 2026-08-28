@@ -12,6 +12,7 @@
     {% if c.inmueble.cuenta_gas %}<button type="button" class="btn sec js-vergas" data-cuenta="{{ c.inmueble.cuenta_gas }}">🔥 Ver gas</button>{% endif %}
     <a class="btn sec" href="{{ url_for('contratos.renovar', cid=c.id) }}">🔁 Renovar</a>
     <a class="btn sec" href="{{ url_for('contratos.editar', cid=c.id) }}">Editar</a>
+    <a class="btn sec" href="{{ url_for('notificaciones.nueva', persona_id=c.inquilino_id) }}">🔔 Notificar</a>
   </div>
 </div>
 

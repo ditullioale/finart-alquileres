@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Notificaciones{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Notificaciones</h1>
+    <p class="sub">Avisos mandados al portal (mora, aumentos, arreglos y otros temas).</p>
+  </div>
+  <div class="quick">
+    <a class="btn" href="{{ url_for('notificaciones.nueva') }}">+ Nueva notificación</a>
+  </div>
+</div>
+
+{% if not filas %}
+<div class="card" style="text-align:left;padding:24px">
+  <p style="margin:0">Todavía no cargaste ninguna notificación.</p>
+</div>
+{% else %}
+<table class="grid">
+  <thead>
+    <tr><th>Tipo</th><th>Mensaje</th><th>Destinatarios</th><th>Vista por</th><th>Fecha</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for f in filas %}
+    <tr>
+      <td><span class="badge {{ f.estilo.badge }}">{{ f.n.tipo }}</span></td>
+      <td style="max-width:360px">{{ f.n.mensaje[:120] }}{{ '…' if f.n.mensaje|length > 120 }}</td>
+      <td>{{ f.total }}</td>
+      <td>{{ f.vistas }} / {{ f.total }}</td>
+      <td>{{ f.n.creada_at.strftime('%d/%m/%Y %H:%M') if f.n.creada_at }}</td>
+      <td><a href="{{ url_for('notificaciones.ver', nid=f.n.id) }}">Ver</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

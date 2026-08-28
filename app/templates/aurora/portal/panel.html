@@ -7,6 +7,10 @@
   <div class="mark">F</div>
   <div class="who"><b>{{ nombre }}</b><small>{{ email }}</small></div>
   <div class="sp"></div>
+  <a class="btn ghost sm notif-bell" href="{{ url_for('portal.notificaciones') }}" title="Notificaciones">
+    {{ icon('bell', 15) }}
+    {% if notif_pendientes %}<span class="notif-count">{{ notif_pendientes }}</span>{% endif %}
+  </a>
   <a class="btn ghost sm" href="{{ url_for('portal.cambiar_clave') }}">{{ icon('lock', 14) }} Cambiar contraseña</a>
   <form method="post" action="{{ url_for('portal.salir') }}" style="margin:0">
     <button class="btn ghost sm" type="submit">{{ icon('log-out', 14) }} Salir</button>
@@ -109,4 +113,21 @@
     {% endfor %}
   {% endif %}
 </div>
+
+{% if notif_pop %}
+{% set n = notif_pop.notificacion %}
+{% set est = estilo_tipo(n.tipo) %}
+<div class="ov on" id="notifOv"></div>
+<div class="notif-pop" role="dialog" aria-label="Notificación">
+  <div class="notif-pop-h">
+    {{ icon(est.icono, 17) }}
+    <span class="chip {{ est.chip }}">{{ n.tipo }}</span>
+  </div>
+  <p class="notif-pop-msg">{{ n.mensaje }}</p>
+  <p class="hint" style="margin:0 0 16px">{{ n.creada_at.strftime('%d/%m/%Y') if n.creada_at }}</p>
+  <form method="post" action="{{ url_for('portal.notificacion_aceptar', did=notif_pop.id) }}">
+    <button class="btn pri" type="submit" style="width:100%">Aceptar</button>
+  </form>
+</div>
+{% endif %}
 {% endblock %}

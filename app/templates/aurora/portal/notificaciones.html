@@ -1,0 +1,42 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Notificaciones — Portal{% endblock %}
+
+{% block content %}
+<div class="portal-top">
+  <div class="mark">F</div>
+  <div class="who"><b>Notificaciones</b><small>Avisos de tu inmobiliaria</small></div>
+  <div class="sp"></div>
+  <a class="btn ghost sm" href="{{ url_for('portal.panel') }}">{{ icon('arrow-right', 14) }} Volver al portal</a>
+</div>
+
+<div class="portal-wrap">
+  {% if not notifs %}
+  <div class="portal-empty">
+    {{ icon('bell', 22) }}
+    <p>Todavía no tenés notificaciones.</p>
+  </div>
+  {% else %}
+  <div class="notif-list">
+    {% for d in notifs %}
+    {% set n = d.notificacion %}
+    {% set est = estilo_tipo(n.tipo) %}
+    <div class="notif-item">
+      <div class="hd">
+        {{ icon(est.icono, 15) }}
+        <span class="chip {{ est.chip }}">{{ n.tipo }}</span>
+        <span class="sp"></span>
+        {% if d.vista_at %}
+        <span class="chip ok">{{ icon('check-circle', 11) }} Vista el {{ d.vista_at.strftime('%d/%m/%Y') }}</span>
+        {% else %}
+        <span class="chip warn">Pendiente</span>
+        {% endif %}
+      </div>
+      <div class="msg">{{ n.mensaje }}</div>
+      <div class="hint">{{ n.creada_at.strftime('%d/%m/%Y %H:%M') if n.creada_at }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -802,6 +802,46 @@ class ConceptoLiquidacion(db.Model):
     liquidacion = db.relationship("Liquidacion", back_populates="conceptos")
 
 
+TIPOS_NOTIFICACION = ["Mora", "Aumento", "Arreglo", "Otro"]
+
+
+class Notificacion(db.Model):
+    """Un aviso que la inmobiliaria carga desde la app para comunicarle algo a
+    uno o más inquilinos/propietarios (mora, aumento, arreglo, u otro tema
+    libre). Se manda por mail con el contenido del aviso y, además, aparece
+    como pop-up obligatorio la primera vez que cada destinatario entra al
+    portal -- de ahí en más queda en su historial de notificaciones."""
+    __tablename__ = "notificaciones"
+
+    id = db.Column(db.Integer, primary_key=True)
+    inmobiliaria_id = db.Column(db.Integer, db.ForeignKey("inmobiliarias.id"),
+                                index=True, nullable=False)
+    tipo = db.Column(db.String(20), nullable=False, default="Otro")
+    mensaje = db.Column(db.Text, nullable=False)
+    creada_por = db.Column(db.String(80))
+    creada_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    destinatarios = db.relationship("NotificacionDestinatario", backref="notificacion",
+                                    cascade="all, delete-orphan",
+                                    order_by="NotificacionDestinatario.id")
+
+
+class NotificacionDestinatario(db.Model):
+    """Un destinatario puntual de una Notificacion, con su propio estado de
+    lectura -- cada persona la acepta (o no) de forma independiente."""
+    __tablename__ = "notificacion_destinatarios"
+
+    id = db.Column(db.Integer, primary_key=True)
+    notificacion_id = db.Column(db.Integer,
+                                db.ForeignKey("notificaciones.id", ondelete="CASCADE"),
+                                index=True, nullable=False)
+    persona_id = db.Column(db.Integer, db.ForeignKey("personas.id"), index=True, nullable=False)
+    mail_enviado_at = db.Column(db.DateTime)
+    vista_at = db.Column(db.DateTime)   # null = todavía no la aceptó en el portal
+
+    persona = db.relationship("Persona")
+
+
 class OperacionIdem(db.Model):
     """Huella de operaciones de plata ya ejecutadas (clave de idempotencia).
 
