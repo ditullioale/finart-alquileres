@@ -27,13 +27,18 @@ conmutables**: el **clásico** y **Aurora** (el nuevo, más moderno); se elige c
   renovar / eliminar.
 - **Documentación de contratos** — subir y ver DNI, recibos de sueldo, etc.
   (PDF/imagen), guardados en la base junto al contrato.
+- **Seguimiento de casos** — notas por contrato (llamados, reclamos, acuerdos,
+  gestiones) con autor y fecha, desde la ficha del contrato (tab en el diseño nuevo,
+  panel en el clásico).
 - **Cobranzas** — panel mensual tipo checklist con **vencimiento visible**;
   registro de pagos con **mora automática** (se calcula desde el **día 1 del mes**,
   con **gracia hasta el vencimiento**), gastos extras (con opción de **trasladar o no**
   al propietario), **pago a cuenta / parcial** y **arrastre de saldo**. Cobro rápido
   (modal + AJAX) y cobro ampliado. Al registrar un cobro se ofrecen las opciones de
   **recibo** (imprimir / PDF / email / WhatsApp) en el acto. **Cargar varios pagos**
-  de una vez para contratos que arrancaron hace meses.
+  de una vez para contratos que arrancaron hace meses. Un pago se puede **anular**
+  (deja rastro) o **eliminar** definitivamente; nunca se cuentan pagos anulados en las
+  liquidaciones ni se permite duplicar un pago del mismo período.
 - **Aumentos** — por **índice oficial** (ICL/IPC/Casa Propia, con carga manual o
   consulta al BCRA) o por **porcentaje**. Historial editable. Aviso de vencidos.
 - **Liquidaciones a propietarios** — por período; **todas juntas o individuales**;
@@ -51,6 +56,9 @@ conmutables**: el **clásico** y **Aurora** (el nuevo, más moderno); se elige c
   *"¿quién debe?"*, *"¿cuándo vence tal alquiler?"*). Responde solo con datos de la
   inmobiliaria del usuario (herramientas acotadas por tenant, sin SQL libre). Se
   activa con `IA_API_KEY` (ver `.env.ejemplo`).
+- **Tareas pendientes** — recordatorios de acciones a realizar, desde el panel
+  principal (menú emergente): se agregan al vuelo, se **tildan** al completarlas (y
+  desaparecen) y aparecen solos al entrar a la app si hay pendientes.
 - **Comprobantes imprimibles** (HTML → PDF del navegador): recibos de alquiler
   (con vencimiento y fecha de pago), **recibos manuales**, liquidaciones, pagarés
   de contrato y **pagarés manuales**. El recibo de alquiler puede **enviarse por
@@ -226,7 +234,7 @@ gestion-alquileres/
 ├─ migrations/             # Alembic (esquema versionado)
 ├─ app/
 │  ├─ __init__.py          # application factory, PWA, arranque, guardias
-│  ├─ models.py            # modelos (incluye Inmobiliaria, auditoría, documentos, solicitudes)
+│  ├─ models.py            # modelos (Inmobiliaria, auditoría, documentos, solicitudes, seguimiento, tareas, 2FA)
 │  ├─ tenant.py            # aislamiento multiempresa (filtro + asignación)
 │  ├─ auditoria.py         # registro de acciones
 │  ├─ ui.py                # conmutador de diseño clásico / Aurora
@@ -236,7 +244,7 @@ gestion-alquileres/
 │  ├─ indices_oficiales.py # consulta ICL (BCRA)
 │  ├─ blueprints/          # auth, personas, inmuebles, contratos, cobros, aumentos,
 │  │                       #   liquidaciones, recibos, usuarios, ajustes, plataforma,
-│  │                       #   api, asistente_web, facturador_web
+│  │                       #   api, asistente_web, facturador_web, tareas, plataforma
 │  ├─ templates/           # vistas (Jinja2): diseño clásico + carpeta aurora/
 │  └─ static/              # estilos, fuente Inter, íconos, manifest, service worker, aurora.js/css
 ├─ .github/workflows/      # CI + backups automáticos + alerta de vencimiento de certificado ARCA
