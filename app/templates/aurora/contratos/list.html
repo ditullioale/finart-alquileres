@@ -48,8 +48,8 @@
   {% if contratos %}
   <table class="t">
     <thead>
-      <tr>{{ th('Inquilino', 'inquilino') }}{{ th('Inmueble', 'inmueble') }}{{ th('Propietario', 'propietario') }}
-          {{ th('Precio actual', 'precio', 'r') }}{{ th('Ajuste', 'ajuste') }}{{ th('Estado', 'estado') }}<th></th></tr>
+      <tr>{{ th('Inquilino', 'inquilino') }}{{ th('Inmueble', 'inmueble') }}{{ th('Propietario', 'propietario', 'off-sm') }}
+          {{ th('Precio actual', 'precio', 'r') }}{{ th('Ajuste', 'ajuste', 'off-sm') }}{{ th('Estado', 'estado') }}<th></th></tr>
     </thead>
     <tbody>
       {% for c in contratos %}
@@ -57,9 +57,9 @@
         <td><a href="{{ url_for('contratos.ver', cid=c.id) }}"><b>{{ c.inquilino.nombre if c.inquilino else '—' }}</b></a></td>
         <td>{{ c.inmueble.direccion }}
           {% if c.inmueble.localidad %}<div class="mut" style="font-size:12px">{{ c.inmueble.localidad }}</div>{% endif %}</td>
-        <td class="mut">{{ c.propietario.nombre if c.propietario else '—' }}</td>
+        <td class="mut off-sm">{{ c.propietario.nombre if c.propietario else '—' }}</td>
         <td class="r">{{ c.moneda|simbolo }} {{ c.precio_actual|money }}</td>
-        <td class="mut">
+        <td class="mut off-sm">
           {% if c.metodo_ajuste == 'indice' %}{{ c.indice_tipo }}
           {% elif c.metodo_ajuste == 'porcentaje' %}{{ c.porcentaje_ajuste }}%
           {% else %}—{% endif %}

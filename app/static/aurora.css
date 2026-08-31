@@ -409,6 +409,14 @@ body.light .seg button.on{box-shadow:0 1px 2px rgba(16,24,40,.1)}
 .kpi .v small{font-weight:450}
 @media(max-width:980px){ .burger{display:grid} }
 
+/* En pantallas chicas las tablas arrastraban la página al costado: se ocultan
+   las columnas secundarias y quedan las que se usan para decidir y actuar. */
+@media(max-width:760px){
+  .off-sm{display:none}
+  table.t th,table.t td{padding:9px 8px}
+  .filtros,.tabs{flex-wrap:wrap}
+}
+
 /* ===== estados en claro ==================================================
    Los verdes/amarillos del tema oscuro son claros a propósito; sobre fondo
    blanco quedan por debajo de 4.5:1, así que en claro usamos las variables. */

@@ -12,8 +12,8 @@
 <tr>
   <td class="{{ 'err' if atrasado }}"><b>{{ it.fecha.strftime('%d/%m/%Y') }}</b></td>
   <td>{{ it.c.inmueble.direccion }}</td>
-  <td class="mut">{{ it.c.inquilino.nombre if it.c.inquilino else '—' }}</td>
-  <td class="mut">
+  <td class="mut off-sm">{{ it.c.inquilino.nombre if it.c.inquilino else '—' }}</td>
+  <td class="mut off-sm">
     {% if it.c.metodo_ajuste == 'indice' %}{{ indice_nombre.get(it.c.indice_tipo, it.c.indice_tipo) }}
     {% else %}+{{ it.c.porcentaje_ajuste }}%{% endif %}
   </td>
@@ -78,7 +78,7 @@
   </div>
   {% if del_mes %}
   <table class="t">
-    <thead><tr><th>Fecha</th><th>Inmueble</th><th>Inquilino</th><th>Método</th><th class="r">Precio actual</th><th></th></tr></thead>
+    <thead><tr><th>Fecha</th><th>Inmueble</th><th class="off-sm">Inquilino</th><th class="off-sm">Método</th><th class="r">Precio actual</th><th></th></tr></thead>
     <tbody>{% for it in del_mes %}{{ fila_pendiente(it) }}{% endfor %}</tbody>
   </table>
   {% else %}
@@ -95,7 +95,7 @@
     <span class="chip warn">{{ atrasados|length }}</span>
   </div>
   <table class="t">
-    <thead><tr><th>Correspondía</th><th>Inmueble</th><th>Inquilino</th><th>Método</th><th class="r">Precio actual</th><th></th></tr></thead>
+    <thead><tr><th>Correspondía</th><th>Inmueble</th><th class="off-sm">Inquilino</th><th class="off-sm">Método</th><th class="r">Precio actual</th><th></th></tr></thead>
     <tbody>{% for it in atrasados %}{{ fila_pendiente(it, atrasado=true) }}{% endfor %}</tbody>
   </table>
 </div>
@@ -105,13 +105,13 @@
 <div class="card" style="margin-top:16px">
   <div class="card-h"><h2>Próximos (1 a 2 meses)</h2><span class="chip">{{ proximos|length }}</span></div>
   <table class="t">
-    <thead><tr><th>Fecha</th><th>Inmueble</th><th>Inquilino</th><th></th></tr></thead>
+    <thead><tr><th>Fecha</th><th>Inmueble</th><th class="off-sm">Inquilino</th><th></th></tr></thead>
     <tbody>
       {% for it in proximos %}
       <tr>
         <td>{{ it.fecha.strftime('%m/%Y') }}</td>
         <td>{{ it.c.inmueble.direccion }}</td>
-        <td class="mut">{{ it.c.inquilino.nombre if it.c.inquilino else '—' }}</td>
+        <td class="mut off-sm">{{ it.c.inquilino.nombre if it.c.inquilino else '—' }}</td>
         <td><div class="acts"><a class="btn sm" href="{{ url_for('aumentos.aplicar', cid=it.c.id) }}">Adelantar</a></div></td>
       </tr>
       {% endfor %}
@@ -124,14 +124,14 @@
   <div class="card-h"><h2>Últimos aumentos aplicados</h2></div>
   {% if ultimos %}
   <table class="t">
-    <thead><tr><th>Vigencia</th><th>Contrato</th><th>Método</th><th class="r">Anterior</th><th class="r">Nuevo</th></tr></thead>
+    <thead><tr><th>Vigencia</th><th>Contrato</th><th class="off-sm">Método</th><th class="r off-sm">Anterior</th><th class="r">Nuevo</th></tr></thead>
     <tbody>
       {% for a in ultimos %}
       <tr>
         <td>{{ a.fecha_vigencia.strftime('%d/%m/%Y') if a.fecha_vigencia }}</td>
         <td><a href="{{ url_for('contratos.ver', cid=a.contrato_id) }}"><b>{{ a.contrato.inmueble.direccion }}</b></a></td>
-        <td class="mut">{% if a.metodo == 'porcentaje' %}+{{ a.porcentaje }}%{% else %}Índice {{ a.indice_tipo }}{% endif %}</td>
-        <td class="r mut">{{ a.precio_anterior|money }}</td>
+        <td class="mut off-sm">{% if a.metodo == 'porcentaje' %}+{{ a.porcentaje }}%{% else %}Índice {{ a.indice_tipo }}{% endif %}</td>
+        <td class="r mut off-sm">{{ a.precio_anterior|money }}</td>
         <td class="r"><b>{{ a.precio_nuevo|money }}</b></td>
       </tr>
       {% endfor %}

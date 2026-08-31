@@ -14,7 +14,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from .. import db
 from ..models import Contrato, Persona, Inmueble, Pago, GasEstado
 from ..utils import (MESES_ES, link_whatsapp, whatsapp_valido, normalizar_whatsapp,
-                     proximo_ajuste, vencimiento)
+                     parse_num, proximo_ajuste, vencimiento)
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -598,13 +598,7 @@ ESTADOS_INM = ["Disponible", "Alquilado", "Reservado"]
 
 
 def _num(v, entero=False):
-    s = str(v or "").strip().replace(".", "").replace(",", ".")
-    if s == "":
-        return None
-    try:
-        return int(float(s)) if entero else float(s)
-    except ValueError:
-        return None
+    return parse_num(v, entero=entero)
 
 
 def _inmueble_dict(i):

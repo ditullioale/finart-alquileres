@@ -47,17 +47,17 @@
   {% if inmuebles %}
   <table class="t">
     <thead>
-      <tr>{{ th('Dirección', 'direccion') }}{{ th('Tipo', 'tipo') }}{{ th('Localidad', 'localidad') }}
-          {{ th('Propietario', 'propietario') }}{{ th('Precio ref.', 'precio', 'r') }}{{ th('Estado', 'estado') }}<th></th></tr>
+      <tr>{{ th('Dirección', 'direccion') }}{{ th('Tipo', 'tipo', 'off-sm') }}{{ th('Localidad', 'localidad', 'off-sm') }}
+          {{ th('Propietario', 'propietario', 'off-sm') }}{{ th('Precio ref.', 'precio', 'r') }}{{ th('Estado', 'estado') }}<th></th></tr>
     </thead>
     <tbody>
       {% for i in inmuebles %}
       <tr>
         <td><a href="{{ url_for('inmuebles.editar', iid=i.id) }}"><b>{{ i.direccion }}</b></a>
           {% if i.codigo %}<div class="mut" style="font-size:12px">{{ i.codigo }}</div>{% endif %}</td>
-        <td class="mut">{{ i.tipo or '—' }}</td>
-        <td class="mut">{{ i.localidad or '—' }}</td>
-        <td class="mut">{{ i.propietario.nombre if i.propietario else '—' }}</td>
+        <td class="mut off-sm">{{ i.tipo or '—' }}</td>
+        <td class="mut off-sm">{{ i.localidad or '—' }}</td>
+        <td class="mut off-sm">{{ i.propietario.nombre if i.propietario else '—' }}</td>
         <td class="r">{{ ((i.moneda|simbolo) ~ ' ' ~ (i.precio_referencia|money)) if i.precio_referencia else '—' }}</td>
         <td><span class="chip {{ 'ok' if i.estado == 'Alquilado' else ('info' if i.estado == 'Disponible' else '') }}">{{ i.estado }}</span></td>
         <td>
