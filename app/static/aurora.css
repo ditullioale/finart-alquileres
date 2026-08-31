@@ -256,6 +256,12 @@ body.light .sheet-top .id{background:linear-gradient(145deg,#eef0f5,#e2e6ee)}
 .fact .l{font-size:11px;color:var(--tx-3);display:flex;align-items:center;gap:5px}
 .fact .v{font-size:16.5px;font-weight:600;margin-top:4px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
 .fact .v.err{color:#ff7a7e}
+.kpi .v.warn,.fact .v.warn{color:#efc45f}
+.kpi .v.ok{color:#5fdcac}
+.kpi .v.err{color:#ff7a7e}
+body.light .kpi .v.warn,body.light .fact .v.warn{color:var(--warn)}
+body.light .kpi .v.ok{color:var(--ok)}
+body.light .kpi .v.err{color:var(--err)}
 .fact .v.ok{color:#5fdcac}
 .fact .s{font-size:11.5px;color:var(--tx-3);margin-top:2px}
 
@@ -498,6 +504,42 @@ table.t td b{font-weight:550}
 .banner.ok{background:var(--ok-soft);border-color:rgba(49,196,141,.3);color:var(--ok)}
 body.light .banner.ok{border-color:rgba(18,128,92,.3)}
 @media(max-width:720px){ .gridf{grid-template-columns:1fr} }
+.req{color:var(--err)}
+.segr{display:flex;gap:8px;flex-wrap:wrap}
+.segr .chk{border:1px solid var(--line-2);border-radius:var(--r-sm);padding:8px 12px;background:var(--surface)}
+.segr .chk:hover{border-color:var(--acc)}
+input[type=radio]{appearance:none;width:15px;height:15px;border:1px solid var(--line-2);border-radius:50%;
+  background:var(--surface);display:grid;place-items:center;cursor:pointer;transition:.12s}
+input[type=radio]:checked{border-color:var(--acc)}
+input[type=radio]:checked::after{content:"";width:7px;height:7px;border-radius:50%;background:var(--acc)}
+.msg-err{color:var(--err);min-height:14px}
+.chk{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--tx-2);cursor:pointer}
+.subcard{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r);padding:13px;margin-top:10px}
+.coparte-row{display:flex;gap:8px;align-items:center;margin-top:6px}
+select.inp{appearance:none;padding-right:26px;
+  background-image:linear-gradient(45deg,transparent 50%,var(--tx-3) 50%),linear-gradient(135deg,var(--tx-3) 50%,transparent 50%);
+  background-position:calc(100% - 14px) 15px,calc(100% - 9px) 15px;background-size:5px 5px;background-repeat:no-repeat}
+
+/* select buscable: el <select> real queda oculto y filtra un input encima */
+.combo{position:relative}
+.combo-list{position:absolute;top:100%;left:0;right:0;z-index:40;margin-top:3px;max-height:260px;overflow:auto;
+  background:var(--surface);border:1px solid var(--line-2);border-radius:var(--r);box-shadow:var(--sh-lg);display:none}
+.combo-list.on{display:block}
+.combo-item{padding:8px 11px;font-size:13px;cursor:pointer;color:var(--tx)}
+.combo-item:hover{background:var(--surface-2)}
+
+/* opciones elegibles (elegir tipo de contrato) */
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:900px}
+@media(max-width:760px){ .choices{grid-template-columns:1fr} }
+.choice{display:flex;flex-direction:column;padding:22px;text-decoration:none;color:var(--tx);transition:.15s}
+.choice:hover{border-color:var(--acc);transform:translateY(-1px);box-shadow:var(--sh-lg)}
+.choice .ic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;
+  background:var(--acc-soft);color:var(--acc-2);margin-bottom:14px}
+.choice .kick{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--tx-3)}
+.choice h2{font-size:17px;margin:7px 0 8px}
+.choice p{color:var(--tx-2);font-size:13.5px;margin:0 0 10px;line-height:1.5}
+.choice ul{margin:0 0 18px;padding-left:18px;color:var(--tx-2);font-size:13px;line-height:1.55}
+.choice .go{margin-top:auto;font-size:13px;font-weight:550;color:var(--acc-2)}
 
 /* ===== landing pública ==================================================== */
 .land{max-width:980px;margin:0 auto;padding:56px 20px 72px;position:relative;z-index:1}

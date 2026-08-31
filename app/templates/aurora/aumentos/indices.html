@@ -1,0 +1,103 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Índices{% endblock %}
+{% block crumb %}
+<a href="{{ url_for('aumentos.index') }}">Aumentos</a><span class="sep">›</span><b>Índices</b>
+{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Índices de ajuste</h1>
+    <p class="sub">Valores mensuales que se usan para calcular los aumentos por índice.</p>
+  </div>
+</div>
+
+<div class="tabs">
+  {% for t in tipos %}
+  <a class="tab {{ 'on' if tipo == t }}" href="{{ url_for('aumentos.indices', tipo=t) }}">{{ indice_nombre.get(t, t) }}</a>
+  {% endfor %}
+</div>
+
+<div class="two" style="margin-top:16px">
+  <div class="card">
+    <div class="card-h">
+      <h2>{{ indice_nombre.get(tipo, tipo) }}</h2>
+      <div class="sp"></div>
+      <span class="chip">{{ valores|length }} valores</span>
+    </div>
+    <table class="t">
+      <thead><tr><th>Mes</th><th class="r">Valor</th><th class="off-sm">Fuente</th><th></th></tr></thead>
+      <tbody>
+        {% for v in valores %}
+        <tr>
+          <td>{{ meses[v.periodo.month] }} {{ v.periodo.year }}</td>
+          <td class="r">{{ v.valor }}</td>
+          <td class="mut off-sm">{{ v.fuente or '—' }}</td>
+          <td class="r">
+            <form method="post" action="{{ url_for('aumentos.indice_eliminar', vid=v.id) }}"
+                  onsubmit="return confirm('¿Eliminar este valor?')">
+              <button class="btn sm peligro" type="submit">Eliminar</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="mut" style="padding:22px;text-align:center">Sin valores cargados para {{ tipo }}.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div>
+    <div class="card">
+      <div class="card-h"><h2>Cargar valor manual</h2></div>
+      <div class="card-b">
+        <form method="post" action="{{ url_for('aumentos.indice_nuevo') }}">
+          <input type="hidden" name="tipo" value="{{ tipo }}">
+          <div class="field"><label>Mes</label><input class="inp" type="month" name="periodo" required></div>
+          <div class="field"><label>Valor del índice</label>
+            <input class="inp" name="valor" placeholder="ej. 3245.67" required></div>
+          <div class="formbtns"><button class="btn pri" type="submit">Guardar</button></div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-h"><h2>Importación masiva</h2></div>
+      <div class="card-b">
+        <form method="post" action="{{ url_for('aumentos.indice_importar') }}">
+          <input type="hidden" name="tipo" value="{{ tipo }}">
+          <p class="hint" style="margin-top:0">Una línea por mes: <code>2025-01 3245.67</code>
+            (acepta separación por espacio, coma o tab).</p>
+          <textarea class="inp" name="datos" rows="6" placeholder="2025-01 3245.67&#10;2025-02 3390.12"></textarea>
+          <div class="formbtns"><button class="btn" type="submit">Importar</button></div>
+        </form>
+      </div>
+    </div>
+
+    {% if tipo == 'ICL' %}
+    <div class="card" style="margin-top:16px">
+      <div class="card-h"><h2>Traer del BCRA</h2></div>
+      <div class="card-b">
+        <form method="post" action="{{ url_for('aumentos.indice_bcra') }}" id="bcra-form">
+          <p class="hint" style="margin-top:0">Consulta la serie oficial del ICL. La respuesta del BCRA puede tardar
+            unos segundos; si el servicio no responde, cargalo manualmente.</p>
+          <button class="btn" type="submit" id="bcra-btn">{{ icon('refresh-cw', 13) }} Actualizar ICL desde BCRA</button>
+          <span class="hint" id="bcra-estado" style="display:none">Consultando el BCRA…</span>
+        </form>
+        <script>
+          document.getElementById('bcra-form').addEventListener('submit', function(){
+            var b = document.getElementById('bcra-btn');
+            b.disabled = true; b.textContent = 'Consultando…';
+            document.getElementById('bcra-estado').style.display = 'block';
+          });
+        </script>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+{% endblock %}

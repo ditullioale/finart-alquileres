@@ -2,7 +2,7 @@
 from pathlib import Path
 from datetime import date
 
-from flask import (Blueprint, render_template, redirect, url_for, request,
+from flask import (Blueprint, redirect, url_for, request,
                    flash, abort, jsonify, Response, make_response)
 from flask_login import login_required, current_user
 from sqlalchemy.orm import aliased, joinedload
@@ -74,7 +74,7 @@ def react():
 @login_required
 def crear():
     """Permite elegir el flujo correcto antes de iniciar un contrato."""
-    return render_template("contratos/elegir_tipo.html")
+    return render_ui("contratos/elegir_tipo.html")
 
 
 @contratos_bp.route("/<int:cid>/documento")
@@ -340,7 +340,7 @@ def nuevo():
         error = _validar(c, excluir_id=renovar_de)
         if error:
             flash(error, "error")
-            return render_template("contratos/form.html", c=c, renovar_de=renovar_de,
+            return render_ui("contratos/form.html", c=c, renovar_de=renovar_de,
                                    **_opciones())
         db.session.add(c)
         _marcar_alquilado(c)
@@ -364,7 +364,7 @@ def nuevo():
         return redirect(url_for("contratos.ver", cid=c.id))
     c = Contrato(fecha_inicio=date.today(), metodo_ajuste="porcentaje",
                  moneda="Pesos", estado="Vigente", dia_vencimiento=10)
-    return render_template("contratos/form.html", c=c, **_opciones())
+    return render_ui("contratos/form.html", c=c, **_opciones())
 
 
 @contratos_bp.route("/<int:cid>/editar", methods=["GET", "POST"])
@@ -379,7 +379,7 @@ def editar(cid):
         error = _validar(c)
         if error:
             flash(error, "error")
-            return render_template("contratos/form.html", c=c, **_opciones())
+            return render_ui("contratos/form.html", c=c, **_opciones())
         _marcar_alquilado(c)
         # Si se cambió el inmueble, liberar el anterior si ya no tiene contrato vigente.
         if inm_anterior and inm_anterior != c.inmueble_id:
@@ -387,7 +387,7 @@ def editar(cid):
         db.session.commit()
         flash("Contrato actualizado.", "ok")
         return redirect(url_for("contratos.ver", cid=c.id))
-    return render_template("contratos/form.html", c=c, **_opciones())
+    return render_ui("contratos/form.html", c=c, **_opciones())
 
 
 @contratos_bp.route("/<int:cid>/renovar")
@@ -419,7 +419,7 @@ def renovar(cid):
     c.colocadores = list(old.colocadores)
     flash("Renovación: revisá y actualizá lo que haga falta (fechas, precio, etc.) y guardá. "
           "El contrato anterior quedará finalizado automáticamente.", "ok")
-    return render_template("contratos/form.html", c=c, renovar_de=old.id, **_opciones())
+    return render_ui("contratos/form.html", c=c, renovar_de=old.id, **_opciones())
 
 
 @contratos_bp.route("/<int:cid>/rescindir", methods=["POST"])

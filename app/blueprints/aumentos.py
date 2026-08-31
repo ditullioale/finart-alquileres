@@ -2,7 +2,7 @@
 from datetime import date
 from decimal import Decimal
 
-from flask import (Blueprint, render_template, redirect, url_for, request,
+from flask import (Blueprint, redirect, url_for, request,
                    flash, abort, jsonify)
 from flask_login import login_required, current_user
 
@@ -183,7 +183,7 @@ def aplicar(cid):
         hoy=date.today(), metodo_ini=metodo_ini, arquiler_url=ARQUILER_URL,
         volver=_destino_seguro(request.args.get("volver")),
     )
-    return render_template("aumentos/aplicar.html", **contexto)
+    return render_ui("aumentos/aplicar.html", **contexto)
 
 
 @aumentos_bp.route("/contrato/<int:cid>/calcular-indice")
@@ -301,7 +301,7 @@ def editar(aid):
         db.session.commit()
         flash("Aumento actualizado." + (" El precio actual del contrato se ajustó." if es_ultimo else ""), "ok")
         return redirect(url_for("contratos.ver", cid=c.id))
-    return render_template("aumentos/editar.html", a=aum, c=c, es_ultimo=es_ultimo,
+    return render_ui("aumentos/editar.html", a=aum, c=c, es_ultimo=es_ultimo,
                            indice_nombre=INDICE_NOMBRE)
 
 
@@ -330,7 +330,7 @@ def indices():
     tipo = request.args.get("tipo", "ICL")
     valores = (IndiceValor.query.filter_by(tipo=tipo)
                .order_by(IndiceValor.periodo.desc()).all())
-    return render_template("aumentos/indices.html", valores=valores, tipo=tipo,
+    return render_ui("aumentos/indices.html", valores=valores, tipo=tipo,
                            tipos=TIPOS_INDICE, indice_nombre=INDICE_NOMBRE, meses=MESES_ES)
 
 

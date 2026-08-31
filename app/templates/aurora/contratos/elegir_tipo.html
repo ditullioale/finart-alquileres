@@ -1,0 +1,46 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Nuevo contrato{% endblock %}
+{% block crumb %}<a href="{{ url_for('contratos.listar') }}">Contratos</a><span class="sep">›</span><b>Nuevo</b>{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>¿Qué necesitás hacer?</h1>
+    <p class="sub">Elegí la opción según el estado real del contrato.</p>
+  </div>
+</div>
+
+<div class="choices">
+  <a class="choice card" href="{{ url_for('contratos.generador') }}">
+    <span class="ic">{{ icon('file-pen', 20) }}</span>
+    <span class="kick">Para un alquiler nuevo</span>
+    <h2>Crear un contrato nuevo</h2>
+    <p>El asistente redacta el documento legal y también registra el alquiler en el sistema.</p>
+    <ul>
+      <li>Cargás partes, inmueble, condiciones y garantías.</li>
+      <li>FINART genera el documento para revisar, imprimir o guardar.</li>
+    </ul>
+    <span class="go">Abrir asistente <span aria-hidden="true">→</span></span>
+  </a>
+
+  <a class="choice card" href="{{ url_for('contratos.nuevo') }}">
+    <span class="ic">{{ icon('file-text', 20) }}</span>
+    <span class="kick">Para un contrato ya existente</span>
+    <h2>Registrar un contrato existente</h2>
+    <p>Usá esta opción cuando el contrato ya está firmado o el alquiler ya se encuentra en curso.</p>
+    <ul>
+      <li>Cargás los datos necesarios para administrarlo y cobrar.</li>
+      <li>No se redacta un documento legal nuevo.</li>
+    </ul>
+    <span class="go">Registrar datos <span aria-hidden="true">→</span></span>
+  </a>
+</div>
+
+<div class="banner" style="max-width:900px;margin-top:16px">
+  {{ icon('info', 16) }}
+  <div><b>Regla rápida:</b> si necesitás que FINART redacte el documento, elegí la primera opción.
+    Si ya tenés el contrato y sólo querés administrarlo, elegí la segunda.</div>
+</div>
+{% endblock %}

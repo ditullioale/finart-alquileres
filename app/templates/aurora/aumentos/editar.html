@@ -1,0 +1,47 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Editar aumento{% endblock %}
+{% block crumb %}
+<a href="{{ url_for('aumentos.index') }}">Aumentos</a><span class="sep">›</span><b>Editar</b>
+{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Editar aumento</h1>
+    <p class="sub">{{ c.inmueble.direccion }} · {{ c.inquilino.nombre if c.inquilino else '—' }} ·
+      {% if a.metodo == 'porcentaje' %}Porcentaje{% else %}Índice {{ indice_nombre.get(a.indice_tipo, a.indice_tipo) }}{% endif %}</p>
+  </div>
+</div>
+
+{% if es_ultimo %}
+<div class="banner warn" style="max-width:760px">
+  {{ icon('alert-triangle', 16) }}
+  <div>Es el último aumento del contrato: al guardarlo se actualiza el precio actual.</div>
+</div>
+{% endif %}
+
+<form method="post" class="card" style="max-width:760px;margin-top:16px">
+  <div class="card-b">
+    <div class="gridf">
+      <div class="field"><label>Vigente desde</label>
+        <input class="inp" type="date" name="fecha_vigencia" value="{{ a.fecha_vigencia.isoformat() if a.fecha_vigencia }}"></div>
+      {% if a.metodo == 'porcentaje' %}
+      <div class="field"><label>Porcentaje (%)</label>
+        <input class="inp" name="porcentaje" value="{{ a.porcentaje if a.porcentaje is not none else '' }}"></div>
+      {% endif %}
+      <div class="field"><label>Precio anterior</label>
+        <input class="inp" name="precio_anterior" value="{{ a.precio_anterior if a.precio_anterior is not none else '' }}"></div>
+      <div class="field"><label>Precio nuevo</label>
+        <input class="inp" name="precio_nuevo" value="{{ a.precio_nuevo if a.precio_nuevo is not none else '' }}"></div>
+      <div class="field full"><label>Observaciones</label>
+        <textarea class="inp" name="observaciones" rows="2">{{ a.observaciones or '' }}</textarea></div>
+    </div>
+    <div class="formbtns">
+      <a class="btn" href="{{ url_for('contratos.ver', cid=c.id) }}">Cancelar</a>
+      <button class="btn pri" type="submit">{{ icon('check', 13) }} Guardar cambios</button>
+    </div>
+  </div>
+</form>
+{% endblock %}

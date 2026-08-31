@@ -1,0 +1,50 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Abonar saldo{% endblock %}
+{% block crumb %}
+<a href="{{ url_for('cobros.detalle', cid=pago.contrato_id) }}">Detalle de pagos</a><span class="sep">›</span><b>Cobro a cuenta</b>
+{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Registrar cobro a cuenta</h1>
+    <p class="sub">{{ (pago.contrato.inmueble.codigo ~ ' · ' if pago.contrato.inmueble.codigo else '') }}{{ pago.contrato.inmueble.direccion }} ·
+      período {{ meses[pago.periodo_mes] if pago.periodo_mes }} {{ pago.periodo_anio }}</p>
+  </div>
+</div>
+
+<div style="max-width:720px">
+  <div class="facts">
+    <div class="fact"><div class="l">Total del período</div>
+      <div class="v">{{ pago.moneda|simbolo }} {{ pago.total|money }}</div></div>
+    <div class="fact"><div class="l">Ya pagado</div>
+      <div class="v ok">{{ pago.moneda|simbolo }} {{ pago.pagado|money }}</div></div>
+    <div class="fact"><div class="l">Saldo pendiente</div>
+      <div class="v err">{{ pago.moneda|simbolo }} {{ saldo|money }}</div></div>
+  </div>
+
+  <form method="post" class="card" style="margin-top:16px">
+    {# Clave de idempotencia: si el navegador reenvía este POST, no se cobra dos veces. #}
+    <input type="hidden" name="idem" value="{{ idem }}">
+    <div class="card-b">
+      <div class="gridf">
+        <div class="field"><label>Monto a cobrar ahora <span class="req">*</span></label>
+          <input class="inp" name="monto" value="{{ saldo }}" required></div>
+        <div class="field"><label>Fecha del cobro</label>
+          <input class="inp" type="date" name="fecha_pago"></div>
+        <div class="field"><label>Forma de pago</label>
+          <select class="inp" name="forma_pago">{% for f in formas %}<option>{{ f }}</option>{% endfor %}</select></div>
+        <div class="field full"><label>Observaciones</label>
+          <textarea class="inp" name="observaciones" rows="2" placeholder="opcional"></textarea></div>
+      </div>
+      <p class="hint">El monto se suma a lo ya pagado. Si cubre el saldo, el pago queda como «Pagado»; si no, sigue «Parcial».</p>
+      <div class="formbtns">
+        <a class="btn" href="{{ url_for('cobros.detalle', cid=pago.contrato_id) }}">Cancelar</a>
+        <button class="btn pri" type="submit">{{ icon('banknote', 13) }} Registrar cobro</button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

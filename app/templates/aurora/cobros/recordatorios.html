@@ -1,0 +1,95 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Recordatorios de pago{% endblock %}
+{% block crumb %}
+<a href="{{ url_for('cobros.index', mes=mes, anio=anio) }}">Cobranzas</a><span class="sep">›</span><b>Recordatorios</b>
+{% endblock %}
+
+{% block acciones %}
+<a class="btn sm" href="{{ url_for('cobros.index', mes=mes, anio=anio) }}">Volver a Cobranzas</a>
+{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Recordatorios de pago</h1>
+    <p class="sub">Inquilinos que deben {{ meses[mes]|lower }} de {{ anio }}. Enviá el recordatorio de a uno con un clic.</p>
+  </div>
+  <div class="sp" style="flex:1"></div>
+  <form method="get" class="btngrp" style="gap:8px">
+    <select class="inp" name="mes" onchange="this.form.submit()" style="width:auto">
+      {% for m in range(1, 13) %}<option value="{{ m }}" {{ 'selected' if mes == m }}>{{ meses[m] }}</option>{% endfor %}
+    </select>
+    <select class="inp" name="anio" onchange="this.form.submit()" style="width:auto">
+      {% for a in anios %}<option value="{{ a }}" {{ 'selected' if anio == a }}>{{ a }}</option>{% endfor %}
+    </select>
+    <input class="inp" name="q" value="{{ request.args.get('q', '') }}" placeholder="Buscar inquilino o inmueble"
+           data-live-filter="#recor-body" autocomplete="off" style="width:220px">
+  </form>
+</div>
+
+{% if items %}
+<div class="card">
+  <div class="card-h">
+    <h2>Deben {{ items|length }} inquilino(s)</h2>
+    <span class="chip ok">{{ con_wa }} con WhatsApp</span>
+    {% if items|length - con_wa > 0 %}
+    <span class="chip warn">{{ items|length - con_wa }} sin WhatsApp válido</span>
+    {% endif %}
+    <div class="sp"></div>
+    {% if con_wa %}
+    <button type="button" class="btn pri sm" onclick="abrirTodosWA()">{{ icon('message-circle', 13) }} Abrir los {{ con_wa }} WhatsApp</button>
+    {% endif %}
+  </div>
+  <div class="card-b" style="padding-bottom:0">
+    <p class="hint" style="margin-top:0">Los que faltan: revisá el número en
+      <a href="{{ url_for('personas.telefonos') }}">Revisar teléfonos</a>.</p>
+    <p class="hint" id="wa-aviso" style="display:none">Se abren en pestañas nuevas, una por una.
+      Si el navegador bloquea las ventanas, permití los pop-ups de este sitio.</p>
+  </div>
+  <table class="t">
+    <thead>
+      <tr><th>Inquilino</th><th>Inmueble</th><th class="r">Debe</th><th>Estado</th><th class="r">Recordatorio</th></tr>
+    </thead>
+    <tbody id="recor-body">
+      {% for it in items %}
+      <tr>
+        <td><b>{{ it.c.inquilino.nombre }}</b></td>
+        <td class="mut">{{ it.c.inmueble.direccion }}
+          {% if it.c.inmueble.localidad %}<div class="mut">{{ it.c.inmueble.localidad }}</div>{% endif %}</td>
+        <td class="r">{{ it.c.moneda|simbolo }} {{ it.deuda|money }}</td>
+        <td>{% if it.estado == 'Parcial' %}<span class="chip warn">Parcial</span>
+          {% else %}<span class="chip err">Sin cobrar</span>{% endif %}</td>
+        <td>
+          <div class="acts">
+            {% if it.wa %}
+            <a class="btn ok sm js-wa" href="{{ it.wa }}" target="_blank" rel="noopener">{{ icon('message-circle', 13) }} WhatsApp</a>
+            {% else %}
+            <span class="mut">Sin WhatsApp válido</span>
+            {% endif %}
+            {% if it.email %}
+            <a class="btn ghost sm" href="mailto:{{ it.email }}?subject={{ ('Recordatorio de pago - ' ~ meses[mes] ~ ' ' ~ anio)|urlencode }}&body={{ it.msj|urlencode }}">Email</a>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<script>
+function abrirTodosWA(){
+  var links = Array.prototype.slice.call(document.querySelectorAll('#recor-body a.js-wa'))
+    .filter(function(a){ return a.closest('tr').style.display !== 'none'; });
+  document.getElementById('wa-aviso').style.display = 'block';
+  links.forEach(function(a, i){ setTimeout(function(){ window.open(a.href, '_blank'); }, i * 600); });
+}
+</script>
+{% else %}
+<div class="card"><div class="empty">{{ icon('check-circle', 26) }}
+  <h3>Nadie debe este mes</h3>
+  <p>Todos los alquileres de {{ meses[mes]|lower }} de {{ anio }} figuran cobrados.</p>
+  <a class="btn pri" href="{{ url_for('cobros.index', mes=mes, anio=anio) }}">Ver Cobranzas</a></div></div>
+{% endif %}
+{% endblock %}

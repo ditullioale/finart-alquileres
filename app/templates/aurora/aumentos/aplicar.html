@@ -1,0 +1,181 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Aplicar aumento{% endblock %}
+{% block crumb %}
+<a href="{{ url_for('aumentos.index') }}">Aumentos</a><span class="sep">›</span><b>Aplicar</b>
+{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Aplicar aumento</h1>
+    <p class="sub">{{ (c.inmueble.codigo ~ ' · ' if c.inmueble.codigo else '') }}{{ c.inmueble.direccion }} ·
+      {{ c.inquilino.nombre if c.inquilino else 'sin inquilino' }}</p>
+  </div>
+</div>
+
+<div style="max-width:760px">
+  <div class="card">
+    <div class="card-b" style="display:flex;align-items:center;gap:14px">
+      <div>
+        <div class="hint" style="margin:0">Precio actual</div>
+        <b style="font-size:20px">{{ c.moneda|simbolo }} {{ precio_actual|money }}</b>
+      </div>
+    </div>
+  </div>
+
+  <form method="post" class="card" style="margin-top:16px" data-precio="{{ precio_actual }}">
+    {% if volver %}<input type="hidden" name="volver" value="{{ volver }}">{% endif %}
+    <div class="card-h"><h2>¿Cómo querés calcular el aumento?</h2></div>
+    <div class="card-b">
+      <div class="segr">
+        <label class="chk"><input type="radio" name="metodo" value="manual" {{ 'checked' if metodo_ini == 'manual' }} onchange="toggle()">
+          <span>Precio nuevo directo</span></label>
+        <label class="chk"><input type="radio" name="metodo" value="porcentaje" {{ 'checked' if metodo_ini == 'porcentaje' }} onchange="toggle()">
+          <span>Por porcentaje</span></label>
+        <label class="chk"><input type="radio" name="metodo" value="indice" {{ 'checked' if metodo_ini == 'indice' }} onchange="toggle()">
+          <span>Por índice</span></label>
+      </div>
+
+      <div id="box_manual" style="margin-top:16px">
+        <p class="hint" style="margin-top:0">Poné directamente el nuevo precio acordado. Sin porcentajes ni índices.</p>
+        <div class="gridf">
+          <div class="field"><label>Nuevo precio ({{ c.moneda|simbolo }})</label>
+            <input class="inp" type="number" step="0.01" name="precio_nuevo" id="precio_nuevo" value="{{ precio_actual }}" oninput="calc()"></div>
+        </div>
+      </div>
+
+      <div id="box_pct" style="margin-top:16px">
+        <div class="gridf">
+          <div class="field"><label>Porcentaje (%)</label>
+            <input class="inp" name="porcentaje" id="porcentaje" value="{{ pct_sugerido }}" oninput="calc()" placeholder="Ej: 8"></div>
+        </div>
+      </div>
+
+      <div id="box_idx" style="margin-top:16px">
+        <div class="gridf">
+          <div class="field"><label>Índice</label>
+            <select class="inp" name="indice_tipo" id="indice_tipo" onchange="onTipo()">
+              {% for t in tipos %}<option value="{{ t }}" {{ 'selected' if (c.indice_tipo or 'ICL') == t }}>{{ indice_nombre.get(t, t) }}</option>{% endfor %}
+            </select></div>
+          <div class="field"><label>Mes base</label>
+            <input class="inp" type="month" name="periodo_base" id="periodo_base" value="{{ per_base.strftime('%Y-%m') if per_base }}"></div>
+          <div class="field"><label>Mes destino</label>
+            <input class="inp" type="month" name="periodo_destino" id="periodo_destino" value="{{ per_dest.strftime('%Y-%m') if per_dest }}"></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+          <button type="button" class="btn sm" id="btnCalcIdx" onclick="calcIndice()">{{ icon('refresh-cw', 13) }} Calcular con índice</button>
+          <a class="btn sm" href="{{ arquiler_url }}" target="_blank" rel="noopener">Calcular en ARquiler</a>
+        </div>
+        <p class="hint" id="idx_info">
+          El <b>ICL</b> se trae solo del BCRA al calcular. Para <b>IPC</b> o <b>Casa Propia</b>,
+          usá «Calcular en ARquiler» y después cargá el resultado con <b>«Precio nuevo directo»</b>.
+        </p>
+      </div>
+
+      <div class="calc" style="margin-top:16px">
+        <div class="l"><span>Precio nuevo</span><b id="preview" style="font-size:19px">—</b></div>
+        <div class="l"><span></span><span id="preview_delta" class="hint" style="margin:0"></span></div>
+      </div>
+
+      <div class="gridf" style="margin-top:16px">
+        <div class="field"><label>Vigente desde</label>
+          <input class="inp" type="date" name="fecha_vigencia" value="{{ hoy.isoformat() }}"></div>
+        <div class="field full"><label>Observaciones</label>
+          <textarea class="inp" name="observaciones" rows="2"></textarea></div>
+      </div>
+
+      <div class="formbtns">
+        <a class="btn" href="{{ url_for('contratos.ver', cid=c.id) }}">Cancelar</a>
+        <button class="btn pri" type="submit">{{ icon('check', 13) }} Aplicar aumento</button>
+      </div>
+    </div>
+  </form>
+
+  <div class="card" style="margin-top:16px">
+    <div class="card-h"><h2>¿Cargarlo más tarde?</h2></div>
+    <div class="card-b">
+      <p class="hint" style="margin:0 0 12px">Podés posponer el recordatorio hasta una fecha: no figura como pendiente hasta ese día.
+        Si dejás la fecha vacía, se pospone un mes.</p>
+      <form method="post" action="{{ url_for('aumentos.posponer', cid=c.id) }}"
+            style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap" data-no-busy>
+        <div class="field" style="margin:0;min-width:200px"><label>Recordar el aumento el</label>
+          <input class="inp" type="date" name="hasta" value=""></div>
+        <button class="btn" type="submit">Posponer</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+var PRECIO = parseFloat(document.querySelector('form[data-precio]').dataset.precio) || 0;
+var SIMB = {{ (c.moneda|simbolo)|tojson }};
+var CID = {{ c.id }};
+var idxNuevo = null;
+function fmt(n){ return n.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function metodo(){ return document.querySelector('input[name="metodo"]:checked').value; }
+
+function toggle(){
+  var m = metodo();
+  document.getElementById('box_manual').style.display = m === 'manual' ? '' : 'none';
+  document.getElementById('box_pct').style.display    = m === 'porcentaje' ? '' : 'none';
+  document.getElementById('box_idx').style.display    = m === 'indice' ? '' : 'none';
+  calc();
+}
+function setPreview(nuevo){
+  var el = document.getElementById('preview'), d = document.getElementById('preview_delta');
+  if(nuevo === null || isNaN(nuevo)){ el.textContent = '—'; d.textContent = ''; return; }
+  nuevo = Math.round(nuevo * 100) / 100;
+  el.textContent = SIMB + ' ' + fmt(nuevo);
+  if(PRECIO > 0){
+    var pct = (nuevo / PRECIO - 1) * 100;
+    d.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '% sobre ' + SIMB + ' ' + fmt(PRECIO);
+    d.style.color = pct >= 0 ? 'var(--ok)' : 'var(--err)';
+  } else { d.textContent = ''; }
+}
+function calc(){
+  var m = metodo();
+  if(m === 'manual'){
+    setPreview(parseFloat((document.getElementById('precio_nuevo').value || '').replace(',', '.')));
+  } else if(m === 'porcentaje'){
+    var pct = parseFloat((document.getElementById('porcentaje').value || '').replace(',', '.'));
+    setPreview(isNaN(pct) ? null : PRECIO * (1 + pct / 100));
+  } else {
+    setPreview(idxNuevo);
+  }
+}
+function onTipo(){
+  idxNuevo = null; calc();
+  var t = document.getElementById('indice_tipo').value;
+  document.getElementById('idx_info').innerHTML = (t === 'ICL')
+    ? 'El <b>ICL</b> se trae solo del BCRA al apretar «Calcular con índice».'
+    : 'Para <b>' + t + '</b> no hay fuente automática: usá «Calcular en ARquiler» y cargá el resultado con <b>«Precio nuevo directo»</b>.';
+}
+function calcIndice(){
+  var b = document.getElementById('btnCalcIdx');
+  var info = document.getElementById('idx_info');
+  var params = new URLSearchParams({
+    tipo: document.getElementById('indice_tipo').value,
+    base: document.getElementById('periodo_base').value,
+    dest: document.getElementById('periodo_destino').value
+  });
+  b.disabled = true; b.textContent = 'Consultando…';
+  fetch('/aumentos/contrato/' + CID + '/calcular-indice?' + params.toString())
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      b.disabled = false; b.textContent = 'Calcular con índice';
+      if(!j.ok){ idxNuevo = null; calc(); info.textContent = j.error; info.style.color = 'var(--err)'; return; }
+      idxNuevo = j.nuevo; info.style.color = '';
+      info.innerHTML = 'Índice: ' + j.v_base + ' → ' + j.v_dest + ' · factor ' + j.factor +
+        (j.fuente === 'BCRA' ? ' <span class="chip ok">traído del BCRA</span>' : '');
+      calc();
+    })
+    .catch(function(){
+      b.disabled = false; b.textContent = 'Calcular con índice';
+      info.textContent = 'No se pudo consultar. Probá de nuevo o usá ARquiler.'; info.style.color = 'var(--err)';
+    });
+}
+toggle();
+</script>
+{% endblock %}

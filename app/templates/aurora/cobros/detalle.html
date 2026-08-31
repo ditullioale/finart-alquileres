@@ -1,0 +1,141 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+{% from "_wa.html" import wa_icon %}
+
+{% block title %}Detalle de pagos{% endblock %}
+{% block crumb %}
+<a href="{{ url_for('cobros.index') }}">Cobranzas</a><span class="sep">›</span><b>Detalle</b>
+{% endblock %}
+
+{% block acciones %}
+<a class="btn sm" href="{{ url_for('contratos.ver', cid=c.id) }}">Ver contrato</a>
+<a class="btn pri sm" href="{{ url_for('cobros.nuevo', cid=c.id) }}">{{ icon('banknote', 13) }} Registrar pago</a>
+{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Detalle de pagos</h1>
+    <p class="sub">{{ (c.inmueble.codigo ~ ' · ' if c.inmueble.codigo else '') }}{{ c.inmueble.direccion }} ·
+      {{ c.inquilino.nombre if c.inquilino else 'sin inquilino' }}</p>
+  </div>
+  <div class="sp" style="flex:1"></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    {% if pendientes %}
+    <a class="btn sm" href="{{ url_for('cobros.pagos_multiples', cid=c.id) }}">{{ icon('calendar', 13) }} Cargar {{ pendientes }} pago(s) anteriores</a>
+    {% endif %}
+    <a class="btn sm" href="{{ url_for('cobros.pagos', q=(c.inquilino.nombre if c.inquilino else '')) }}">{{ icon('receipt', 13) }} Historial global</a>
+    {% if c.inmueble.cuenta_gas %}
+    <button type="button" class="btn sm js-vergas" data-cuenta="{{ c.inmueble.cuenta_gas }}">{{ icon('flame', 13) }} Ver gas</button>
+    {% endif %}
+    {% if c.inquilino %}
+      {% if resumen.deuda > 0 %}
+        {% set msj = "Hola " ~ c.inquilino.nombre ~ "! Te escribo por el alquiler de " ~ c.inmueble.direccion ~ ". Tenés un saldo pendiente de " ~ c.moneda ~ " " ~ resumen.deuda|money ~ ". ¿Podés coordinar el pago? ¡Gracias!" %}
+      {% else %}
+        {% set msj = "Hola " ~ c.inquilino.nombre ~ "! Te escribo por el alquiler de " ~ c.inmueble.direccion ~ "." %}
+      {% endif %}
+      {{ wa_icon(c.inquilino.telefono, msj, "Escribir al inquilino por WhatsApp") }}
+    {% endif %}
+  </div>
+</div>
+
+<div class="facts">
+  <div class="fact"><div class="l">Próximo vencimiento</div>
+    <div class="v">{{ resumen.prox_vto.strftime('%d/%m/%Y') }}</div>
+    <div class="s">{{ meses[resumen.prox_mes] }} {{ resumen.prox_anio }}</div></div>
+  <div class="fact"><div class="l">Monto próximo pago</div>
+    <div class="v">{{ c.moneda|simbolo }} {{ resumen.monto_prox|money }}</div></div>
+  <div class="fact"><div class="l">Deuda registrada</div>
+    <div class="v {{ 'err' if resumen.deuda > 0 }}">{{ c.moneda|simbolo }} {{ resumen.deuda|money }}</div></div>
+  <div class="fact"><div class="l">Duración</div>
+    <div class="v">{{ c.duracion_meses or '?' }} meses</div>
+    <div class="s">{{ c.fecha_inicio.strftime('%d/%m/%Y') if c.fecha_inicio }} → {{ c.fecha_fin.strftime('%d/%m/%Y') if c.fecha_fin else '—' }}</div></div>
+</div>
+
+<div class="card" style="margin-top:18px">
+  <div class="card-h"><h2>Pagos registrados</h2><div class="sp"></div>
+    <span class="chip">{{ pagos|length }}</span></div>
+  {% if pagos %}
+  <table class="t">
+    <thead>
+      <tr><th>Fecha</th><th class="off-sm">Nro</th><th>Período</th><th class="r off-sm">Alquiler</th>
+          <th class="r off-sm">Mora</th><th class="r">Total</th><th class="r off-sm">Pagado</th>
+          <th class="r">Saldo</th><th>Estado</th><th class="off-sm">Al prop.</th><th class="r"></th></tr>
+    </thead>
+    <tbody>
+      {% for p in pagos %}
+      <tr {% if p.anulado %}style="opacity:.55"{% endif %}>
+        <td>{{ p.fecha_pago.strftime('%d/%m/%Y') if p.fecha_pago else '—' }}</td>
+        <td class="mut off-sm">{{ p.numero or '—' }}</td>
+        <td>{{ meses[p.periodo_mes] if p.periodo_mes }} {{ p.periodo_anio }}</td>
+        <td class="r off-sm">{{ p.precio_alquiler|money }}</td>
+        <td class="r off-sm">{{ p.mora|money }}</td>
+        <td class="r"><b>{{ p.total|money }}</b></td>
+        <td class="r off-sm">{{ p.pagado|money }}</td>
+        <td class="r">{% if (p.saldo or 0) > 0 %}<span class="err">{{ p.saldo|money }}</span>{% else %}{{ p.saldo|money }}{% endif %}</td>
+        <td>
+          {% if p.anulado %}<span class="chip">Anulado</span>
+          {% else %}<span class="chip {{ 'ok' if p.estado == 'Pagado' else ('warn' if p.estado == 'Parcial' else 'err') }}">{{ p.estado }}</span>{% endif %}
+        </td>
+        <td class="mut off-sm">{{ p.pagado_al_propietario.strftime('%d/%m/%Y') if p.pagado_al_propietario else '—' }}</td>
+        <td>
+          <div class="acts">
+          {% if p.anulado %}
+            <a class="btn ghost sm" href="{{ url_for('recibos.recibo', pid=p.id) }}" target="_blank" rel="noopener">{{ icon('receipt', 13) }} Recibo</a>
+          {% else %}
+            {% if (p.saldo or 0) > 0 %}<a class="btn sm" href="{{ url_for('cobros.abonar', pid=p.id) }}">Abonar</a>{% endif %}
+            <details class="rmenu">
+              <summary title="Más acciones">⋯</summary>
+              <div class="pop">
+                <a href="{{ url_for('recibos.recibo', pid=p.id) }}" target="_blank" rel="noopener">{{ icon('receipt', 14) }} Ver recibo</a>
+                <a href="{{ url_for('recibos.recibo_pdf', pid=p.id) }}">{{ icon('download', 14) }} Descargar PDF</a>
+                {% set propietario_id = c.propietario_id or (c.inmueble.propietario_id if c.inmueble else none) %}
+                {% if propietario_id %}
+                <a href="{{ url_for('liquidaciones.ver', pid=propietario_id, mes=p.periodo_mes, anio=p.periodo_anio, contrato=c.id) }}" target="_blank" rel="noopener">{{ icon('bar-chart', 14) }} Liquidación</a>
+                {% endif %}
+                <a href="{{ url_for('cobros.editar', pid=p.id) }}">{{ icon('file-pen', 14) }} Editar</a>
+                <hr>
+                <form method="post" action="{{ url_for('cobros.eliminar', pid=p.id) }}"
+                      onsubmit="return confirm('¿Eliminar este pago? Se borra definitivamente (no queda guardado) y el período queda libre para cobrarlo de nuevo.')">
+                  <button class="peligro" type="submit">{{ icon('trash', 14) }} Eliminar</button>
+                </form>
+              </div>
+            </details>
+          {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">{{ icon('receipt', 26) }}<h3>Sin pagos registrados</h3>
+    <p>Para un alquiler en curso, cargá el historial con «Registrar pago».</p></div>
+  {% endif %}
+</div>
+
+{% set recibo_id = request.args.get('recibo') %}
+{% if recibo_id %}
+<div class="ov on" id="reciboOv" onclick="cerrarAsk()"></div>
+<aside class="peek on" id="reciboAsk">
+  <div class="peek-h"><b>Pago registrado</b><div class="sp"></div>
+    <button type="button" class="btn sm" onclick="cerrarAsk()">{{ icon('x', 13) }}</button></div>
+  <div class="peek-b">
+    <p>¿Querés imprimir o enviar el recibo de este pago?</p>
+  </div>
+  <div class="peek-f">
+    <a class="btn pri" href="{{ url_for('recibos.recibo', pid=recibo_id) }}">Abrir recibo</a>
+    <a class="btn" href="{{ url_for('recibos.recibo_pdf', pid=recibo_id) }}">Descargar PDF</a>
+    <button type="button" class="btn ghost" onclick="cerrarAsk()">Ahora no</button>
+  </div>
+</aside>
+<script>
+function cerrarAsk(){
+  var m = document.getElementById('reciboAsk'); if(m) m.remove();
+  var o = document.getElementById('reciboOv'); if(o) o.remove();
+  if(window.history && history.replaceState){ history.replaceState(null, '', window.location.pathname); }
+}
+document.addEventListener('keydown', function(e){ if(e.key === 'Escape') cerrarAsk(); });
+</script>
+{% endif %}
+{% endblock %}

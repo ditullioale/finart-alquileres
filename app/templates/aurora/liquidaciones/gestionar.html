@@ -1,0 +1,137 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Liquidar — {{ prop.nombre }}{% endblock %}
+{% block crumb %}
+<a href="{{ url_for('liquidaciones.index', mes=mes, anio=anio) }}">Liquidaciones</a><span class="sep">›</span><b>{{ prop.nombre }}</b>
+{% endblock %}
+
+{% block acciones %}
+<a class="btn sm" href="{{ url_for('liquidaciones.index', mes=mes, anio=anio) }}">Volver</a>
+<a class="btn sm" href="{{ url_for('liquidaciones.ver', pid=prop.id, mes=mes, anio=anio) }}" target="_blank" rel="noopener">
+  {{ icon('receipt', 13) }} Ver / Imprimir</a>
+{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Liquidar a {{ prop.nombre }}</h1>
+    <p class="sub">Período {{ meses[mes]|lower }} {{ anio }} · liquidá todas juntas o cada inmueble por separado.</p>
+  </div>
+</div>
+
+{% if items %}
+<div class="kpis" style="grid-template-columns:repeat(3,1fr)">
+  <div class="kpi"><div class="l">Total cobrado</div><div class="v">$ {{ ingresos|money }}</div></div>
+  <div class="kpi"><div class="l">Comisión</div><div class="v warn">$ {{ comision|money }}</div></div>
+  <div class="kpi"><div class="l">Neto a pagar</div><div class="v ok">$ {{ neto|money }}</div></div>
+</div>
+
+<form method="post" action="{{ url_for('liquidaciones.generar') }}" id="formTodas"
+      onsubmit="return confirm('¿Liquidar TODAS las propiedades pendientes de {{ prop.nombre }} juntas?');">
+  <input type="hidden" name="propietario_id" value="{{ prop.id }}">
+  <input type="hidden" name="mes" value="{{ mes }}"><input type="hidden" name="anio" value="{{ anio }}">
+  <input type="hidden" name="idem" value="{{ idem_todas }}">
+  <div class="card" style="margin-top:18px">
+    <div class="card-h">
+      <h2>Liquidar todo junto</h2>
+      <span class="chip">{{ pendientes }} inmueble(s) pendiente(s)</span>
+    </div>
+    <div class="card-b">
+      <div class="field" style="margin:0">
+        <label>Otros conceptos (opcional)</label>
+        <p class="hint" style="margin:0 0 8px">Sumá o descontá al propietario: reparaciones, expensas, reintegros
+          (− resta / + suma).</p>
+        <div id="conceptos"></div>
+        <button type="button" class="btn sm" style="margin-top:8px" onclick="addConcepto()">+ Agregar concepto</button>
+      </div>
+      <div class="formbtns" style="align-items:center">
+        <span style="margin-right:auto">Neto a pagar: <b>$ <span id="netoPrev">{{ neto|money }}</span></b></span>
+        {% if pendientes > 0 %}
+        <button class="btn pri" type="submit">{{ icon('check', 13) }} Liquidar todas juntas</button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</form>
+
+<div class="card" style="margin-top:16px">
+  <div class="card-h"><h2>Detalle por inmueble</h2></div>
+  <table class="t">
+    <thead>
+      <tr><th>Inmueble</th><th class="off-sm">Inquilino</th><th class="off-sm">Período</th><th class="r">Alquiler</th>
+          <th class="r off-sm">Comisión</th><th class="r off-sm">Extras</th><th class="r">Neto</th><th>Estado</th><th class="r"></th></tr>
+    </thead>
+    <tbody>
+      {% for it in items %}
+      <tr>
+        <td><b>{{ it.inmueble.direccion }}</b></td>
+        <td class="mut off-sm">{{ it.inquilino.nombre if it.inquilino else '—' }}</td>
+        <td class="mut off-sm">{{ meses[it.pago.periodo_mes] if it.pago.periodo_mes }} {{ it.pago.periodo_anio }}
+          {% set np = numero_periodo(it.contrato, it.pago.periodo_mes, it.pago.periodo_anio) %}
+          {% if np %}<span title="Mes {{ np[0] }} de {{ np[1] }} del contrato">({{ np[0] }}/{{ np[1] }})</span>{% endif %}</td>
+        <td class="r">{{ it.alquiler|money }}</td>
+        <td class="r off-sm">- {{ it.comision|money }} <span class="mut">({{ it.pct }}%)</span></td>
+        <td class="r off-sm">
+          {% if it.gastos %}
+            {% for g in it.gastos %}
+            <div class="mut" style="white-space:nowrap">{{ g.descripcion }}: {{ g.monto|money }}</div>
+            {% endfor %}
+            <div>+ {{ it.extras|money }}</div>
+          {% else %}—{% endif %}
+        </td>
+        <td class="r"><b>{{ it.neto|money }}</b></td>
+        <td>{% if it.liquidada %}<span class="chip ok">Liquidada</span>{% else %}<span class="chip warn">Pendiente</span>{% endif %}</td>
+        <td>
+          <div class="acts">
+            <a class="btn ghost sm" target="_blank" rel="noopener"
+               href="{{ url_for('liquidaciones.ver', pid=prop.id, mes=mes, anio=anio, contrato=it.contrato.id) }}">Imprimir</a>
+            {% if not it.liquidada %}
+            <form method="post" action="{{ url_for('liquidaciones.generar') }}" style="margin:0"
+                  onsubmit="return confirm('¿Liquidar solo este inmueble ({{ it.inmueble.direccion }})?')">
+              <input type="hidden" name="propietario_id" value="{{ prop.id }}">
+              <input type="hidden" name="contrato_id" value="{{ it.contrato.id }}">
+              <input type="hidden" name="mes" value="{{ mes }}"><input type="hidden" name="anio" value="{{ anio }}">
+              <input type="hidden" name="idem" value="{{ it.idem }}">
+              <button class="btn ok sm" type="submit">Liquidar</button>
+            </form>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+var NETO_BASE = {{ neto|default(0) }};
+function fmtN(n){ return n.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function recalcNeto(){
+  var extra = 0;
+  document.querySelectorAll('#conceptos .cn-row').forEach(function(r){
+    var v = (r.querySelector('.cn-monto').value || '').replace(/\./g, '').replace(',', '.');
+    var m = Math.abs(parseFloat(v) || 0);
+    extra += (r.querySelector('.cn-signo').value === '-' ? -m : m);
+  });
+  var el = document.getElementById('netoPrev'); if(el) el.textContent = fmtN(NETO_BASE + extra);
+}
+function addConcepto(){
+  var div = document.createElement('div');
+  div.className = 'cn-row';
+  div.style.cssText = 'display:flex;gap:8px;align-items:center;margin-top:6px';
+  div.innerHTML =
+    '<input class="inp" name="concepto_desc" placeholder="Descripción (ej. Reparación caño roto)" style="flex:2" required>' +
+    '<select class="inp cn-signo" name="concepto_signo" style="width:auto"><option value="-">− Restar</option><option value="+">+ Sumar</option></select>' +
+    '<input class="inp cn-monto" name="concepto_monto" placeholder="Importe" style="flex:1" oninput="recalcNeto()">' +
+    '<button type="button" class="btn sm" onclick="this.closest(\'.cn-row\').remove();recalcNeto()">Quitar</button>';
+  document.getElementById('conceptos').appendChild(div);
+  div.querySelector('.cn-signo').addEventListener('change', recalcNeto);
+}
+</script>
+{% else %}
+<div class="card"><div class="empty">{{ icon('receipt', 26) }}
+  <h3>No hay cobros para liquidar</h3>
+  <p>Este propietario no tiene alquileres cobrados en {{ meses[mes]|lower }} {{ anio }}.</p></div></div>
+{% endif %}
+{% endblock %}
