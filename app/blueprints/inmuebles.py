@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from .. import db
 from ..models import Inmueble, Persona
 from ..ui import render_ui
+from ..utils import parse_num
 
 
 def _guardar_o_avisar(inmueble, propietarios):
@@ -96,13 +97,7 @@ def _leer_form(inmueble):
     inmueble.observaciones = request.form.get("observaciones", "").strip()
 
     def num(campo, entero=False):
-        v = request.form.get(campo, "").strip().replace(".", "").replace(",", ".")
-        if v == "":
-            return None
-        try:
-            return int(float(v)) if entero else float(v)
-        except ValueError:
-            return None
+        return parse_num(request.form.get(campo, ""), entero=entero)
 
     inmueble.dormitorios = num("dormitorios", entero=True)
     inmueble.banos = num("banos", entero=True)

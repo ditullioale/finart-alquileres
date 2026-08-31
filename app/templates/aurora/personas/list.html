@@ -48,18 +48,18 @@
   {% if personas %}
   <table class="t">
     <thead>
-      <tr>{{ th('Nombre', 'nombre') }}<th>Rol</th>{{ th('DNI', 'dni') }}{{ th('CUIT', 'cuit') }}
-          {{ th('Teléfono', 'telefono') }}{{ th('Email', 'email') }}<th></th></tr>
+      <tr>{{ th('Nombre', 'nombre') }}<th class="off-sm">Rol</th>{{ th('DNI', 'dni') }}{{ th('CUIT', 'cuit', 'off-sm') }}
+          {{ th('Teléfono', 'telefono') }}{{ th('Email', 'email', 'off-sm') }}<th></th></tr>
     </thead>
     <tbody>
       {% for p in personas %}
       <tr>
         <td><a href="{{ url_for('personas.editar', pid=p.id) }}"><b>{{ p.nombre }}</b></a></td>
-        <td><span class="chip">{{ p.roles_texto or '—' }}</span></td>
+        <td class="off-sm"><span class="chip">{{ p.roles_texto or '—' }}</span></td>
         <td class="mut">{{ p.dni or '—' }}</td>
-        <td class="mut">{{ p.cuit or '—' }}</td>
+        <td class="mut off-sm">{{ p.cuit or '—' }}</td>
         <td class="mut">{{ p.telefono or '—' }}</td>
-        <td class="mut">{{ p.email or '—' }}</td>
+        <td class="mut off-sm">{{ p.email or '—' }}</td>
         <td>
           <div class="acts">
             {% set wa = wa_link(p.telefono, "Hola " ~ p.nombre ~ "!") %}
