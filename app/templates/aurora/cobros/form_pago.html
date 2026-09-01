@@ -1,0 +1,229 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}{{ 'Nuevo' if nuevo else 'Editar' }} pago{% endblock %}
+{% block crumb %}
+<a href="{{ url_for('cobros.detalle', cid=c.id) }}">Pagos</a>
+<span class="sep">{{ icon('chevron-right', 12) }}</span><b>{{ 'Registrar' if nuevo else 'Editar' }}</b>
+{% endblock %}
+{% block content %}
+<style>
+  .pago-layout{display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:start}
+  @media(max-width:900px){.pago-layout{grid-template-columns:1fr}}
+  .pago-main{display:flex;flex-direction:column;gap:16px}
+  .pago-layout .cardform{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px}
+  .pago-layout .cardform h2{margin:0 0 12px;font-size:15px}
+  .pago-layout .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:600px){.pago-layout .grid2{grid-template-columns:1fr}}
+  .pago-layout label{display:block;font-size:12.5px;margin-bottom:4px}
+  .pago-layout input,.pago-layout select,.pago-layout textarea{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:transparent;color:inherit;font-size:14px;font-family:inherit}
+  .pago-layout .chk{display:flex;align-items:center;gap:6px;font-size:13px}
+  .pago-layout .chk input{width:auto}
+  .pago-layout .gasto-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+  .pago-side{position:sticky;top:16px}
+  .resumen-pago .rp-line,.resumen-pago .rp-total,.resumen-pago .rp-saldo{display:flex;justify-content:space-between;padding:6px 0;font-size:13.5px}
+  .resumen-pago .rp-total{border-top:1px solid var(--line);margin-top:6px;font-size:16px;font-weight:600}
+  .resumen-pago .rp-saldo{border-top:1px solid var(--line);font-weight:600}
+  .resumen-pago .rp-saldo.rojo b{color:var(--err)}
+  .pago-layout .flash{border-radius:9px;padding:10px 12px}
+</style>
+<div class="pagehead">
+  <div>
+    <h1>{{ 'Registrar pago' if nuevo else 'Editar pago' }}</h1>
+    <p class="sub">{{ c.inmueble.direccion }} · {{ c.inquilino.nombre if c.inquilino else '—' }}
+       · vence el {{ c.dia_vencimiento or '—' }} de cada mes · mora {{ c.mora_diaria_pct }}%/día</p>
+  </div>
+</div>
+
+<form method="post" class="pago-layout"
+      data-mora-pct="{{ c.mora_diaria_pct or 0 }}" data-dia-venc="{{ c.dia_vencimiento or 10 }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="pago-main">
+    <div class="cardform">
+      <h2>1 · Período</h2>
+      <div class="grid2">
+        <div><label>Mes *</label>
+          <select id="periodo_mes" name="periodo_mes" required>
+            {% for m in range(1,13) %}<option value="{{ m }}" {{ 'selected' if pago.periodo_mes==m }}>{{ meses[m] }}</option>{% endfor %}
+          </select></div>
+        <div><label>Año *</label><input id="periodo_anio" name="periodo_anio" value="{{ pago.periodo_anio or '' }}" required></div>
+        <div><label>Fecha de pago *</label>
+          <input type="date" id="fecha_pago" name="fecha_pago" value="{{ pago.fecha_pago.isoformat() if pago.fecha_pago }}" required></div>
+        <div><label>Nro de pago</label><input name="numero" value="{{ pago.numero or '' }}"></div>
+      </div>
+      <p class="hint" id="venc_info" style="margin-top:8px"></p>
+    </div>
+
+    <div class="cardform">
+      <h2>2 · Montos</h2>
+      <div class="grid2">
+        <div><label>Alquiler *</label>
+          <input id="precio_alquiler" name="precio_alquiler" value="{{ pago.precio_alquiler if pago.precio_alquiler is not none else '' }}" required oninput="recalc()"></div>
+        <div><label>Mora</label>
+          <div style="display:flex;gap:8px">
+            <input id="mora" name="mora" value="{{ pago.mora if pago.mora is not none else '0' }}" oninput="recalc()">
+            <button type="button" class="btn ghost sm" onclick="calcularMora()">↻ Calcular</button>
+          </div>
+          <span class="hint" id="mora_hint" style="margin:4px 0 0"></span>
+          <label class="chk" style="margin-top:6px"><input type="checkbox" name="mora_auto"> Recalcular al guardar</label></div>
+      </div>
+
+      {% if nuevo and deuda_previa and deuda_previa > 0 %}
+      <div class="flash" style="background:#fdf0e3;border:1px solid #e8cf8a;color:#8a5a00;margin-top:12px">
+        <label class="chk" style="margin:0">
+          <input type="checkbox" name="arrastrar_saldo" onchange="recalc()">
+          Arrastrar saldo pendiente de meses anteriores (<b>{{ c.moneda|simbolo }} {{ deuda_previa|money }}</b>)
+        </label>
+      </div>
+      {% endif %}
+
+      <h2 style="margin-top:16px">3 · Gastos extras</h2>
+      <p class="hint">Agua, expensas, etc. Descuento = monto en negativo. "Trasladar al propietario"
+        tildado = se suma a su liquidación (sin comisión); destildado = lo cobramos junto con el
+        alquiler pero queda para la inmobiliaria (ej.: un seguro que pagamos nosotros).</p>
+      <div id="gastos"></div>
+      <button type="button" class="btn ghost sm" style="margin-top:8px" onclick="addGasto()">+ Agregar gasto</button>
+    </div>
+
+    <div class="cardform">
+      <h2>4 · Cobro</h2>
+      <div class="grid2">
+        <div><label>Forma de pago</label>
+          <select name="forma_pago">
+            {% for f in formas %}<option {{ 'selected' if pago.forma_pago==f }}>{{ f }}</option>{% endfor %}
+          </select></div>
+        <div><label>Pagado</label>
+          <input id="pagado" name="pagado" value="{{ pago.pagado if pago.pagado is not none else '' }}" oninput="recalc()">
+          <span class="hint">Vacío en un pago nuevo = paga el total.</span></div>
+        <div><label>Nro de recibo</label><input name="recibo_numero" value="{{ pago.recibo_numero or '' }}" placeholder="se asigna al imprimir"></div>
+        <div><label class="chk" style="margin-top:26px"><input type="checkbox" name="pagado_al_propietario"
+           {{ 'checked' if pago.pagado_al_propietario }}> Pagado al propietario</label>
+           <input type="date" name="fecha_prop" value="{{ pago.pagado_al_propietario.isoformat() if pago.pagado_al_propietario }}"></div>
+      </div>
+      <label style="margin-top:10px">Observaciones</label>
+      <textarea name="observaciones" rows="2">{{ pago.observaciones or '' }}</textarea>
+    </div>
+  </div>
+
+  <aside class="pago-side">
+    <div class="cardform resumen-pago">
+      <h2>Resumen</h2>
+      <div class="rp-line"><span>Alquiler</span><b id="r_alq">—</b></div>
+      <div class="rp-line"><span>Mora</span><b id="r_mora">—</b></div>
+      <div class="rp-line"><span>Gastos</span><b id="r_gastos">—</b></div>
+      <div class="rp-total"><span>Total a pagar</span><b id="total">—</b></div>
+      <div class="rp-line"><span>Pagado</span><b id="r_pagado">—</b></div>
+      <div class="rp-saldo"><span>Saldo</span><b id="saldo">—</b></div>
+      <button class="btn pri" type="submit" style="width:100%;justify-content:center;margin-top:14px">✓ Guardar pago</button>
+      {% if nuevo %}
+      <button class="btn" type="submit" name="guardar_seguir" value="1" style="width:100%;justify-content:center;margin-top:8px">Guardar y cargar otro</button>
+      {% endif %}
+      <a class="btn ghost" href="{{ url_for('cobros.detalle', cid=c.id) }}" style="width:100%;justify-content:center;margin-top:8px">Cancelar</a>
+    </div>
+  </aside>
+</form>
+
+<script>
+const FORM = document.querySelector('form.pago-layout');
+const MORA_PCT = parseFloat(FORM.dataset.moraPct) || 0;
+const DIA_VENC = parseInt(FORM.dataset.diaVenc) || 10;
+const DEUDA_PREVIA = {{ (deuda_previa or 0)|float if nuevo else 0 }};
+
+function num(v){ v=(v||'').toString().trim(); if(v==='')return 0;
+  if(v.indexOf(',')>=0) v=v.replace(/\./g,'').replace(',','.'); return parseFloat(v)||0; }
+function fmt(n){ return n.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+function addGasto(d){
+  d = d || {};
+  const trasladar = d.trasladar === undefined ? true : !!d.trasladar;
+  const div = document.createElement('div');
+  div.className = 'gasto-row';
+  div.innerHTML = `<input placeholder="Descripción" name="gasto_desc" value="${d.desc||''}" style="flex:2">
+    <input placeholder="Monto" name="gasto_monto" value="${d.monto!==undefined?d.monto:''}" style="flex:1" oninput="recalc()">
+    <input type="hidden" name="gasto_trasladar" value="${trasladar?1:0}">
+    <label class="chk" style="white-space:nowrap"><input type="checkbox" ${trasladar?'checked':''}
+      onchange="this.closest('.gasto-row').querySelector('input[name=gasto_trasladar]').value=this.checked?1:0">Trasladar al propietario</label>
+    <button type="button" class="btn ghost sm" onclick="this.parentNode.remove();recalc()">✕</button>`;
+  document.getElementById('gastos').appendChild(div);
+}
+function gastosTotal(){
+  let t=0; document.querySelectorAll('input[name=gasto_monto]').forEach(i=>t+=num(i.value));
+  const arr=document.querySelector('input[name=arrastrar_saldo]');
+  if(arr && arr.checked) t += DEUDA_PREVIA;
+  return t;
+}
+function recalc(){
+  const alq = num(document.getElementById('precio_alquiler').value);
+  const mora = num(document.getElementById('mora').value);
+  const gastos = gastosTotal();
+  const total = alq + mora + gastos;
+  document.getElementById('r_alq').textContent = fmt(alq);
+  document.getElementById('r_mora').textContent = fmt(mora);
+  document.getElementById('r_gastos').textContent = fmt(gastos);
+  document.getElementById('total').textContent = fmt(total);
+  const pagadoRaw = document.getElementById('pagado').value;
+  const pagado = pagadoRaw.trim()===''? total : num(pagadoRaw);
+  document.getElementById('r_pagado').textContent = fmt(pagado);
+  const saldo = total - pagado;
+  const se = document.getElementById('saldo');
+  se.textContent = fmt(saldo);
+  se.parentNode.classList.toggle('rojo', saldo > 0.005);
+}
+function vencDelPeriodo(){
+  const mes = parseInt(document.getElementById('periodo_mes').value);
+  const anio = parseInt(document.getElementById('periodo_anio').value);
+  if(!mes || !anio) return null;
+  const ultimo = new Date(anio, mes, 0).getDate();
+  return new Date(anio, mes-1, Math.min(DIA_VENC, ultimo));
+}
+function diasAtraso(){
+  const venc = vencDelPeriodo();
+  const fp = document.getElementById('fecha_pago').value;
+  if(!venc || !fp) return null;
+  return { venc: venc, dias: Math.floor((new Date(fp) - venc)/86400000) };
+}
+function fmtF(d){ return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+d.getFullYear(); }
+function actualizarVenc(){
+  const info = document.getElementById('venc_info');
+  const d = diasAtraso();
+  const venc = vencDelPeriodo();
+  if(!venc){ info.textContent=''; return; }
+  let txt = '📅 Vence el ' + fmtF(venc);
+  if(d){
+    if(d.dias > 0) txt += ' · ⚠️ ' + d.dias + ' día(s) de atraso';
+    else txt += ' · ✅ al día';
+  }
+  info.textContent = txt;
+}
+function calcularMora(){
+  const precio = num(document.getElementById('precio_alquiler').value);
+  const d = diasAtraso();
+  const hint = document.getElementById('mora_hint');
+  if(!precio || !d){ alert('Completá alquiler, mes, año y fecha de pago.'); return; }
+  let mora = 0, diasM = 0;
+  if(d.dias > 0){
+    const fpParts = document.getElementById('fecha_pago').value.split('-');
+    const fp = new Date(+fpParts[0], +fpParts[1]-1, +fpParts[2]);
+    const dia1 = new Date(d.venc.getFullYear(), d.venc.getMonth(), 1);
+    diasM = Math.max(0, Math.floor((fp - dia1)/86400000));
+    mora = Math.round(precio*(MORA_PCT/100)*diasM*100)/100;
+  }
+  document.getElementById('mora').value = mora;
+  hint.textContent = mora>0 ? (diasM + ' día(s) desde el 1° × ' + MORA_PCT + '%/día sobre el alquiler')
+                            : 'Pagó dentro del vencimiento: mora 0';
+  hint.style.color = mora>0 ? 'var(--err)' : 'var(--muted)';
+  recalc();
+  actualizarVenc();
+}
+['periodo_mes','periodo_anio','fecha_pago'].forEach(function(id){
+  var el = document.getElementById(id);
+  if(el) el.addEventListener('change', actualizarVenc);
+});
+actualizarVenc();
+{% for g in pago.gastos %}
+addGasto({desc:{{ g.descripcion|tojson }}, monto:{{ (g.monto|float) }},
+         trasladar:{{ 'true' if g.trasladar_liquidacion else 'false' }}});
+{% endfor %}
+recalc();
+</script>
+{% endblock %}

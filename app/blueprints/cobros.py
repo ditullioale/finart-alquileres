@@ -300,7 +300,7 @@ def pagos():
              .distinct().order_by(Pago.periodo_anio.desc()).all() if a]
     tot_cobrado = sum(float(p.pagado or 0) for p in filas)
     tot_saldo = sum(float(p.saldo or 0) for p in filas)
-    return render_template("cobros/pagos.html", pagos=filas, meses=MESES_ES,
+    return render_ui("cobros/pagos.html", pagos=filas, meses=MESES_ES,
                            q=request.args.get("q", ""), anio=anio, mes=mes,
                            estado=estado, anios=anios, tot_cobrado=tot_cobrado,
                            tot_saldo=tot_saldo, hoy=hoy)
@@ -545,7 +545,7 @@ def nuevo(cid):
                          f"{pago.periodo_anio}. Abrí ese pago para completarlo o corregirlo.")
         if error:
             flash(error, "error")
-            return render_template("cobros/form_pago.html", c=contrato, pago=pago,
+            return render_ui("cobros/form_pago.html", c=contrato, pago=pago,
                                    formas=FORMAS_PAGO, meses=MESES_ES, nuevo=True)
         gastos_total = _leer_gastos(pago)
 
@@ -593,7 +593,7 @@ def nuevo(cid):
     pago = Pago(numero=r["prox_nro"], periodo_mes=mes, periodo_anio=anio,
                 fecha_pago=date.today(),
                 precio_alquiler=contrato.precio_actual or contrato.precio_inicial)
-    return render_template("cobros/form_pago.html", c=contrato, pago=pago,
+    return render_ui("cobros/form_pago.html", c=contrato, pago=pago,
                            formas=FORMAS_PAGO, meses=MESES_ES, nuevo=True,
                            deuda_previa=_deuda_previa(contrato))
 
@@ -608,7 +608,7 @@ def editar(pid):
         error = _validar(pago)
         if error:
             flash(error, "error")
-            return render_template("cobros/form_pago.html", c=contrato, pago=pago,
+            return render_ui("cobros/form_pago.html", c=contrato, pago=pago,
                                    formas=FORMAS_PAGO, meses=MESES_ES, nuevo=False)
         gastos_total = _leer_gastos(pago)
         if pago.pagado is None:
@@ -617,7 +617,7 @@ def editar(pid):
         db.session.commit()
         flash("Pago actualizado.", "ok")
         return redirect(url_for("cobros.detalle", cid=contrato.id))
-    return render_template("cobros/form_pago.html", c=contrato, pago=pago,
+    return render_ui("cobros/form_pago.html", c=contrato, pago=pago,
                            formas=FORMAS_PAGO, meses=MESES_ES, nuevo=False)
 
 
