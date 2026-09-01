@@ -62,7 +62,7 @@
         <td class="r">{{ ('$ ' ~ f.cobrado|money) if f.cobrado else '—' }}</td>
         <td class="r">{% if f.saldo > 0 %}<span class="err">$ {{ f.saldo|money }}</span>{% else %}—{% endif %}</td>
         <td class="r"><span class="chip {{ 'ok' if f.estado == 'Pagado' else ('warn' if f.estado == 'Parcial' else 'err') }}">{{ f.estado }}</span></td>
-        <td class="r">
+        <td class="r"><span style="display:inline-flex;gap:6px;justify-content:flex-end;align-items:center">
           {% if f.estado != 'Pagado' and f.registrable %}
           <button class="btn ok sm" onclick='Peek.cobro({{
             {"cid": c.id, "quien": (c.inquilino.nombre if c.inquilino else "—"),
@@ -77,7 +77,12 @@
           {% elif f.pago and f.pago.recibo_numero %}
           <a class="btn ghost sm" href="{{ url_for('recibos.recibo', pid=f.pago.id) }}" target="_blank" rel="noopener">{{ icon('receipt', 13) }} Recibo</a>
           {% endif %}
-        </td>
+          {% if f.estado != 'Pagado' and c.inquilino %}
+            {% set msj = 'Hola ' ~ c.inquilino.nombre ~ '! Te escribo por el alquiler de ' ~ (c.inmueble.direccion if c.inmueble else '') ~ '. El período ' ~ meses[mes]|lower ~ ' ' ~ anio ~ ' figura ' ~ (f.estado|lower) ~ '. ¿Podés coordinar el pago? ¡Gracias!' %}
+            {% set wa = wa_link(c.inquilino.telefono, msj) %}
+            {% if wa %}<a class="btn ok sm icon" href="{{ wa }}" target="_blank" rel="noopener" title="Recordatorio por WhatsApp">{{ icon('message-circle', 13) }}</a>{% endif %}
+          {% endif %}
+        </span></td>
       </tr>
       {% endfor %}
     </tbody>
