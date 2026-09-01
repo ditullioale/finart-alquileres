@@ -877,7 +877,15 @@ def run():
         seccion("Contrato vencido (aviso al cobrar)")
         from datetime import date as _dv
         def _vencer():
-            c = _Con.query.get(ids["c2"]); c.fecha_fin = _dv(2024, 1, 1); db.session.commit()
+            c = _Con.query.get(ids["c2"]); c.fecha_fin = _dv(2024, 1, 1)
+            # Que quede COBRABLE este mes para que se muestre el botón "Cobrar"
+            # (que lleva data-vencido); así el test no depende de la fecha en que corre.
+            hoy_ = _dv.today()
+            for _p in Pago.query.filter_by(contrato_id=ids["c2"],
+                                           periodo_mes=hoy_.month,
+                                           periodo_anio=hoy_.year).all():
+                db.session.delete(_p)
+            db.session.commit()
         q(_vencer)
         _cv = cl.get(f"/cobros/?mes={date.today().month}&anio={date.today().year}").get_data(as_text=True)
         check("cobranzas marca el contrato vencido (badge + data)",
