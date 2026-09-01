@@ -194,7 +194,7 @@ def pendientes_facturar():
     liqs = _pendientes_facturar_query().all()
     props = {p.id: p for p in Persona.query.all()}
     filas = [dict(liq=l, prop=props.get(l.propietario_id)) for l in liqs]
-    return render_template("liquidaciones/pendientes.html", filas=filas,
+    return render_ui("liquidaciones/pendientes.html", filas=filas,
                            meses=MESES_ES, habilitado=facturador.habilitado())
 
 
@@ -347,7 +347,7 @@ def gestionar(pid):
     # período. Se regenera en cada carga de la pantalla, igual que en cobros/abonar.
     for it in items:
         it["idem"] = nueva_clave()
-    return render_template("liquidaciones/gestionar.html", prop=prop, items=items,
+    return render_ui("liquidaciones/gestionar.html", prop=prop, items=items,
                            ingresos=ingresos, comision=comision, neto=neto,
                            pendientes=pendientes, mes=mes, anio=anio, meses=MESES_ES,
                            idem_todas=nueva_clave())

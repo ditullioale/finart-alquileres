@@ -1,0 +1,372 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+{% set es_renovacion = renovar_de|default(None) %}
+{% set titulo = 'Editar contrato' if c.id else ('Renovar contrato' if es_renovacion else 'Registrar contrato existente') %}
+
+{% block title %}{{ titulo }}{% endblock %}
+{% block crumb %}
+<a href="{{ url_for('contratos.listar') }}">Contratos</a><span class="sep">›</span><b>{{ titulo }}</b>
+{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>{{ titulo }}</h1>
+    <p class="sub">Los campos con <span class="req">*</span> son los mínimos para poder cobrar.</p>
+  </div>
+</div>
+
+{% if not c.id and not es_renovacion %}
+<div class="banner" style="max-width:900px">
+  {{ icon('info', 16) }}
+  <div><b>Esta opción no redacta un documento legal nuevo.</b> Usala para registrar un contrato
+    ya firmado o un alquiler en curso: podés cargar la fecha de inicio real, aunque sea pasada,
+    y el precio actual ya aumentado. Si necesitás redactar el contrato desde cero,
+    <a href="{{ url_for('contratos.generador') }}">abrí el asistente de contrato nuevo</a>.</div>
+</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('contratos.nuevo') if renovar_de else '' }}" style="max-width:900px">
+  {% if renovar_de %}<input type="hidden" name="renovar_de" value="{{ renovar_de }}">{% endif %}
+
+  <div class="card">
+    <div class="card-h"><h2>Partes e inmueble</h2></div>
+    <div class="card-b">
+      <div class="gridf">
+        <div class="field"><label>Inmueble <span class="req">*</span></label>
+          <select class="inp js-search" name="inmueble_id" id="inmueble_id" data-ph="Buscar por código o dirección…" required>
+            <option value="">— elegí —</option>
+            {% for i in inmuebles %}
+            <option value="{{ i.id }}" data-prop="{{ i.propietario_id or '' }}" {{ 'selected' if c.inmueble_id == i.id }}>
+              {{ (i.codigo ~ ' · ' if i.codigo else '') }}{{ i.direccion }}</option>
+            {% endfor %}
+          </select>
+          <p class="hint">¿No está? <a href="#" onclick="abrirAlta('inmueble');return false;">cargalo acá</a> sin salir,
+            o <a href="{{ url_for('inmuebles.nuevo') }}" target="_blank">en detalle</a>.</p></div>
+
+        <div class="field"><label>Número de contrato</label>
+          <input class="inp" name="numero" value="{{ c.numero or '' }}" placeholder="opcional"></div>
+
+        <div class="field"><label>Inquilino <span class="req">*</span></label>
+          <select class="inp js-search" name="inquilino_id" id="inquilino_id" data-ph="Buscar inquilino…" required>
+            <option value="">— elegí —</option>
+            {% for p in inquilinos %}<option value="{{ p.id }}" data-email="{{ p.email or '' }}"
+              {{ 'selected' if c.inquilino_id == p.id }}>{{ p.nombre }}</option>{% endfor %}
+          </select>
+          <p class="hint">¿No está? <a href="#" onclick="abrirAlta('inquilino');return false;">cargalo acá</a> sin salir,
+            o <a href="{{ url_for('personas.nueva') }}" target="_blank">en detalle</a>.</p>
+          <label class="chk" id="bienvenida-wrap" style="display:none;margin-top:7px">
+            <input type="checkbox" name="enviar_bienvenida" checked>
+            <span>Enviarle un mail de bienvenida al portal</span></label></div>
+
+        <div class="field"><label>Propietario</label>
+          <select class="inp js-search" name="propietario_id" id="propietario_id" data-ph="Buscar propietario…">
+            <option value="">— (toma el del inmueble) —</option>
+            {% for p in propietarios %}<option value="{{ p.id }}" {{ 'selected' if c.propietario_id == p.id }}>{{ p.nombre }}</option>{% endfor %}
+          </select></div>
+
+        <div class="field"><label>Otros locatarios</label>
+          <div id="colocatarios"></div>
+          <button type="button" class="btn sm" style="margin-top:7px" onclick="addCoparte('colocatario')">+ Agregar locatario</button>
+          <p class="hint">Para contratos con más de un inquilino. Aparecen en el contrato y en los recibos.</p></div>
+
+        <div class="field"><label>Otros locadores</label>
+          <div id="colocadores"></div>
+          <button type="button" class="btn sm" style="margin-top:7px" onclick="addCoparte('colocador')">+ Agregar locador</button>
+          <p class="hint">Para inmuebles con más de un dueño. Aparecen en el contrato y en la liquidación.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="card-h"><h2>Condiciones</h2></div>
+    <div class="card-b">
+      <div class="gridf">
+        <div class="field"><label>Fecha de inicio <span class="req">*</span></label>
+          <input class="inp" type="date" name="fecha_inicio" value="{{ c.fecha_inicio.isoformat() if c.fecha_inicio }}" required></div>
+
+        <div class="field"><label>Duración (meses)</label>
+          <input class="inp" name="duracion_meses" value="{{ c.duracion_meses or '' }}" placeholder="ej. 36"></div>
+
+        <div class="field"><label>Fecha de fin</label>
+          <input class="inp" type="date" name="fecha_fin" value="{{ c.fecha_fin.isoformat() if c.fecha_fin }}">
+          <p class="hint">Si la dejás vacía, se calcula con inicio + duración.</p></div>
+
+        <div class="field"><label>Moneda</label>
+          <select class="inp" name="moneda">
+            <option {{ 'selected' if c.moneda == 'Pesos' }}>Pesos</option>
+            <option {{ 'selected' if c.moneda == 'Dólares' }}>Dólares</option>
+          </select></div>
+
+        <div class="field"><label>Precio inicial <span class="req">*</span></label>
+          <input class="inp" name="precio_inicial" value="{{ c.precio_inicial if c.precio_inicial is not none else '' }}" required></div>
+
+        <div class="field"><label>Precio actual (ya aumentado)</label>
+          <input class="inp" name="precio_actual" value="{{ c.precio_actual if c.precio_actual is not none else '' }}">
+          <p class="hint">Para alquileres en curso. Si lo dejás vacío, usa el inicial.</p></div>
+
+        <div class="field"><label>Día de vencimiento</label>
+          <input class="inp" name="dia_vencimiento" value="{{ c.dia_vencimiento or '' }}"></div>
+
+        <div class="field"><label>Mora diaria (%)</label>
+          <input class="inp" name="mora_diaria_pct" value="{{ c.mora_diaria_pct if c.mora_diaria_pct is not none else '' }}"></div>
+
+        <div class="field full"><label>Comisión de administración (%)</label>
+          <input class="inp" name="comision_pct" value="{{ c.comision_pct if c.comision_pct is not none else '' }}" placeholder="ej. 8">
+          <p class="hint">Se descuenta al liquidar al propietario. Si queda vacía, usa la del inmueble.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="card-h"><h2>Aumentos</h2></div>
+    <div class="card-b">
+      <div class="gridf">
+        <div class="field"><label>Método de ajuste</label>
+          <select class="inp" name="metodo_ajuste" id="metodo_ajuste" onchange="toggleAjuste()">
+            {% for val, lbl in metodos %}<option value="{{ val }}" {{ 'selected' if c.metodo_ajuste == val }}>{{ lbl }}</option>{% endfor %}
+          </select></div>
+
+        <div class="field"><label>Cada cuántos meses</label>
+          <input class="inp" name="ajuste_cada_meses" value="{{ c.ajuste_cada_meses or '' }}" placeholder="ej. 6"></div>
+
+        <div class="field" id="box_indice"><label>Índice</label>
+          <select class="inp" name="indice_tipo">
+            <option value="">—</option>
+            {% for val, lbl in indices %}<option value="{{ val }}" {{ 'selected' if c.indice_tipo == val }}>{{ lbl }}</option>{% endfor %}
+          </select></div>
+
+        <div class="field" id="box_pct"><label>Porcentaje por período (%)</label>
+          <input class="inp" name="porcentaje_ajuste" value="{{ c.porcentaje_ajuste if c.porcentaje_ajuste is not none else '' }}"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="card-h"><h2>Estado y fiadores</h2></div>
+    <div class="card-b">
+      <div class="gridf">
+        <div class="field"><label>Estado</label>
+          <select class="inp" name="estado">
+            {% for e in estados %}<option {{ 'selected' if c.estado == e }}>{{ e }}</option>{% endfor %}
+          </select></div>
+      </div>
+
+      <div id="fiadores"></div>
+      <button type="button" class="btn sm" style="margin-top:10px" onclick="addFiador()">+ Agregar fiador</button>
+
+      <div class="field full" style="margin-top:16px"><label>Observaciones</label>
+        <textarea class="inp" name="observaciones" rows="2">{{ c.observaciones or '' }}</textarea></div>
+    </div>
+  </div>
+
+  <div class="formbtns">
+    <a class="btn" href="{{ url_for('contratos.listar') }}">Cancelar</a>
+    <button class="btn pri" type="submit">{{ icon('check', 13) }} Guardar contrato</button>
+  </div>
+</form>
+
+<div id="altaOv" class="ov" onclick="cerrarAlta()"></div>
+<aside id="altaPeek" class="peek" aria-hidden="true">
+  <div class="peek-h">
+    <b id="altaTitulo">Nuevo</b><div class="sp"></div>
+    <button type="button" class="btn sm" onclick="cerrarAlta()">{{ icon('x', 13) }}</button>
+  </div>
+  <div class="peek-b">
+    <div id="altaCampos"></div>
+    <p id="altaMsg" class="hint msg-err"></p>
+  </div>
+  <div class="peek-f">
+    <div class="sp" style="flex:1"></div>
+    <button type="button" class="btn" onclick="cerrarAlta()">Cancelar</button>
+    <button type="button" class="btn pri" id="altaGuardar">Guardar</button>
+  </div>
+</aside>
+
+<script>
+function toggleAjuste(){
+  var m = document.getElementById('metodo_ajuste').value;
+  document.getElementById('box_indice').style.display = (m === 'indice') ? '' : 'none';
+  document.getElementById('box_pct').style.display = (m === 'porcentaje') ? '' : 'none';
+}
+function addFiador(d){
+  d = d || {};
+  var div = document.createElement('div');
+  div.className = 'subcard';
+  div.innerHTML = '<div class="gridf">' +
+    '<div class="field"><label>Fiador — nombre</label><input class="inp" name="fiador_nombre" value="' + (d.nombre || '') + '"></div>' +
+    '<div class="field"><label>DNI</label><input class="inp" name="fiador_dni" value="' + (d.dni || '') + '"></div>' +
+    '<div class="field"><label>Domicilio</label><input class="inp" name="fiador_dom" value="' + (d.dom || '') + '"></div>' +
+    '<div class="field"><label>Teléfono</label><input class="inp" name="fiador_tel" value="' + (d.tel || '') + '"></div>' +
+    '<div class="field"><label>Email</label><input class="inp" name="fiador_email" value="' + (d.email || '') + '"></div>' +
+    '<div class="field"><label>Acredita solvencia con</label><input class="inp" name="fiador_solvencia" value="' + (d.solvencia || '') +
+      '" placeholder="Ej: Empleado en… / Propietario de inmueble en…"></div>' +
+    '</div><div style="text-align:right;margin-top:8px">' +
+    '<button type="button" class="btn sm peligro" onclick="this.closest(\'.subcard\').remove()">Quitar</button></div>';
+  document.getElementById('fiadores').appendChild(div);
+}
+document.getElementById('inmueble_id').addEventListener('change', function(){
+  var opt = this.options[this.selectedIndex];
+  var prop = opt ? opt.dataset.prop : '';
+  var sel = document.getElementById('propietario_id');
+  if(prop && !sel.value){ sel.value = prop; sel.dispatchEvent(new Event('change')); }
+});
+{% for f in c.fiadores %}
+addFiador({nombre:{{ f.nombre|tojson }}, dni:{{ (f.dni or '')|tojson }}, dom:{{ (f.domicilio or '')|tojson }}, tel:{{ (f.telefono or '')|tojson }}, email:{{ (f.email or '')|tojson }}, solvencia:{{ (f.solvencia or '')|tojson }}});
+{% endfor %}
+
+var OPC_LOCATARIO = [{% for p in inquilinos %}{id:{{ p.id }}, n:{{ p.nombre|tojson }}},{% endfor %}];
+var OPC_LOCADOR   = [{% for p in propietarios %}{id:{{ p.id }}, n:{{ p.nombre|tojson }}},{% endfor %}];
+function optionsHtml(arr, selId){
+  var h = '<option value="">— elegí una persona —</option>';
+  arr.forEach(function(o){
+    h += '<option value="' + o.id + '"' + (String(o.id) === String(selId) ? ' selected' : '') + '>' +
+         o.n.replace(/</g, '&lt;') + '</option>';
+  });
+  return h;
+}
+function addCoparte(tipo, selId){
+  var arr  = (tipo === 'colocatario') ? OPC_LOCATARIO : OPC_LOCADOR;
+  var cont = document.getElementById(tipo === 'colocatario' ? 'colocatarios' : 'colocadores');
+  var row = document.createElement('div');
+  row.className = 'coparte-row';
+  row.innerHTML = '<select class="inp" name="' + tipo + '_id" style="flex:1">' + optionsHtml(arr, selId) + '</select>' +
+    '<button type="button" class="btn sm" onclick="this.closest(\'.coparte-row\').remove()">Quitar</button>';
+  cont.appendChild(row);
+}
+{% for p in c.colocatarios %}addCoparte('colocatario', {{ p.id }});{% endfor %}
+{% for p in c.colocadores %}addCoparte('colocador', {{ p.id }});{% endfor %}
+
+toggleAjuste();
+
+function addMonthsISO(iso, meses){
+  if(!iso || !meses) return '';
+  var p = iso.split('-'); var y = +p[0], m = +p[1] - 1, d = +p[2];
+  var dt = new Date(y, m + meses, 1);
+  var ultimo = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate();
+  dt.setDate(Math.min(d, ultimo));
+  var mm = String(dt.getMonth() + 1).padStart(2, '0'), dd = String(dt.getDate()).padStart(2, '0');
+  return dt.getFullYear() + '-' + mm + '-' + dd;
+}
+var fIni = document.querySelector('[name="fecha_inicio"]');
+var fDur = document.querySelector('[name="duracion_meses"]');
+var fFin = document.querySelector('[name="fecha_fin"]');
+function recalcFin(){
+  var meses = parseInt(fDur.value);
+  if(fIni.value && meses){ fFin.value = addMonthsISO(fIni.value, meses); }
+}
+if(fIni && fDur && fFin){
+  fIni.addEventListener('change', recalcFin);
+  fDur.addEventListener('input', recalcFin);
+}
+
+// Selects buscables: el <select> real queda oculto (es el que se manda) y se
+// opera sobre un input de texto que filtra las opciones.
+document.querySelectorAll('select.js-search').forEach(function(sel){
+  var opciones = Array.from(sel.options).map(function(o){ return {v:o.value, t:o.textContent.trim(), prop:o.dataset.prop}; });
+  var wrap = document.createElement('div'); wrap.className = 'combo';
+  var inp = document.createElement('input'); inp.type = 'text'; inp.autocomplete = 'off';
+  inp.placeholder = sel.dataset.ph || 'Buscar…';
+  inp.className = 'inp';
+  var list = document.createElement('div'); list.className = 'combo-list';
+  sel.style.display = 'none';
+  sel.parentNode.insertBefore(wrap, sel); wrap.appendChild(sel); wrap.appendChild(inp); wrap.appendChild(list);
+  function syncInput(){ var o = opciones.find(function(x){ return x.v === sel.value; }); inp.value = (o && o.v) ? o.t : ''; }
+  syncInput();
+  sel.addEventListener('change', syncInput);
+  sel._addOption = function(o){
+    opciones.push({v:o.v, t:o.t, prop:o.prop});
+    var opt = document.createElement('option'); opt.value = o.v; opt.textContent = o.t;
+    if(o.prop != null && o.prop !== '') opt.dataset.prop = o.prop;
+    sel.appendChild(opt); sel.value = o.v; inp.value = o.t;
+    sel.dispatchEvent(new Event('change'));
+  };
+  function pintar(filtro){
+    var f = (filtro || '').toLowerCase();
+    list.innerHTML = '';
+    opciones.filter(function(o){ return !f || o.t.toLowerCase().indexOf(f) !== -1; }).slice(0, 50).forEach(function(o){
+      var it = document.createElement('div'); it.className = 'combo-item'; it.textContent = o.t || '— (ninguno) —';
+      it.addEventListener('mousedown', function(e){
+        e.preventDefault();
+        sel.value = o.v; inp.value = o.v ? o.t : '';
+        sel.dispatchEvent(new Event('change'));
+        list.classList.remove('on');
+      });
+      list.appendChild(it);
+    });
+    list.classList.add('on');
+  }
+  inp.addEventListener('focus', function(){ pintar(''); });
+  inp.addEventListener('input', function(){ pintar(inp.value); });
+  inp.addEventListener('blur', function(){ setTimeout(function(){ list.classList.remove('on'); }, 150); });
+});
+
+(function(){
+  var selInq = document.getElementById('inquilino_id');
+  var wrap = document.getElementById('bienvenida-wrap');
+  if(!selInq || !wrap) return;
+  function actualizar(){
+    var o = selInq.options[selInq.selectedIndex];
+    wrap.style.display = (o && o.dataset.email) ? 'flex' : 'none';
+  }
+  selInq.addEventListener('change', actualizar);
+  actualizar();
+})();
+
+var ALTA_TIPO = null;
+function abrirAlta(tipo){
+  ALTA_TIPO = tipo;
+  var camp = document.getElementById('altaCampos');
+  document.getElementById('altaMsg').textContent = '';
+  if(tipo === 'inmueble'){
+    document.getElementById('altaTitulo').textContent = 'Nuevo inmueble';
+    var propOpts = document.getElementById('propietario_id').innerHTML;
+    camp.innerHTML =
+      '<div class="field"><label>Dirección <span class="req">*</span></label><input class="inp" id="al_dir" placeholder="Calle 123, Localidad"></div>' +
+      '<div class="field"><label>Código (opcional)</label><input class="inp" id="al_cod" placeholder="ej. DE17"></div>' +
+      '<div class="field"><label>Propietario (opcional)</label><select class="inp" id="al_prop">' + propOpts + '</select></div>';
+  } else {
+    document.getElementById('altaTitulo').textContent = 'Nuevo inquilino';
+    camp.innerHTML =
+      '<div class="field"><label>Nombre y apellido <span class="req">*</span></label><input class="inp" id="al_nom" placeholder="Nombre Apellido"></div>' +
+      '<div class="field"><label>DNI (opcional)</label><input class="inp" id="al_dni"></div>';
+  }
+  document.getElementById('altaOv').classList.add('on');
+  var peek = document.getElementById('altaPeek');
+  peek.classList.add('on'); peek.setAttribute('aria-hidden', 'false');
+  var first = camp.querySelector('input'); if(first) first.focus();
+}
+function cerrarAlta(){
+  document.getElementById('altaOv').classList.remove('on');
+  var peek = document.getElementById('altaPeek');
+  peek.classList.remove('on'); peek.setAttribute('aria-hidden', 'true');
+}
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape') cerrarAlta();
+});
+document.getElementById('altaGuardar').addEventListener('click', function(){
+  var msg = document.getElementById('altaMsg'); msg.textContent = '';
+  var btn = this; btn.disabled = true;
+  var url, payload, aplicar;
+  if(ALTA_TIPO === 'inmueble'){
+    var dir = document.getElementById('al_dir').value.trim();
+    if(!dir){ msg.textContent = 'La dirección es obligatoria.'; btn.disabled = false; return; }
+    url = '/inmuebles/nuevo-rapido';
+    payload = {direccion: dir, codigo: document.getElementById('al_cod').value.trim(),
+               propietario_id: document.getElementById('al_prop').value};
+    aplicar = function(j){ document.getElementById('inmueble_id')._addOption({v:String(j.id), t:j.texto, prop:j.propietario_id}); };
+  } else {
+    var nom = document.getElementById('al_nom').value.trim();
+    if(!nom){ msg.textContent = 'El nombre es obligatorio.'; btn.disabled = false; return; }
+    url = '/personas/nueva-rapida';
+    payload = {nombre: nom, dni: document.getElementById('al_dni').value.trim(), rol: 'inquilino'};
+    aplicar = function(j){ document.querySelector('select[name="inquilino_id"]')._addOption({v:String(j.id), t:j.nombre}); };
+  }
+  fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)})
+    .then(function(r){ return r.json(); })
+    .then(function(j){ btn.disabled = false;
+      if(j.ok){ aplicar(j); cerrarAlta(); } else { msg.textContent = j.error || 'No se pudo crear.'; } })
+    .catch(function(){ btn.disabled = false; msg.textContent = 'Error de conexión.'; });
+});
+</script>
+{% endblock %}

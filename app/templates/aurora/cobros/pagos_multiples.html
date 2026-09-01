@@ -1,0 +1,100 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Registrar pagos anteriores{% endblock %}
+{% block crumb %}
+<a href="{{ url_for('cobros.detalle', cid=c.id) }}">Detalle de pagos</a><span class="sep">›</span><b>Pagos anteriores</b>
+{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Registrar pagos anteriores</h1>
+    <p class="sub">{{ (c.inmueble.codigo ~ ' · ' if c.inmueble.codigo else '') }}{{ c.inmueble.direccion }} ·
+      {{ c.inquilino.nombre if c.inquilino else '—' }}</p>
+  </div>
+</div>
+
+{% if not pendientes %}
+<div class="card"><div class="empty">{{ icon('check-circle', 26) }}
+  <h3>Este contrato no tiene meses pendientes</h3>
+  <p><a href="{{ url_for('cobros.detalle', cid=c.id) }}">Volver al detalle</a></p></div></div>
+{% else %}
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="card">
+    <div class="card-h"><h2>Cómo registrarlos</h2></div>
+    <div class="card-b">
+      <div class="gridf">
+        <div class="field">
+          <label>Fecha de cada pago</label>
+          <div class="segr" style="flex-direction:column;align-items:stretch">
+            <label class="chk"><input type="radio" name="fecha_modo" value="venc" checked>
+              <span>La del vencimiento de cada mes (recomendado)</span></label>
+            <label class="chk"><input type="radio" name="fecha_modo" value="hoy">
+              <span>Hoy ({{ hoy.strftime('%d/%m/%Y') }})</span></label>
+            <label class="chk"><input type="radio" name="fecha_modo" value="fija">
+              <span>Una fecha fija:</span>
+              <input class="inp" type="date" name="fecha_fija" style="width:auto"></label>
+          </div>
+        </div>
+        <div class="field">
+          <label>Forma de pago</label>
+          <select class="inp" name="forma_pago">{% for f in formas %}<option>{{ f }}</option>{% endfor %}</select>
+          <label class="chk" style="margin-top:12px"><input type="checkbox" name="con_mora">
+            <span>Cobrar con mora (si estaban atrasados)</span></label>
+          <p class="hint">Por defecto se registran sin mora (pagos hechos en fecha).</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="card-h"><h2>Períodos pendientes</h2><div class="sp"></div>
+      <span class="chip">{{ pendientes|length }}</span></div>
+    <table class="t">
+      <thead><tr>
+        <th style="width:34px"><input type="checkbox" id="chkAll" checked></th>
+        <th>Período</th><th>Vencimiento</th><th class="r">Alquiler</th>
+      </tr></thead>
+      <tbody>
+        {% for p in pendientes %}
+        <tr>
+          <td><input type="checkbox" class="chk-p" name="periodo" value="{{ p.mes }}-{{ p.anio }}"
+                     data-monto="{{ p.esperado }}" checked></td>
+          <td>{{ meses[p.mes] }} {{ p.anio }}</td>
+          <td class="mut">{{ p.venc.strftime('%d/%m/%Y') }}</td>
+          <td class="r">{{ c.moneda|simbolo }} {{ p.esperado|money }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="formbtns" style="align-items:center">
+    <span style="margin-right:auto">Total seleccionado:
+      <b>{{ c.moneda|simbolo }} <span id="totSel">0</span></b></span>
+    <a class="btn" href="{{ url_for('cobros.detalle', cid=c.id) }}">Cancelar</a>
+    <button class="btn pri" type="submit">{{ icon('banknote', 13) }} Registrar los seleccionados (<span id="nSel">0</span>)</button>
+  </div>
+</form>
+
+<script>
+(function(){
+  var chkAll = document.getElementById('chkAll');
+  var items = Array.prototype.slice.call(document.querySelectorAll('.chk-p'));
+  function fmt(n){ return n.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+  function recalc(){
+    var n = 0, tot = 0;
+    items.forEach(function(c){ if(c.checked){ n++; tot += parseFloat(c.dataset.monto) || 0; } });
+    document.getElementById('nSel').textContent = n;
+    document.getElementById('totSel').textContent = fmt(tot);
+  }
+  chkAll.addEventListener('change', function(){ items.forEach(function(c){ c.checked = chkAll.checked; }); recalc(); });
+  items.forEach(function(c){ c.addEventListener('change', recalc); });
+  recalc();
+})();
+</script>
+{% endif %}
+{% endblock %}

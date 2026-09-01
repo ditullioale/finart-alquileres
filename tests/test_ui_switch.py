@@ -73,6 +73,32 @@ def test_listados_y_ajustes_en_los_dos_disenos(client):
         assert nueva.status_code == 200 and "aurora.css" in nueva.get_data(as_text=True)
 
 
+def test_formularios_y_pantallas_operativas_en_los_dos_disenos(client):
+    """Cuarta etapa: los formularios y las pantallas de trabajo diario tienen que
+    renderizar igual en Aurora que en el clásico (mismo contexto, misma URL)."""
+    cl, _app, ids = client
+    cid = ids["c"]
+    urls = (
+        "/contratos/crear",
+        "/contratos/nuevo",
+        f"/contratos/{cid}/editar",
+        f"/aumentos/contrato/{cid}/aplicar",
+        "/aumentos/indices",
+        f"/cobros/contrato/{cid}",
+        f"/cobros/contrato/{cid}/pagos-multiples",
+        "/cobros/recordatorios",
+        "/liquidaciones/pendientes-facturar",
+        f"/liquidaciones/propietario/{ids['prop']}",
+    )
+    for url in urls:
+        clasica = cl.get(url + "?ui=clasica")
+        assert clasica.status_code == 200, url
+        assert "aurora.css" not in clasica.get_data(as_text=True), url
+        nueva = cl.get(url + "?ui=nueva")
+        assert nueva.status_code == 200, url
+        assert "aurora.css" in nueva.get_data(as_text=True), url
+
+
 def test_pantalla_sin_migrar_sigue_usando_el_clasico(client):
     """Sólo se rediseña de a una pantalla: el resto no cambia."""
     cl, _app, _ = client

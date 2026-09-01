@@ -256,7 +256,7 @@ def recordatorios():
                           email=c.inquilino.email, msj=msj))
     items.sort(key=lambda it: (it["c"].inquilino.nombre or "").lower())
     con_wa = sum(1 for it in items if it["wa"])
-    return render_template("cobros/recordatorios.html", items=items, mes=mes, anio=anio,
+    return render_ui("cobros/recordatorios.html", items=items, mes=mes, anio=anio,
                            meses=MESES_ES, con_wa=con_wa,
                            anios=list(range(hoy.year - 4, hoy.year + 2)))
 
@@ -312,7 +312,7 @@ def detalle(cid):
     contrato = db.session.get(Contrato, cid) or abort(404)
     pagos = sorted(contrato.pagos,
                    key=lambda p: (p.periodo_anio or 0, p.periodo_mes or 0), reverse=True)
-    return render_template("cobros/detalle.html", c=contrato, pagos=pagos,
+    return render_ui("cobros/detalle.html", c=contrato, pagos=pagos,
                            resumen=_resumen(contrato), meses=MESES_ES,
                            pendientes=len(_periodos_pendientes(contrato, date.today())))
 
@@ -382,7 +382,7 @@ def pagos_multiples(cid):
         flash(f"Se registraron {creados} pago(s)."
               + (f" ({omitidos} ya existían y se saltearon.)" if omitidos else ""), "ok")
         return redirect(url_for("cobros.detalle", cid=cid))
-    return render_template("cobros/pagos_multiples.html", c=contrato, meses=MESES_ES,
+    return render_ui("cobros/pagos_multiples.html", c=contrato, meses=MESES_ES,
                            formas=FORMAS_PAGO, hoy=hoy,
                            pendientes=_periodos_pendientes(contrato, hoy))
 
@@ -670,14 +670,14 @@ def abonar(pid):
         monto = parse_num(request.form.get("monto"))
         if not monto or monto <= 0:
             flash("Ingresá un monto mayor a 0.", "error")
-            return render_template("cobros/abonar.html", pago=pago, saldo=saldo,
+            return render_ui("cobros/abonar.html", pago=pago, saldo=saldo,
                                    formas=FORMAS_PAGO, meses=MESES_ES,
                                    idem=nueva_clave())
         if q2(monto) > q2(saldo):
             flash(f"El saldo de ese período es {pago.moneda} {saldo:,.2f}: no se "
                   f"puede cobrar más que eso. Si sobra plata, cargala como pago "
                   f"del período siguiente.", "error")
-            return render_template("cobros/abonar.html", pago=pago, saldo=saldo,
+            return render_ui("cobros/abonar.html", pago=pago, saldo=saldo,
                                    formas=FORMAS_PAGO, meses=MESES_ES,
                                    idem=nueva_clave())
         # Antes de tocar la plata: este pago a cuenta no puede entrar dos veces
@@ -698,7 +698,7 @@ def abonar(pid):
         db.session.commit()
         flash(f"Cobro a cuenta registrado. Saldo restante: {pago.moneda} {float(pago.saldo):,.2f}.", "ok")
         return redirect(url_for("cobros.detalle", cid=pago.contrato_id))
-    return render_template("cobros/abonar.html", pago=pago, saldo=saldo,
+    return render_ui("cobros/abonar.html", pago=pago, saldo=saldo,
                            formas=FORMAS_PAGO, meses=MESES_ES, idem=nueva_clave())
 
 
