@@ -9,8 +9,32 @@ from flask_login import login_required, current_user
 
 from .. import db
 from ..models import Ajustes
-from ..utils import parse_num
+from ..utils import (parse_num, sugerir_mora_corregida,
+                     MORA_UMBRAL_SOSPECHOSA)
 from ..ui import render_ui
+
+
+def _contratos_mora_sospechosa():
+    """Contratos de la inmobiliaria actual con la mora diaria mal cargada
+    (ej.: 300%/400% por el bug del ×1000). El filtro multiempresa ya limita
+    esto a la inmobiliaria del usuario logueado."""
+    from ..models import Contrato
+    filas = (Contrato.query
+             .filter(Contrato.mora_diaria_pct.isnot(None),
+                     Contrato.mora_diaria_pct > MORA_UMBRAL_SOSPECHOSA)
+             .order_by(Contrato.id)
+             .all())
+    out = []
+    for c in filas:
+        nuevo, _nota = sugerir_mora_corregida(c.mora_diaria_pct)
+        out.append({
+            "id": c.id,
+            "inmueble": c.inmueble.direccion if c.inmueble else "(sin inmueble)",
+            "inquilino": c.inquilino.nombre if c.inquilino else "(sin inquilino)",
+            "actual": c.mora_diaria_pct,
+            "propuesto": nuevo,
+        })
+    return out
 
 ajustes_bp = Blueprint("ajustes", __name__, url_prefix="/ajustes")
 
@@ -58,10 +82,43 @@ def index():
     partes_pie = [p for p in (a.nombre, a.localidad) if p]
     return render_ui("ajustes/index.html", a=a, credenciales_gas=credenciales_gas,
                            facturador_habilitado=facturador.habilitado(),
+                           mora_sospechosa=_contratos_mora_sospechosa(),
                            email_bio_default=(f"Somos {a.nombre}. Estamos para acompañarte "
                                               "a lo largo de todo tu contrato."),
                            email_firma_default=f"El equipo de {a.nombre}",
                            email_pie_default=(" — ".join(partes_pie) if partes_pie else a.nombre))
+
+
+@ajustes_bp.route("/mora/corregir", methods=["POST"])
+@login_required
+@admin_required
+def corregir_mora():
+    """Corrige de una sola vez la mora diaria mal cargada (300 -> 0,3) de los
+    contratos de esta inmobiliaria. Solo toca los que superan el umbral; los
+    demás quedan intactos."""
+    from ..models import Contrato
+    filas = (Contrato.query
+             .filter(Contrato.mora_diaria_pct.isnot(None),
+                     Contrato.mora_diaria_pct > MORA_UMBRAL_SOSPECHOSA)
+             .all())
+    corregidos = a_mano = 0
+    for c in filas:
+        nuevo, _nota = sugerir_mora_corregida(c.mora_diaria_pct)
+        if nuevo is None:
+            a_mano += 1
+            continue
+        c.mora_diaria_pct = nuevo
+        corregidos += 1
+    db.session.commit()
+    if corregidos:
+        flash(f"Se corrigió la mora de {corregidos} contrato(s)."
+              + (f" {a_mano} quedaron para revisar a mano (valor muy alto)." if a_mano else ""),
+              "ok")
+    elif a_mano:
+        flash(f"{a_mano} contrato(s) tienen una mora muy rara: revisalos a mano.", "error")
+    else:
+        flash("No había contratos con la mora mal cargada. Todo en orden.", "ok")
+    return redirect(url_for("ajustes.index"))
 
 
 @ajustes_bp.route("/facturador", methods=["POST"])

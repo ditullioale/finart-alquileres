@@ -12,7 +12,8 @@ from .. import db
 from ..models import (Contrato, Inmueble, Persona, Fiador, DocumentoContrato,
                       ContratoConcepto)
 from ..ui import render_ui
-from ..utils import add_months, parse_fecha, parse_num, INDICE_MAP, INDICE_NOMBRE
+from ..utils import (add_months, parse_fecha, parse_num, parse_pct,
+                     INDICE_MAP, INDICE_NOMBRE)
 
 contratos_bp = Blueprint("contratos", __name__, url_prefix="/contratos")
 
@@ -258,12 +259,14 @@ def _leer_form(c: Contrato):
     c.precio_actual = parse_num(request.form.get("precio_actual")) or c.precio_inicial
     c.moneda = request.form.get("moneda", "Pesos")
     c.dia_vencimiento = parse_num(request.form.get("dia_vencimiento"), entero=True)
-    c.mora_diaria_pct = parse_num(request.form.get("mora_diaria_pct")) or 0
-    c.comision_pct = parse_num(request.form.get("comision_pct"))
+    # Porcentajes: parse_pct nunca toma el punto como miles (0.300 -> 0.3),
+    # así se evita la mora cargada como 300%/400% en vez de 0,3/0,4.
+    c.mora_diaria_pct = parse_pct(request.form.get("mora_diaria_pct")) or 0
+    c.comision_pct = parse_pct(request.form.get("comision_pct"))
     c.metodo_ajuste = request.form.get("metodo_ajuste", "porcentaje")
     c.indice_tipo = request.form.get("indice_tipo") or None
     c.ajuste_cada_meses = parse_num(request.form.get("ajuste_cada_meses"), entero=True)
-    c.porcentaje_ajuste = parse_num(request.form.get("porcentaje_ajuste"))
+    c.porcentaje_ajuste = parse_pct(request.form.get("porcentaje_ajuste"))
     c.estado = request.form.get("estado", "Vigente")
     c.observaciones = request.form.get("observaciones", "").strip()
 
@@ -529,6 +532,11 @@ def _validar(c: Contrato, excluir_id=None):
         return "La fecha de fin debe ser posterior a la de inicio."
     if c.dia_vencimiento is not None and not (1 <= c.dia_vencimiento <= 31):
         return "El día de vencimiento debe estar entre 1 y 31."
+    # Mora diaria en un rango razonable: ataja el clásico 300%/400% por un
+    # decimal mal escrito. Una mora diaria normal está entre 0 y ~5 %/día.
+    if c.mora_diaria_pct is not None and c.mora_diaria_pct > 100:
+        return (f"La mora diaria ({c.mora_diaria_pct}%/día) es demasiado alta. "
+                "¿Quisiste poner 0,3 en vez de 300? Revisá el valor.")
     # Un solo contrato Vigente por inmueble.
     if c.estado == "Vigente" and c.inmueble_id:
         q = Contrato.query.filter(Contrato.inmueble_id == c.inmueble_id,
@@ -861,7 +869,7 @@ def desde_generador():
         precio_actual=canon,
         moneda="Pesos",
         dia_vencimiento=parse_num(econ.get("pagoHasta"), entero=True) or 10,
-        mora_diaria_pct=parse_num(econ.get("punitorio")) or 0,
+        mora_diaria_pct=parse_pct(econ.get("punitorio")) or 0,
         metodo_ajuste=metodo,
         indice_tipo=idx,
         ajuste_cada_meses=parse_num(econ.get("ajusteMeses"), entero=True) or 6,

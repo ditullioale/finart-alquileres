@@ -12,6 +12,35 @@
   </div>
 </div>
 
+{% if mora_sospechosa %}
+<div class="card" style="margin-bottom:16px;border-color:var(--err)">
+  <div class="card-h">{{ icon('alert-triangle', 15) }}<h2>Revisar mora diaria</h2></div>
+  <div class="card-b">
+    <p class="sub" style="margin-top:0">Hay <b>{{ mora_sospechosa|length }}</b> contrato(s) con la mora diaria
+      mal cargada (quedó multiplicada por 1000: 300 en vez de 0,3). El botón la corrige dividiéndola por 1000.
+      Los contratos con la mora bien cargada no se tocan.</p>
+    <table class="t">
+      <thead><tr><th>Inmueble</th><th>Inquilino</th><th>Mora actual</th><th>Quedaría</th></tr></thead>
+      <tbody>
+        {% for m in mora_sospechosa %}
+        <tr>
+          <td>{{ m.inmueble }}</td>
+          <td>{{ m.inquilino }}</td>
+          <td><span class="chip err">{{ m.actual }}%/día</span></td>
+          <td>{% if m.propuesto is not none %}<span class="chip ok">{{ m.propuesto }}%/día</span>
+              {% else %}<span class="chip warn">revisar a mano</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <form method="post" action="{{ url_for('ajustes.corregir_mora') }}" style="margin-top:12px"
+          onsubmit="return confirm('¿Corregir la mora de estos contratos dividiéndola por 1000?');">
+      <button class="btn pri" type="submit">{{ icon('check', 13) }} Corregir la mora de estos contratos</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
 <div class="card">
   <div class="card-h">{{ icon('building', 15) }}<h2>Datos de la inmobiliaria</h2></div>
   <form method="post" class="card-b">

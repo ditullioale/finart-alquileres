@@ -100,6 +100,54 @@ def parse_num(valor, entero=False):
     return int(n) if entero else n
 
 
+def parse_pct(valor):
+    """Parsea un porcentaje (mora diaria, comisión, ajuste).
+
+    A diferencia de parse_num, NUNCA interpreta el punto como separador de miles:
+    un porcentaje no se escribe en miles, así que '0.300' es 0.3 (no 300) y
+    '12.5' es 12.5. Acepta coma o punto como decimal. Este era el origen del bug
+    de la mora cargada como 300%/400% en vez de 0,3/0,4. Devuelve None si el
+    texto no representa un número."""
+    if valor is None:
+        return None
+    if isinstance(valor, (int, float)):
+        return float(valor)
+    s = re.sub(r"[^0-9.,\-]", "", str(valor).strip())
+    if s in ("", ".", ",", "-"):
+        return None
+    neg = s.startswith("-")
+    s = s.lstrip("-").replace(",", ".")
+    # Si quedara más de un punto, el último es el decimal; los demás se descartan.
+    if s.count(".") > 1:
+        ent, _, dec = s.rpartition(".")
+        s = ent.replace(".", "") + "." + dec
+    try:
+        n = float(s)
+    except ValueError:
+        return None
+    return -n if neg else n
+
+
+# Umbral por encima del cual una mora diaria (%/día) se considera mal cargada.
+# Una mora normal está entre 0 y ~5 %/día; 300 o 400 es el bug del ×1000.
+MORA_UMBRAL_SOSPECHOSA = 5.0
+
+
+def sugerir_mora_corregida(valor):
+    """Para una mora diaria sospechosa (ej.: 300), sugiere el valor corregido
+    dividiendo por 1000 (300 -> 0,3 ; 400 -> 0,4), que es como quedó el bug del
+    parser. Devuelve (Decimal, nota) o (None, motivo) si conviene revisarla a
+    mano."""
+    if valor is None:
+        return None, "sin valor"
+    corr = (Decimal(str(valor)) / Decimal(1000)).quantize(Decimal("0.001"))
+    if corr <= 0:
+        return None, "queda 0 o negativo"
+    if corr > 10:
+        return None, "sigue alto tras /1000"
+    return corr, "/1000"
+
+
 # Mapeo del índice del generador -> código interno
 INDICE_MAP = {
     "I.C.L": "ICL", "ICL": "ICL",
