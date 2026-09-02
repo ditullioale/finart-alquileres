@@ -9,7 +9,8 @@ from sqlalchemy.orm import aliased, joinedload
 from werkzeug.utils import secure_filename
 
 from .. import db
-from ..models import Contrato, Inmueble, Persona, Fiador, DocumentoContrato
+from ..models import (Contrato, Inmueble, Persona, Fiador, DocumentoContrato,
+                      ContratoConcepto)
 from ..ui import render_ui
 from ..utils import add_months, parse_fecha, parse_num, INDICE_MAP, INDICE_NOMBRE
 
@@ -288,6 +289,24 @@ def _leer_fiadores(c: Contrato):
             ))
 
 
+def _leer_conceptos_fijos(c: Contrato):
+    """Reemplaza los conceptos fijos del contrato (ej.: seguro) con los enviados
+    en el form. Cada uno lleva su flag de traslado al propietario en la
+    liquidación (un valor 0/1 por fila, alineado por índice con desc/monto)."""
+    c.conceptos_fijos.clear()
+    descs = request.form.getlist("concepto_desc")
+    montos = request.form.getlist("concepto_monto")
+    traslada = request.form.getlist("concepto_traslada")
+    for i, desc in enumerate(descs):
+        d = (desc or "").strip()
+        monto = parse_num(montos[i]) if i < len(montos) else None
+        if not d or monto is None:
+            continue
+        tr = traslada[i] != "0" if i < len(traslada) else True
+        c.conceptos_fijos.append(ContratoConcepto(
+            descripcion=d, monto=monto, trasladar_liquidacion=tr, activo=True))
+
+
 def _leer_copartes(c: Contrato):
     """Carga co-locatarios y co-locadores (personas adicionales de cada lado)
     a partir de los IDs enviados en el formulario. Ignora vacíos, duplicados y
@@ -336,6 +355,7 @@ def nuevo():
         _leer_form(c)
         _leer_fiadores(c)   # cargar fiadores antes de validar, para no perderlos si falla
         _leer_copartes(c)
+        _leer_conceptos_fijos(c)
         renovar_de = parse_num(request.form.get("renovar_de"), entero=True)
         error = _validar(c, excluir_id=renovar_de)
         if error:
@@ -376,6 +396,7 @@ def editar(cid):
         _leer_form(c)
         _leer_fiadores(c)
         _leer_copartes(c)
+        _leer_conceptos_fijos(c)
         error = _validar(c)
         if error:
             flash(error, "error")
@@ -417,6 +438,12 @@ def renovar(cid):
     # Arrastrar co-firmantes de cada lado a la renovación.
     c.colocatarios = list(old.colocatarios)
     c.colocadores = list(old.colocadores)
+    # Arrastrar los conceptos fijos (ej.: seguro) a la renovación.
+    for cc in old.conceptos_fijos:
+        if cc.activo:
+            c.conceptos_fijos.append(ContratoConcepto(
+                descripcion=cc.descripcion, monto=cc.monto,
+                trasladar_liquidacion=cc.trasladar_liquidacion, activo=True))
     flash("Renovación: revisá y actualizá lo que haga falta (fechas, precio, etc.) y guardá. "
           "El contrato anterior quedará finalizado automáticamente.", "ok")
     return render_ui("contratos/form.html", c=c, renovar_de=old.id, **_opciones())

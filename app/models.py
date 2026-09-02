@@ -525,6 +525,31 @@ class GastoExtra(db.Model):
     pago = db.relationship("Pago", back_populates="gastos")
 
 
+class ContratoConcepto(db.Model):
+    """Concepto fijo de un contrato (ej.: seguro) que se cobra junto con el
+    alquiler durante toda la vida del contrato. Al registrar cada cobro se
+    agrega como línea del recibo. `trasladar_liquidacion` define si ese
+    importe va al propietario en la liquidación (True) o queda para la
+    inmobiliaria (False), igual criterio que en GastoExtra."""
+    __tablename__ = "contrato_conceptos"
+
+    id = db.Column(db.Integer, primary_key=True)
+    inmobiliaria_id = db.Column(db.Integer, db.ForeignKey("inmobiliarias.id"),
+                                index=True, nullable=False)
+    contrato_id = db.Column(db.Integer, db.ForeignKey("contratos.id"),
+                            nullable=False, index=True)
+    descripcion = db.Column(db.String(120), nullable=False)
+    monto = db.Column(db.Numeric(14, 2), nullable=False)
+    trasladar_liquidacion = db.Column(db.Boolean, default=True, nullable=False,
+                                      server_default=db.text("true"))
+    activo = db.Column(db.Boolean, default=True, nullable=False,
+                       server_default=db.text("true"))
+
+    contrato = db.relationship("Contrato", backref=db.backref(
+        "conceptos_fijos", cascade="all, delete-orphan",
+        order_by="ContratoConcepto.id"))
+
+
 class SeguimientoNota(db.Model):
     """Nota de seguimiento de un contrato: gestiones, llamados, reclamos, acuerdos
     o cualquier cuestión relativa al caso. Queda con autor y fecha."""

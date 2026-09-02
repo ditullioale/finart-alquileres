@@ -95,6 +95,12 @@
       <input name="porcentaje_ajuste" value="{{ c.porcentaje_ajuste if c.porcentaje_ajuste is not none else '' }}"></div>
   </div>
 
+  <h2 style="margin-top:18px">Conceptos fijos</h2>
+  <p class="hint">Cargos que se cobran junto con el alquiler durante todo el contrato (por ej. un seguro).
+    Aparecen en cada recibo. En cada uno elegís si se traslada al propietario en la liquidación o si queda para la inmobiliaria.</p>
+  <div id="conceptos"></div>
+  <button type="button" class="btn sec" style="margin-top:8px" onclick="addConcepto()">+ Agregar concepto</button>
+
   <h2 style="margin-top:18px">Estado y fiadores</h2>
   <div class="grid2">
     <div><label>Estado</label>
@@ -167,6 +173,27 @@ document.getElementById('inmueble_id').addEventListener('change', function(){
 addFiador({nombre:{{ f.nombre|tojson }}, dni:{{ (f.dni or '')|tojson }}, dom:{{ (f.domicilio or '')|tojson }}, tel:{{ (f.telefono or '')|tojson }}, email:{{ (f.email or '')|tojson }}, solvencia:{{ (f.solvencia or '')|tojson }}});
 {% endfor %}
 
+function addConcepto(d){
+  d = d || {};
+  const tr = (d.traslada === false) ? '0' : '1';
+  const div = document.createElement('div');
+  div.className = 'card'; div.style.marginTop='10px';
+  div.innerHTML = `<div class="grid2">
+    <div><label>Concepto</label><input name="concepto_desc" value="${d.desc||''}" placeholder="Ej: Seguro"></div>
+    <div><label>Monto por mes</label><input name="concepto_monto" value="${d.monto||''}"></div>
+    <div><label>¿Se traslada al propietario?</label>
+      <select name="concepto_traslada">
+        <option value="1"${tr==='1'?' selected':''}>Sí, va en la liquidación</option>
+        <option value="0"${tr==='0'?' selected':''}>No, queda para la inmobiliaria</option>
+      </select></div>
+    <div style="align-self:end"><button type="button" class="btn sec" onclick="this.closest('.card').remove()">Quitar</button></div>
+  </div>`;
+  document.getElementById('conceptos').appendChild(div);
+}
+{% for cc in c.conceptos_fijos %}
+addConcepto({desc:{{ cc.descripcion|tojson }}, monto:{{ (cc.monto|string if cc.monto is not none else '')|tojson }}, traslada:{{ cc.trasladar_liquidacion|tojson }}});
+{% endfor %}
+
 // ===== Co-locatarios / co-locadores (varias personas por lado) =====
 var OPC_LOCATARIO = [{% for p in inquilinos %}{id:{{ p.id }}, n:{{ p.nombre|tojson }}},{% endfor %}];
 var OPC_LOCADOR   = [{% for p in propietarios %}{id:{{ p.id }}, n:{{ p.nombre|tojson }}},{% endfor %}];
@@ -184,9 +211,18 @@ function addCoparte(tipo, selId){
   var row = document.createElement('div');
   row.className = 'coparte-row';
   row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-top:6px';
+  var nuevo = (tipo==='colocatario') ? '<button type="button" class="btn sec sm" onclick="altaCoparte(this)">+ Nuevo</button>' : '';
   row.innerHTML = '<select name="'+tipo+'_id" style="flex:1">'+optionsHtml(arr, selId)+'</select>'+
-    '<button type="button" class="btn sec sm" onclick="this.closest(\'.coparte-row\').remove()">Quitar</button>';
+    nuevo + '<button type="button" class="btn sec sm" onclick="this.closest(\'.coparte-row\').remove()">Quitar</button>';
   cont.appendChild(row);
+}
+function altaCoparte(btn){
+  var sel = btn.closest('.coparte-row').querySelector('select');
+  abrirAlta('inquilino', function(j){
+    var opt = document.createElement('option');
+    opt.value = j.id; opt.textContent = j.nombre; opt.selected = true;
+    sel.appendChild(opt);
+  });
 }
 {% for p in c.colocatarios %}addCoparte('colocatario', {{ p.id }});{% endfor %}
 {% for p in c.colocadores %}addCoparte('colocador', {{ p.id }});{% endfor %}
@@ -273,8 +309,10 @@ document.querySelectorAll('select.js-search').forEach(function(sel){
 
 // ===== Alta rápida de inmueble / inquilino (sin salir del formulario) =====
 var ALTA_TIPO = null;
-function abrirAlta(tipo){
+var ALTA_ONCREATED = null;
+function abrirAlta(tipo, onCreated){
   ALTA_TIPO = tipo;
+  ALTA_ONCREATED = onCreated || null;
   var camp = document.getElementById('altaCampos');
   document.getElementById('altaMsg').textContent = '';
   if(tipo === 'inmueble'){
@@ -288,7 +326,9 @@ function abrirAlta(tipo){
     document.getElementById('altaTitulo').textContent = 'Nuevo inquilino';
     camp.innerHTML =
       '<label>Nombre y apellido *</label><input id="al_nom" placeholder="Nombre Apellido">' +
-      '<label>DNI (opcional)</label><input id="al_dni">';
+      '<label>DNI (opcional)</label><input id="al_dni">' +
+      '<label>Email (opcional)</label><input id="al_email" type="email" placeholder="correo@ejemplo.com">' +
+      '<label>Teléfono (opcional)</label><input id="al_tel" placeholder="Cód. área + número">';
   }
   document.getElementById('altaModal').hidden = false;
   var first = camp.querySelector('input'); if(first) first.focus();
@@ -309,8 +349,14 @@ document.getElementById('altaGuardar').addEventListener('click', function(){
     var nom = document.getElementById('al_nom').value.trim();
     if(!nom){ msg.textContent = 'El nombre es obligatorio.'; btn.disabled = false; return; }
     url = '/personas/nueva-rapida';
-    payload = {nombre: nom, dni: document.getElementById('al_dni').value.trim(), rol: 'inquilino'};
-    aplicar = function(j){ document.querySelector('select[name="inquilino_id"]')._addOption({v:String(j.id), t:j.nombre}); };
+    payload = {nombre: nom, dni: document.getElementById('al_dni').value.trim(),
+               email: document.getElementById('al_email').value.trim(),
+               telefono: document.getElementById('al_tel').value.trim(), rol: 'inquilino'};
+    aplicar = function(j){
+      if(ALTA_ONCREATED){ ALTA_ONCREATED(j); return; }
+      document.querySelector('select[name="inquilino_id"]')._addOption({v:String(j.id), t:j.nombre});
+      var w = document.getElementById('bienvenida-wrap'); if(w && j.email){ w.style.display = 'block'; }
+    };
   }
   fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)})
     .then(function(r){ return r.json(); })

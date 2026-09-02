@@ -63,6 +63,24 @@ def _leer_gastos(pago):
     return total
 
 
+def _agregar_conceptos_fijos(pago, contrato):
+    """Agrega a `pago` los conceptos fijos activos del contrato (ej.: seguro)
+    como líneas del recibo, sin duplicar por descripción los ya presentes.
+    Cada concepto conserva su flag de traslado al propietario en la liquidación.
+    Devuelve la suma (float) agregada, para recalcular el total del pago."""
+    existentes = {(g.descripcion or "").strip().lower() for g in pago.gastos}
+    total = 0.0
+    for cc in getattr(contrato, "conceptos_fijos", []):
+        if not cc.activo:
+            continue
+        if (cc.descripcion or "").strip().lower() in existentes:
+            continue
+        pago.gastos.append(GastoExtra(descripcion=cc.descripcion, monto=q2(cc.monto),
+                                      trasladar_liquidacion=bool(cc.trasladar_liquidacion)))
+        total += float(cc.monto or 0)
+    return total
+
+
 def _estado_saldo(pago):
     """Recalcula saldo y estado a partir del total y lo pagado (decimal exacto)."""
     total = q2(pago.total)
@@ -366,10 +384,16 @@ def pagos_multiples(cid):
             fpago = hoy if fecha_modo == "hoy" else (fecha_fija if (fecha_modo == "fija" and fecha_fija) else venc)
             mora = calcular_mora(esperado, contrato.mora_diaria_pct, venc, fpago) if con_mora else 0
             total = q2(esperado) + q2(mora)
-            db.session.add(Pago(
+            pago = Pago(
                 contrato_id=contrato.id, numero=nro, periodo_mes=m, periodo_anio=a,
                 fecha_pago=fpago, precio_alquiler=esperado, moneda=contrato.moneda or "Pesos",
-                forma_pago=forma, mora=mora, total=total, pagado=total, saldo=q2(0), estado="Pagado"))
+                forma_pago=forma, mora=mora, total=total, pagado=total, saldo=q2(0), estado="Pagado")
+            # Conceptos fijos del contrato (ej.: seguro): también en cada período.
+            extra = _agregar_conceptos_fijos(pago, contrato)
+            if extra:
+                pago.total = q2(float(total) + extra)
+                pago.pagado = pago.total
+            db.session.add(pago)
             pagados.add((a, m))
             nro += 1
             creados += 1
@@ -470,6 +494,14 @@ def rapido():
             trasladar = True if trasladar is None else bool(trasladar)
             gastos.append((desc, monto, trasladar))
             gastos_total += q2(monto)
+    # Conceptos fijos del contrato (ej.: seguro): se suman a cada cobro rápido,
+    # sin duplicar los que ya vengan cargados a mano (comparo por descripción).
+    _descs = {dsc.strip().lower() for (dsc, _m, _t) in gastos}
+    for cc in getattr(contrato, "conceptos_fijos", []):
+        if not cc.activo or (cc.descripcion or "").strip().lower() in _descs:
+            continue
+        gastos.append((cc.descripcion, q2(cc.monto), bool(cc.trasladar_liquidacion)))
+        gastos_total += q2(cc.monto)
 
     total = q2(precio) + q2(mora) + gastos_total
     pagado = parse_num(d.get("pagado"))
@@ -548,6 +580,8 @@ def nuevo(cid):
             return render_ui("cobros/form_pago.html", c=contrato, pago=pago,
                                    formas=FORMAS_PAGO, meses=MESES_ES, nuevo=True)
         gastos_total = _leer_gastos(pago)
+        # Conceptos fijos del contrato (ej.: seguro): se agregan a cada recibo.
+        gastos_total += _agregar_conceptos_fijos(pago, contrato)
 
         # Arrastrar saldo pendiente de meses anteriores a este pago.
         arrastrado = 0.0

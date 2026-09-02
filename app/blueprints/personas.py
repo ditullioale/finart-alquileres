@@ -21,7 +21,9 @@ def nueva_rapida():
     nombre = (d.get("nombre") or "").strip()
     if not nombre:
         return jsonify(ok=False, error="El nombre es obligatorio."), 200
-    p = Persona(nombre=nombre, dni=((d.get("dni") or "").strip() or None))
+    p = Persona(nombre=nombre, dni=((d.get("dni") or "").strip() or None),
+                email=((d.get("email") or "").strip() or None),
+                telefono=((d.get("telefono") or "").strip() or None))
     if d.get("rol") == "propietario":
         p.es_propietario = True
     else:
@@ -32,7 +34,7 @@ def nueva_rapida():
     except IntegrityError:
         db.session.rollback()
         return jsonify(ok=False, error="No se pudo crear (¿DNI ya cargado?)."), 200
-    return jsonify(ok=True, id=p.id, nombre=p.nombre)
+    return jsonify(ok=True, id=p.id, nombre=p.nombre, email=p.email, telefono=p.telefono)
 
 
 @personas_bp.route("/")

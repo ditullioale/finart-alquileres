@@ -143,6 +143,17 @@
   </div>
 
   <div class="card" style="margin-top:16px">
+    <div class="card-h"><h2>Conceptos fijos</h2></div>
+    <div class="card-b">
+      <p class="hint" style="margin-top:0">Cargos que se cobran junto con el alquiler durante todo el contrato
+        (por ej. un seguro). Aparecen en cada recibo. En cada uno elegís si se traslada al propietario en la
+        liquidación o si queda para la inmobiliaria.</p>
+      <div id="conceptos"></div>
+      <button type="button" class="btn sm" style="margin-top:10px" onclick="addConcepto()">+ Agregar concepto</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
     <div class="card-h"><h2>Estado y fiadores</h2></div>
     <div class="card-b">
       <div class="gridf">
@@ -215,6 +226,26 @@ document.getElementById('inmueble_id').addEventListener('change', function(){
 addFiador({nombre:{{ f.nombre|tojson }}, dni:{{ (f.dni or '')|tojson }}, dom:{{ (f.domicilio or '')|tojson }}, tel:{{ (f.telefono or '')|tojson }}, email:{{ (f.email or '')|tojson }}, solvencia:{{ (f.solvencia or '')|tojson }}});
 {% endfor %}
 
+function addConcepto(d){
+  d = d || {};
+  var tr = (d.traslada === false) ? '0' : '1';
+  var div = document.createElement('div');
+  div.className = 'subcard';
+  div.innerHTML = '<div class="gridf">' +
+    '<div class="field"><label>Concepto</label><input class="inp" name="concepto_desc" value="' + (d.desc || '') + '" placeholder="Ej: Seguro"></div>' +
+    '<div class="field"><label>Monto por mes</label><input class="inp" name="concepto_monto" value="' + (d.monto || '') + '"></div>' +
+    '<div class="field"><label>¿Se traslada al propietario?</label><select class="inp" name="concepto_traslada">' +
+      '<option value="1"' + (tr === '1' ? ' selected' : '') + '>Sí, va en la liquidación</option>' +
+      '<option value="0"' + (tr === '0' ? ' selected' : '') + '>No, queda para la inmobiliaria</option>' +
+    '</select></div>' +
+    '</div><div style="text-align:right;margin-top:8px">' +
+    '<button type="button" class="btn sm peligro" onclick="this.closest(\'.subcard\').remove()">Quitar</button></div>';
+  document.getElementById('conceptos').appendChild(div);
+}
+{% for cc in c.conceptos_fijos %}
+addConcepto({desc:{{ cc.descripcion|tojson }}, monto:{{ (cc.monto|string if cc.monto is not none else '')|tojson }}, traslada:{{ cc.trasladar_liquidacion|tojson }}});
+{% endfor %}
+
 var OPC_LOCATARIO = [{% for p in inquilinos %}{id:{{ p.id }}, n:{{ p.nombre|tojson }}},{% endfor %}];
 var OPC_LOCADOR   = [{% for p in propietarios %}{id:{{ p.id }}, n:{{ p.nombre|tojson }}},{% endfor %}];
 function optionsHtml(arr, selId){
@@ -225,13 +256,22 @@ function optionsHtml(arr, selId){
   });
   return h;
 }
+function altaCoparte(btn){
+  var sel = btn.closest('.coparte-row').querySelector('select');
+  abrirAlta('inquilino', function(j){
+    var opt = document.createElement('option');
+    opt.value = j.id; opt.textContent = j.nombre; opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
 function addCoparte(tipo, selId){
   var arr  = (tipo === 'colocatario') ? OPC_LOCATARIO : OPC_LOCADOR;
   var cont = document.getElementById(tipo === 'colocatario' ? 'colocatarios' : 'colocadores');
   var row = document.createElement('div');
   row.className = 'coparte-row';
+  var nuevo = (tipo === 'colocatario') ? '<button type="button" class="btn sm" onclick="altaCoparte(this)">+ Nuevo</button>' : '';
   row.innerHTML = '<select class="inp" name="' + tipo + '_id" style="flex:1">' + optionsHtml(arr, selId) + '</select>' +
-    '<button type="button" class="btn sm" onclick="this.closest(\'.coparte-row\').remove()">Quitar</button>';
+    nuevo + '<button type="button" class="btn sm" onclick="this.closest(\'.coparte-row\').remove()">Quitar</button>';
   cont.appendChild(row);
 }
 {% for p in c.colocatarios %}addCoparte('colocatario', {{ p.id }});{% endfor %}
@@ -314,8 +354,10 @@ document.querySelectorAll('select.js-search').forEach(function(sel){
 })();
 
 var ALTA_TIPO = null;
-function abrirAlta(tipo){
+var ALTA_ONCREATED = null;
+function abrirAlta(tipo, onCreated){
   ALTA_TIPO = tipo;
+  ALTA_ONCREATED = onCreated || null;
   var camp = document.getElementById('altaCampos');
   document.getElementById('altaMsg').textContent = '';
   if(tipo === 'inmueble'){
@@ -329,7 +371,9 @@ function abrirAlta(tipo){
     document.getElementById('altaTitulo').textContent = 'Nuevo inquilino';
     camp.innerHTML =
       '<div class="field"><label>Nombre y apellido <span class="req">*</span></label><input class="inp" id="al_nom" placeholder="Nombre Apellido"></div>' +
-      '<div class="field"><label>DNI (opcional)</label><input class="inp" id="al_dni"></div>';
+      '<div class="field"><label>DNI (opcional)</label><input class="inp" id="al_dni"></div>' +
+      '<div class="field"><label>Email (opcional)</label><input class="inp" id="al_email" type="email" placeholder="correo@ejemplo.com"></div>' +
+      '<div class="field"><label>Teléfono (opcional)</label><input class="inp" id="al_tel" placeholder="Cód. área + número"></div>';
   }
   document.getElementById('altaOv').classList.add('on');
   var peek = document.getElementById('altaPeek');
@@ -359,8 +403,14 @@ document.getElementById('altaGuardar').addEventListener('click', function(){
     var nom = document.getElementById('al_nom').value.trim();
     if(!nom){ msg.textContent = 'El nombre es obligatorio.'; btn.disabled = false; return; }
     url = '/personas/nueva-rapida';
-    payload = {nombre: nom, dni: document.getElementById('al_dni').value.trim(), rol: 'inquilino'};
-    aplicar = function(j){ document.querySelector('select[name="inquilino_id"]')._addOption({v:String(j.id), t:j.nombre}); };
+    payload = {nombre: nom, dni: document.getElementById('al_dni').value.trim(),
+               email: document.getElementById('al_email').value.trim(),
+               telefono: document.getElementById('al_tel').value.trim(), rol: 'inquilino'};
+    aplicar = function(j){
+      if(ALTA_ONCREATED){ ALTA_ONCREATED(j); return; }
+      document.querySelector('select[name="inquilino_id"]')._addOption({v:String(j.id), t:j.nombre});
+      var w = document.getElementById('bienvenida-wrap'); if(w && j.email){ w.style.display = 'flex'; }
+    };
   }
   fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)})
     .then(function(r){ return r.json(); })
