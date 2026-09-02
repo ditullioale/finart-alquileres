@@ -83,7 +83,9 @@
           "venc": (m.vto.isoformat() if m.vto else none), "morapct": m.morapct,
           "mes": cobranzas.mes, "anio": cobranzas.anio,
           "periodo": "Alquiler " ~ cobranzas.mes_nombre|lower,
-          "det": m.inmueble, "hoy": hoy.isoformat()
+          "det": m.inmueble, "hoy": hoy.isoformat(),
+          "aumento": m.aum_pendiente,
+          "aplicar_url": url_for('aumentos.aplicar', cid=m.cid, volver=url_for('main.index'))
         }|tojson }})'>{{ icon('banknote', 13) }} Cobrar</button>
       {% else %}
       <a class="btn sm" href="{{ url_for('cobros.detalle', cid=m.cid) }}">{{ icon('banknote', 13) }} Ver pago</a>

@@ -94,14 +94,24 @@ def index():
 #  Aplicar aumento a un contrato
 # --------------------------------------------------------------------------- #
 def _sugerencia(contrato):
-    """Períodos base/destino y factor sugeridos para el próximo ajuste por índice."""
-    n = len(contrato.aumentos)
+    """Períodos base/destino sugeridos para el próximo ajuste por índice.
+
+    Se derivan de la MISMA grilla que usa el panel de aumentos (arranca en
+    'aumento_base' o en la fecha de inicio, y razona por fecha), no del conteo de
+    aumentos. Así la sugerencia coincide exactamente con el mes que el panel marca
+    como pendiente, y no se desfasa cuando hay aumentos manuales/marcados
+    intercalados o cuando el contrato importado tiene 'aumento_base' cargada.
+
+    - destino = el mes de ajuste que corresponde ahora (o el próximo de la grilla).
+    - base = ese mes menos un intervalo (el ajuste anterior)."""
+    from ..calculos import proximo_aumento
     interval = contrato.ajuste_cada_meses or 0
-    fi = contrato.fecha_inicio
-    base = add_months(fi, n * interval) if fi and interval else fi
-    dest = add_months(fi, (n + 1) * interval) if fi and interval else None
-    return periodo_date(base.year, base.month) if base else None, \
-        periodo_date(dest.year, dest.month) if dest else None
+    dest_f = proximo_aumento(contrato) if interval else None
+    if not dest_f:
+        fi = contrato.fecha_inicio
+        return (periodo_date(fi.year, fi.month) if fi else None), None
+    base_f = add_months(dest_f, -interval)
+    return periodo_date(base_f.year, base_f.month), periodo_date(dest_f.year, dest_f.month)
 
 
 def _valor_indice(tipo, periodo):

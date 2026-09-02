@@ -76,6 +76,12 @@
           '<div class="avatar" style="width:34px;height:34px">' + ini(r.quien) + '</div>' +
           '<div><div style="font-weight:550">' + esc(r.quien) + '</div>' +
           '<div class="mut" style="font-size:12px">' + esc(r.det || '') + '</div></div></div>' +
+        // Aviso: si el contrato tiene un aumento sin aplicar este mes, cobrarías al
+        // precio viejo. Se avisa acá, en el momento del cobro, con acción para aplicarlo.
+        (r.aumento ? '<div style="margin-bottom:14px;padding:10px 12px;border-radius:10px;background:#fdf0e3;border:1px solid #e8cf8a;color:#8a5a00;font-size:13px">' +
+          '<b>&#9888; Aumento sin aplicar este mes.</b> Estás por cobrar al precio anterior. ' +
+          (r.aplicar_url ? '<a href="' + r.aplicar_url + '" style="color:#8a5a00;font-weight:700;text-decoration:underline">Aplicar el aumento primero</a>, o cobrá igual.' : 'Aplicalo antes de cobrar si corresponde.') +
+          '</div>' : '') +
         // El alquiler del período es el dato principal: va arriba y destacado.
         '<div class="calc" style="margin-bottom:14px"><div class="l tot"><span>' +
           esc(r.periodo || 'Alquiler') + '</span><b>' + money(Number(r.monto) || 0) + '</b></div></div>' +

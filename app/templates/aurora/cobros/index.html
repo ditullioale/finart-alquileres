@@ -71,6 +71,8 @@
              "mes": mes, "anio": anio,
              "periodo": "Alquiler " ~ meses[mes]|lower,
              "det": (c.inmueble.direccion if c.inmueble else ""),
+             "aumento": f.aum_pendiente,
+             "aplicar_url": url_for('aumentos.aplicar', cid=c.id, volver=url_for('cobros.index', mes=mes, anio=anio)),
              "hoy": hoy.isoformat()}|tojson }})'>{{ icon('banknote', 13) }} Cobrar</button>
           {% elif f.estado != 'Pagado' %}
           <a class="btn sm" href="{{ url_for('cobros.abonar', pid=f.pago.id) }}">Abonar saldo</a>

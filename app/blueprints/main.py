@@ -7,7 +7,8 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from ..models import Persona, Inmueble, Contrato, GasEstado
 from ..utils import MESES_ES, calcular_mora, link_whatsapp
-from ..calculos import estado_periodo, etiqueta_operativa
+from ..calculos import (estado_periodo, etiqueta_operativa,
+                        aumento_en_mes, aumento_registrado_en_mes)
 from ..ui import render_ui
 
 main_bp = Blueprint("main", __name__)
@@ -100,6 +101,8 @@ def index():
             "esperado": info["esperado"], "mora": mora, "morapct": c.mora_diaria_pct,
             "telefono": (c.inquilino.telefono if c.inquilino else None),
             "registrable": info["pago"] is None,
+            "aum_pendiente": bool(aumento_en_mes(c, hoy.year, hoy.month)
+                                  and not aumento_registrado_en_mes(c, hoy.year, hoy.month)),
         })
     # Orden por urgencia: primero lo vencido, más atrasado y más grande arriba.
     morosos.sort(key=lambda m: (m["vencido"], m["dias"], m["saldo"]), reverse=True)

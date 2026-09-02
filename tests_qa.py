@@ -434,6 +434,21 @@ def run():
         seccion("Aumentos: precio directo + índice automático")
         from app.models import Aumento as _Aum, Contrato as _Con
 
+        # Regresión: la sugerencia de meses de índice usa la MISMA grilla que el
+        # panel (respeta aumento_base y no depende del conteo de aumentos).
+        from app.blueprints.aumentos import _sugerencia as _sug
+        from app.calculos import proximo_aumento as _prox
+        from app.utils import periodo_date as _pd
+        def _sugerencia_coincide():
+            c = _Con.query.get(ids["c2"])
+            c.metodo_ajuste = "indice"; c.indice_tipo = "ICL"; c.ajuste_cada_meses = 3
+            c.aumento_base = date(2025, 1, 1); db.session.commit()
+            _base, _dest = _sug(c)
+            _px = _prox(c)
+            return bool(_px) and _dest == _pd(_px.year, _px.month)
+        check("la sugerencia de aumento coincide con el mes del panel (respeta aumento_base)",
+              q(_sugerencia_coincide))
+
         def _precio_c():
             return float(_Con.query.get(ids["c"]).precio_actual or _Con.query.get(ids["c"]).precio_inicial or 0)
         _p0 = q(_precio_c)
