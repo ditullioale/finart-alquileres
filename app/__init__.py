@@ -231,18 +231,16 @@ def create_app(config_class=Config):
             from datetime import date
             from sqlalchemy.orm import joinedload
             from .models import Contrato
-            from .calculos import proximo_aumento
+            from .calculos import estado_aumento
             hoy = date.today()
             contratos = (Contrato.query.filter_by(estado="Vigente")
                          .options(joinedload(Contrato.aumentos)).all())
             n = 0
             for c in contratos:
-                if c.metodo_ajuste == "sin_ajuste" or not c.ajuste_cada_meses:
-                    continue
                 if c.aumento_pospuesto and c.aumento_pospuesto > hoy:
                     continue
-                prox = proximo_aumento(c)
-                if prox and prox <= hoy:
+                # Pendiente por mes (desde el 1°), no por el día exacto de inicio.
+                if estado_aumento(c, hoy).get("pendiente"):
                     n += 1
             return dict(aumentos_pendientes=n)
         except Exception:

@@ -110,12 +110,17 @@ def documento(cid):
 def ver(cid):
     contrato = db.session.get(Contrato, cid) or abort(404)
     from datetime import date
-    from ..calculos import deuda_real, periodos_impagos, proximo_aumento
+    from ..calculos import deuda_real, periodos_impagos, estado_aumento
     from ..utils import link_whatsapp, MESES_ES
     hoy = date.today()
+    # El aumento se considera pendiente desde el 1° de su mes (por mes, no por
+    # el día exacto): así un contrato que arranca a mitad de mes no atrasa el aviso.
     prox_aumento = None
+    aumento_vencido = False
     if contrato.metodo_ajuste != "sin_ajuste" and contrato.ajuste_cada_meses:
-        prox_aumento = proximo_aumento(contrato, hoy)
+        est = estado_aumento(contrato, hoy)
+        aumento_vencido = bool(est["pendiente"])
+        prox_aumento = est["corresponde"] if est["pendiente"] else est["proximo"]
     tel = contrato.inquilino.telefono if contrato.inquilino else None
     wa = None
     if contrato.inquilino:
@@ -126,7 +131,7 @@ def ver(cid):
     impagos_txt = ", ".join(f"{MESES_ES[p['mes']]} {p['anio']}" for p in impagos[-6:])
     resumen = dict(deuda=deuda_real(contrato, hoy), impagos=impagos,
                    impagos_txt=impagos_txt, prox_aumento=prox_aumento,
-                   aumento_vencido=bool(prox_aumento and prox_aumento <= hoy),
+                   aumento_vencido=aumento_vencido,
                    wa=wa, telefono=tel,
                    contrato_vencido=bool(contrato.estado == "Vigente"
                                          and contrato.fecha_fin and contrato.fecha_fin < hoy),

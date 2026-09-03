@@ -32,7 +32,7 @@ def index():
 
     from sqlalchemy.orm import joinedload
     hoy = date.today()
-    from ..calculos import proximo_aumento, deuda_real
+    from ..calculos import proximo_aumento, deuda_real, estado_aumento
 
     # Contratos vigentes: una sola consulta, reusada para deuda, aumentos y
     # cobranzas del mes (evita repetirla tres veces).
@@ -48,12 +48,12 @@ def index():
     # registrar (nunca se llegó a asentar el cobro) también debe.
     deuda = round(sum(deuda_real(c, hoy) for c in contratos_vig), 2)
 
+    # Un aumento cuenta como pendiente desde el 1° de su mes (no desde el día
+    # exacto): estado_aumento razona por mes, así el aviso no se atrasa cuando
+    # el contrato arranca a mitad de mes.
     aumentos_pend = 0
     for c in contratos_vig:
-        if c.metodo_ajuste == "sin_ajuste" or not c.ajuste_cada_meses:
-            continue
-        prox = proximo_aumento(c)
-        if prox and prox <= hoy:
+        if estado_aumento(c, hoy).get("pendiente"):
             aumentos_pend += 1
 
     # Contratos que vencen en los próximos 60 días.

@@ -376,22 +376,15 @@ def dashboard():
         alquilados=Inmueble.query.filter_by(estado="Alquilado").count(),
         contratos_vigentes=Contrato.query.filter_by(estado="Vigente").count(),
     )
-    from sqlalchemy import func
-    from ..models import Aumento
-    from ..calculos import deuda_real
+    from ..calculos import deuda_real, estado_aumento
     # Deuda real de cada contrato vigente (incluye meses vencidos nunca
     # registrados como pago, no solo la suma de saldos ya cargados).
     deuda = round(sum(deuda_real(c, hoy)
                       for c in Contrato.query.filter_by(estado="Vigente").all()), 2)
-    _cnt = dict(db.session.query(Aumento.contrato_id, func.count(Aumento.id))
-                .group_by(Aumento.contrato_id).all())
-    aumentos_pend = 0
-    for c in Contrato.query.filter_by(estado="Vigente").all():
-        if c.metodo_ajuste == "sin_ajuste" or not c.ajuste_cada_meses:
-            continue
-        prox = proximo_ajuste(c.fecha_inicio, c.ajuste_cada_meses, _cnt.get(c.id, 0))
-        if prox and prox <= hoy:
-            aumentos_pend += 1
+    # Un aumento cuenta como pendiente desde el 1° de su mes (por mes, no por el
+    # día exacto), igual criterio que el panel de inicio.
+    aumentos_pend = sum(1 for c in Contrato.query.filter_by(estado="Vigente").all()
+                        if estado_aumento(c, hoy).get("pendiente"))
 
     limite = hoy + timedelta(days=60)
     por_vencer = []

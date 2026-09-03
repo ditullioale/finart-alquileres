@@ -143,6 +143,43 @@ def h_cobros_del_periodo(mes: int | None = None, anio: int | None = None, **_):
             "total_cobrado": round(total, 2), "cantidad_de_pagos": cant}
 
 
+def h_aumentos_del_mes(mes: int | None = None, anio: int | None = None, **_):
+    """Contratos con un aumento programado en un mes/año. Sin datos usa el actual.
+
+    El aumento corresponde al MES completo (desde el día 1), no al día exacto en
+    que arrancó el contrato."""
+    hoy = date.today()
+    try:
+        mes = int(mes) if mes else hoy.month
+        anio = int(anio) if anio else hoy.year
+    except (TypeError, ValueError):
+        mes, anio = hoy.month, hoy.year
+    res = []
+    for c in Contrato.query.all():
+        if c.estado != "Vigente":
+            continue
+        f = calculos.aumento_en_mes(c, anio, mes)
+        if not f:
+            continue
+        item = {
+            "inquilino": _nombre_inq(c),
+            "inmueble": _dir_inm(c),
+            "fecha_aumento": f.isoformat(),
+            "ya_aplicado": calculos.aumento_registrado_en_mes(c, anio, mes),
+            "metodo": c.metodo_ajuste,
+        }
+        if c.metodo_ajuste == "porcentaje" and c.porcentaje_ajuste:
+            actual = float(c.precio_actual or c.precio_inicial or 0)
+            item["porcentaje"] = float(c.porcentaje_ajuste)
+            item["precio_actual"] = round(actual, 2)
+            item["precio_estimado"] = round(actual * (1 + float(c.porcentaje_ajuste) / 100), 2)
+        elif c.indice_tipo:
+            item["indice"] = c.indice_tipo
+        res.append(item)
+    res.sort(key=lambda x: (x["ya_aplicado"], x["inmueble"]))
+    return {"mes": MESES_ES[mes], "anio": anio, "cantidad": len(res), "contratos": res}
+
+
 def h_resumen_general(**_):
     """Panorama: contratos activos, deuda total y cuántos deben."""
     hoy = date.today()
@@ -176,6 +213,14 @@ HERRAMIENTAS = {
                            {"type": "object", "properties": {
                                "mes": {"type": "integer", "description": "Mes 1-12"},
                                "anio": {"type": "integer", "description": "Año, ej 2026"}}}),
+    "aumentos_del_mes": (h_aumentos_del_mes,
+                         "Qué contratos aumentan (tienen ajuste de alquiler programado) en un "
+                         "mes/año. Útil para 'qué contratos aumentan en septiembre'. Si no se "
+                         "indica, usa el mes actual. Dice si el aumento ya se aplicó y, cuando es "
+                         "por porcentaje, el precio estimado nuevo.",
+                         {"type": "object", "properties": {
+                             "mes": {"type": "integer", "description": "Mes 1-12"},
+                             "anio": {"type": "integer", "description": "Año, ej 2026"}}}),
     "resumen_general": (h_resumen_general,
                         "Panorama general: contratos activos, cuántos inquilinos deben y la deuda total.",
                         {"type": "object", "properties": {}}),
