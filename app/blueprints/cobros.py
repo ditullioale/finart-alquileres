@@ -577,8 +577,14 @@ def nuevo(cid):
                          f"{pago.periodo_anio}. Abrí ese pago para completarlo o corregirlo.")
         if error:
             flash(error, "error")
+            _fa = aumento_en_mes(contrato, pago.periodo_anio, pago.periodo_mes)
             return render_ui("cobros/form_pago.html", c=contrato, pago=pago,
-                                   formas=FORMAS_PAGO, meses=MESES_ES, nuevo=True)
+                                   formas=FORMAS_PAGO, meses=MESES_ES, nuevo=True,
+                                   aum_pendiente=(bool(_fa) and not aumento_registrado_en_mes(
+                                       contrato, pago.periodo_anio, pago.periodo_mes)),
+                                   aplicar_aumento_url=url_for(
+                                       "aumentos.aplicar", cid=contrato.id,
+                                       volver=url_for("cobros.nuevo", cid=contrato.id)))
         gastos_total = _leer_gastos(pago)
         # Conceptos fijos del contrato (ej.: seguro): se agregan a cada recibo.
         gastos_total += _agregar_conceptos_fijos(pago, contrato)
@@ -627,9 +633,17 @@ def nuevo(cid):
     pago = Pago(numero=r["prox_nro"], periodo_mes=mes, periodo_anio=anio,
                 fecha_pago=date.today(),
                 precio_alquiler=contrato.precio_actual or contrato.precio_inicial)
+    # ¿Al período que se va a cobrar le corresponde un aumento sin registrar?
+    # Sirve para avisar antes de cobrar al precio viejo, igual que en cobranzas.
+    f_aum = aumento_en_mes(contrato, anio, mes)
+    aum_pendiente = bool(f_aum) and not aumento_registrado_en_mes(contrato, anio, mes)
     return render_ui("cobros/form_pago.html", c=contrato, pago=pago,
                            formas=FORMAS_PAGO, meses=MESES_ES, nuevo=True,
-                           deuda_previa=_deuda_previa(contrato))
+                           deuda_previa=_deuda_previa(contrato),
+                           aum_pendiente=aum_pendiente,
+                           aplicar_aumento_url=url_for(
+                               "aumentos.aplicar", cid=contrato.id,
+                               volver=url_for("cobros.nuevo", cid=contrato.id)))
 
 
 @cobros_bp.route("/pago/<int:pid>/editar", methods=["GET", "POST"])

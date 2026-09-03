@@ -34,6 +34,14 @@
   </div>
 </div>
 
+{% if aum_pendiente %}
+<div style="margin-bottom:14px;padding:10px 12px;border-radius:10px;background:#fdf0e3;border:1px solid #e8cf8a;color:#8a5a00;font-size:13px">
+  {{ icon('trending-up', 13) }} <b>Este contrato tiene un aumento sin registrar en este período.</b>
+  Si cobrás ahora, sería al precio viejo.
+  {% if aplicar_aumento_url %}<a href="{{ aplicar_aumento_url }}" style="color:#8a5a00;font-weight:700;text-decoration:underline">Aplicar el aumento primero</a>, o cobrá igual.{% endif %}
+</div>
+{% endif %}
+
 <form method="post" class="pago-layout"
       data-mora-pct="{{ c.mora_diaria_pct or 0 }}" data-dia-venc="{{ c.dia_vencimiento or 10 }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
