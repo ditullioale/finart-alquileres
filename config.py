@@ -39,6 +39,29 @@ def _database_uri():
     return f"sqlite:///{_default_sqlite_path()}"
 
 
+def _engine_options():
+    """Opciones del pool de conexiones. En PostgreSQL (Railway) es clave:
+
+    - pool_pre_ping: verifica la conexión antes de usarla (un 'SELECT 1' mínimo).
+      Evita el caso típico de lentitud/errores en Railway, donde el servidor o el
+      proxy cierran conexiones ociosas y la app se queda esperando una conexión
+      muerta hasta que da timeout.
+    - pool_recycle: recicla conexiones antes de que el servidor las cierre por
+      inactividad (Railway suele cortarlas cerca de los 5 minutos).
+    SQLite (uso local) no usa pool, así que no se le pasan estas opciones.
+    """
+    uri = _database_uri()
+    if uri.startswith("sqlite"):
+        return {}
+    return {
+        "pool_pre_ping": True,
+        "pool_recycle": 280,
+        "pool_size": 5,
+        "max_overflow": 5,
+        "pool_timeout": 30,
+    }
+
+
 def _carpeta_datos():
     """Carpeta de datos local, FUERA de OneDrive.
 
@@ -102,6 +125,7 @@ class Config:
     SECRET_KEY = _clave_secreta()
 
     SQLALCHEMY_DATABASE_URI = _database_uri()
+    SQLALCHEMY_ENGINE_OPTIONS = _engine_options()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Límite de subida de archivos (documentación de contratos): 10 MB por request.
