@@ -1,0 +1,71 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Cambiar contraseña{% endblock %}
+{% block crumb %}<b>Mi contraseña</b>{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Cambiar contraseña</h1>
+    <p class="sub">Tu contraseña es personal: nadie del equipo debería compartirla.</p>
+  </div>
+</div>
+
+{% if forzado %}
+<div class="banner err" style="max-width:520px">{{ icon('alert-triangle', 16) }}
+  <div>Estás usando la contraseña por defecto. Por seguridad, elegí una nueva antes de seguir
+    usando el sistema.</div></div>
+{% endif %}
+
+<form method="post" class="card" style="max-width:520px;margin-top:16px">
+  <div class="card-b">
+    <div class="field">
+      <label>Contraseña actual</label>
+      <input class="inp" type="password" name="actual" required autofocus autocomplete="current-password">
+    </div>
+    <div class="field">
+      <label>Nueva contraseña</label>
+      <input class="inp" type="password" name="nueva" required autocomplete="new-password"
+             placeholder="Al menos 6 caracteres">
+    </div>
+    <div class="field">
+      <label>Repetir nueva contraseña</label>
+      <input class="inp" type="password" name="repetir" required autocomplete="new-password">
+    </div>
+    <div class="formbtns">
+      {% if not forzado %}<a class="btn" href="{{ url_for('main.index') }}">Cancelar</a>{% endif %}
+      <button class="btn pri" type="submit">{{ icon('lock', 13) }} Guardar contraseña</button>
+    </div>
+  </div>
+</form>
+
+{% if not forzado %}
+<div class="card" style="max-width:520px;margin-top:16px">
+  <div class="card-h">{{ icon('shield', 15) }}<h2>Verificación en dos pasos</h2></div>
+  <div class="card-b">
+    <p class="sub" style="margin-top:0">Al ingresar, además de la contraseña te pedimos un código de un
+      solo uso enviado a tu email. Recomendado sobre todo para cuentas de administrador.</p>
+    {% if dosfa %}
+    <p><span class="chip ok">Activada</span> el código se envía a <b>{{ current_user.email }}</b></p>
+    <form method="post" action="{{ url_for('usuarios.toggle_2fa') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="activar" value="0">
+      <div class="formbtns"><button class="btn peligro" type="submit">Desactivar</button></div>
+    </form>
+    {% elif not tiene_email %}
+    <p class="hint">Primero cargá un email en tu usuario para poder activarla.</p>
+    {% elif not email_servidor %}
+    <p class="hint">El servidor todavía no tiene configurado el envío de emails, así que el segundo
+      factor no se puede usar aún.</p>
+    {% else %}
+    <form method="post" action="{{ url_for('usuarios.toggle_2fa') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="activar" value="1">
+      <div class="formbtns"><button class="btn pri" type="submit">Activar segundo factor</button></div>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

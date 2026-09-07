@@ -1,0 +1,51 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Auditoría{% endblock %}
+{% block crumb %}<b>Auditoría</b>{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Auditoría</h1>
+    <p class="sub">Quién hizo qué y cuándo. Se registran altas, cambios y eliminaciones.</p>
+  </div>
+  <div class="sp" style="flex:1"></div>
+  <form method="get" class="filtros">
+    <input class="inp" name="q" value="{{ q }}" placeholder="Buscar usuario, acción, entidad o detalle"
+           data-live-filter="#audit-body" autocomplete="off" style="width:280px">
+    <button class="btn sm" type="submit">{{ icon('search', 13) }} Filtrar</button>
+  </form>
+</div>
+
+<div class="card">
+  {% if registros %}
+  <table class="t">
+    <thead>
+      <tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th class="off-sm">Qué</th>
+          <th>Detalle</th><th class="off-sm">IP</th></tr>
+    </thead>
+    <tbody id="audit-body">
+      {% for r in registros %}
+      <tr>
+        <td>{{ r.fecha.strftime('%d/%m/%Y %H:%M') if r.fecha else '—' }}</td>
+        <td>{{ r.usuario_nombre or '—' }}</td>
+        <td>
+          {% if r.accion == 'crear' %}<span class="chip ok">Alta</span>
+          {% elif r.accion == 'eliminar' %}<span class="chip err">Eliminación</span>
+          {% else %}<span class="chip">Cambio</span>{% endif %}
+        </td>
+        <td class="off-sm">{{ r.entidad }}{% if r.entidad_id %} #{{ r.entidad_id }}{% endif %}</td>
+        <td class="mut">{{ r.descripcion or '—' }}</td>
+        <td class="mut off-sm">{{ r.ip or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">{{ icon('clock', 26) }}
+    <h3>Todavía no hay movimientos registrados</h3>
+    <p>Cada alta, cambio o eliminación va a quedar acá con su autor y su fecha.</p></div>
+  {% endif %}
+</div>
+{% endblock %}

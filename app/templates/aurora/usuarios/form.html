@@ -1,0 +1,76 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}{{ 'Editar' if u else 'Nuevo' }} usuario{% endblock %}
+{% block crumb %}
+<a href="{{ url_for('usuarios.listar') }}">Usuarios</a><span class="sep">›</span>
+<b>{{ u.username if u else 'Nuevo' }}</b>
+{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>{{ 'Editar usuario' if u else 'Nuevo usuario' }}</h1>
+    <p class="sub">El administrador gestiona usuarios; el operador usa el sistema pero no ve esta sección.</p>
+  </div>
+</div>
+
+<form method="post" class="card" style="max-width:760px">
+  <div class="card-b">
+    <div class="gridf">
+      <div class="field">
+        <label>Nombre de usuario <span class="req">*</span></label>
+        {% if u %}
+        <input class="inp" value="{{ u.username }}" disabled>
+        <p class="hint">El nombre de usuario no se cambia.</p>
+        {% else %}
+        <input class="inp" name="username" value="{{ datos.username or '' }}" required autofocus placeholder="ej. maria">
+        {% endif %}
+      </div>
+
+      <div class="field">
+        <label>Nombre y apellido</label>
+        <input class="inp" name="nombre" value="{{ u.nombre if u else (datos.nombre or '') }}">
+      </div>
+
+      <div class="field">
+        <label>Email</label>
+        <input class="inp" name="email" type="email" value="{{ u.email if u else (datos.email or '') }}"
+               placeholder="para recuperar la contraseña">
+        <p class="hint">Necesario para recuperar la contraseña por email.</p>
+      </div>
+
+      <div class="field">
+        <label>Rol</label>
+        <select class="inp" name="rol">
+          {% for val, lbl in roles %}
+          <option value="{{ val }}" {{ 'selected' if (u.rol if u else datos.rol) == val }}>{{ lbl }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field">
+        <label>{{ 'Nueva contraseña (opcional)' if u else 'Contraseña' }}
+          {% if not u %}<span class="req">*</span>{% endif %}</label>
+        <input class="inp" type="password" name="password" {{ '' if u else 'required' }}
+               placeholder="{{ 'dejar vacío para no cambiarla' if u else 'al menos 6 caracteres' }}">
+      </div>
+
+      {% if u %}
+      <div class="field">
+        <label>Estado</label>
+        <label class="chk"><input type="checkbox" name="activo" {{ 'checked' if u.activo }}>
+          <span>Usuario activo</span></label>
+        <p class="hint">Un usuario inactivo no puede ingresar, pero conserva su historial.</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="formbtns">
+      <a class="btn" href="{{ url_for('usuarios.listar') }}">Cancelar</a>
+      <button class="btn pri" type="submit">{{ icon('check', 13) }}
+        {{ 'Guardar cambios' if u else 'Crear usuario' }}</button>
+    </div>
+  </div>
+</form>
+{% endblock %}

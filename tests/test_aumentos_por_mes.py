@@ -65,7 +65,7 @@ def test_form_pago_avisa_aumento(client):
     cl, app, ids = client
     # Arranca el 15/09/2025 y aumenta cada 12 meses -> aumenta en 09/2026.
     cid = _mk_contrato(app, ids, date(2025, 9, 15), 12, "9004")
-    html = cl.get(f"/cobros/{cid}/nuevo?mes=9&anio=2026").get_data(as_text=True)
+    html = cl.get(f"/cobros/contrato/{cid}/nuevo?mes=9&anio=2026").get_data(as_text=True)
     assert "aumento sin registrar" in html
 
 
@@ -73,5 +73,5 @@ def test_form_pago_sin_aumento_no_avisa(client):
     cl, app, ids = client
     cid = _mk_contrato(app, ids, date(2025, 9, 15), 12, "9005")
     # Octubre no es mes de aumento para este contrato.
-    html = cl.get(f"/cobros/{cid}/nuevo?mes=10&anio=2026").get_data(as_text=True)
+    html = cl.get(f"/cobros/contrato/{cid}/nuevo?mes=10&anio=2026").get_data(as_text=True)
     assert "aumento sin registrar" not in html

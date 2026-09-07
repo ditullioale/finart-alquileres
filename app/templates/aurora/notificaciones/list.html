@@ -1,0 +1,47 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Notificaciones{% endblock %}
+{% block crumb %}<b>Notificaciones</b>{% endblock %}
+
+{% block acciones %}
+<a class="btn pri sm" href="{{ url_for('notificaciones.nueva') }}">{{ icon('plus', 13) }} Nueva notificación</a>
+{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Notificaciones</h1>
+    <p class="sub">Avisos mandados al portal: mora, aumentos, arreglos y otros temas.</p>
+  </div>
+</div>
+
+<div class="card">
+  {% if filas %}
+  <table class="t">
+    <thead>
+      <tr><th>Tipo</th><th>Mensaje</th><th class="off-sm">Destinatarios</th><th>Vista por</th>
+          <th class="off-sm">Fecha</th><th class="r"></th></tr>
+    </thead>
+    <tbody>
+      {% for f in filas %}
+      <tr>
+        <td><span class="chip {{ f.estilo.chip }}">{{ icon(f.estilo.icono, 12) }} {{ f.n.tipo }}</span></td>
+        <td class="mut" style="max-width:360px">{{ f.n.mensaje[:120] }}{{ '…' if f.n.mensaje|length > 120 }}</td>
+        <td class="off-sm">{{ f.total }}</td>
+        <td>{{ f.vistas }} / {{ f.total }}</td>
+        <td class="mut off-sm">{{ f.n.creada_at.strftime('%d/%m/%Y %H:%M') if f.n.creada_at }}</td>
+        <td><div class="acts">
+          <a class="btn ghost sm" href="{{ url_for('notificaciones.ver', nid=f.n.id) }}">Ver</a></div></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">{{ icon('bell', 26) }}
+    <h3>Todavía no cargaste ninguna notificación</h3>
+    <p>Mandá un aviso al portal del inquilino y quedá registro de quién lo vio.</p>
+    <a class="btn pri" href="{{ url_for('notificaciones.nueva') }}">Nueva notificación</a></div>
+  {% endif %}
+</div>
+{% endblock %}

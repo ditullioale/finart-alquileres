@@ -1,13 +1,14 @@
 """Gestión de usuarios del sistema (solo para administradores)."""
 from functools import wraps
 
-from flask import (Blueprint, render_template, redirect, url_for, request,
+from flask import (Blueprint, redirect, url_for, request,
                    flash, abort)
 from flask_login import login_required, current_user
 
 from .. import db
 from ..models import Usuario
 from ..seguridad import validar_password
+from ..ui import render_ui
 
 usuarios_bp = Blueprint("usuarios", __name__, url_prefix="/usuarios")
 
@@ -64,7 +65,7 @@ def _usuario_de_mi_inmobiliaria(uid):
 def listar():
     usuarios = _usuarios_de_mi_inmobiliaria().order_by(
         Usuario.nombre, Usuario.username).all()
-    return render_template("usuarios/list.html", usuarios=usuarios)
+    return render_ui("usuarios/list.html", usuarios=usuarios)
 
 
 @usuarios_bp.route("/auditoria")
@@ -82,7 +83,7 @@ def auditoria():
                                     RegistroAuditoria.accion.ilike(like),
                                     RegistroAuditoria.descripcion.ilike(like)))
     registros = query.order_by(RegistroAuditoria.fecha.desc()).limit(300).all()
-    return render_template("usuarios/auditoria.html", registros=registros, q=q)
+    return render_ui("usuarios/auditoria.html", registros=registros, q=q)
 
 
 @usuarios_bp.route("/cambiar-clave", methods=["GET", "POST"])
@@ -106,14 +107,14 @@ def cambiar_clave():
             error = "La nueva contraseña debe ser distinta de la actual."
         if error:
             flash(error, "error")
-            return render_template("usuarios/cambiar_clave.html", forzado=forzado,
+            return render_ui("usuarios/cambiar_clave.html", forzado=forzado,
                                    **_ctx_2fa())
         current_user.set_password(nueva)
         current_user.must_change_password = False
         db.session.commit()
         flash("Contraseña actualizada correctamente.", "ok")
         return redirect(url_for("main.index"))
-    return render_template("usuarios/cambiar_clave.html", forzado=forzado,
+    return render_ui("usuarios/cambiar_clave.html", forzado=forzado,
                            **_ctx_2fa())
 
 
@@ -168,7 +169,7 @@ def nuevo():
             error = validar_password(password)
         if error:
             flash(error, "error")
-            return render_template("usuarios/form.html", u=None, roles=ROLES,
+            return render_ui("usuarios/form.html", u=None, roles=ROLES,
                                    datos={"username": username, "nombre": nombre, "rol": rol})
         u = Usuario(username=username, nombre=nombre, rol=rol, activo=True,
                     email=request.form.get("email", "").strip(),
@@ -178,7 +179,7 @@ def nuevo():
         db.session.commit()
         flash(f"Usuario '{username}' creado.", "ok")
         return redirect(url_for("usuarios.listar"))
-    return render_template("usuarios/form.html", u=None, roles=ROLES, datos={})
+    return render_ui("usuarios/form.html", u=None, roles=ROLES, datos={})
 
 
 @usuarios_bp.route("/<int:uid>/editar", methods=["GET", "POST"])
@@ -213,7 +214,7 @@ def editar(uid):
         db.session.commit()
         flash("Usuario actualizado." + (" Contraseña cambiada." if nueva else ""), "ok")
         return redirect(url_for("usuarios.listar"))
-    return render_template("usuarios/form.html", u=u, roles=ROLES, datos={})
+    return render_ui("usuarios/form.html", u=u, roles=ROLES, datos={})
 
 
 @usuarios_bp.route("/<int:uid>/eliminar", methods=["POST"])

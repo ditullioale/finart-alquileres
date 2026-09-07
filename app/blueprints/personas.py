@@ -1,5 +1,5 @@
 """ABM de Personas (propietarios e inquilinos)."""
-from flask import (Blueprint, render_template, redirect, url_for, request,
+from flask import (Blueprint, redirect, url_for, request,
                    flash, abort, jsonify, make_response)
 from flask_login import login_required
 from sqlalchemy.exc import IntegrityError
@@ -256,7 +256,7 @@ def telefonos():
                 .filter(Persona.telefono.isnot(None), Persona.telefono != "")
                 .order_by(Persona.nombre).all())
     revisar = [p for p in personas if not whatsapp_valido(p.telefono)]
-    return render_template("personas/telefonos.html", revisar=revisar,
+    return render_ui("personas/telefonos.html", revisar=revisar,
                            total_con_tel=len(personas))
 
 
