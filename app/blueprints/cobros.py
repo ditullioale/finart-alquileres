@@ -86,7 +86,10 @@ def _renumerar_por_periodo(contrato):
     fecha de carga: si se cargó septiembre antes que agosto, agosto queda 1 y
     septiembre 2. Es un número interno del contrato; el nro de recibo oficial es
     otro campo y no se toca. Devuelve True si cambió algo."""
-    ordenados = sorted(contrato.pagos,
+    # Se consulta fresco (no la colección cacheada del contrato) para incluir el
+    # pago recién agregado en la misma request.
+    pagos = Pago.query.filter_by(contrato_id=contrato.id).all()
+    ordenados = sorted(pagos,
                        key=lambda p: (p.periodo_anio or 0, p.periodo_mes or 0, p.id or 0))
     cambio = False
     for i, p in enumerate(ordenados, start=1):
