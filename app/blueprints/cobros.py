@@ -81,6 +81,21 @@ def _agregar_conceptos_fijos(pago, contrato):
     return total
 
 
+def _renumerar_por_periodo(contrato):
+    """Asigna el 'nro de pago' interno por orden de PERÍODO (mes/año), no por la
+    fecha de carga: si se cargó septiembre antes que agosto, agosto queda 1 y
+    septiembre 2. Es un número interno del contrato; el nro de recibo oficial es
+    otro campo y no se toca. Devuelve True si cambió algo."""
+    ordenados = sorted(contrato.pagos,
+                       key=lambda p: (p.periodo_anio or 0, p.periodo_mes or 0, p.id or 0))
+    cambio = False
+    for i, p in enumerate(ordenados, start=1):
+        if p.numero != i:
+            p.numero = i
+            cambio = True
+    return cambio
+
+
 def _estado_saldo(pago):
     """Recalcula saldo y estado a partir del total y lo pagado (decimal exacto)."""
     total = q2(pago.total)
@@ -327,7 +342,13 @@ def pagos():
 @cobros_bp.route("/contrato/<int:cid>")
 @login_required
 def detalle(cid):
+    from flask_login import current_user
     contrato = db.session.get(Contrato, cid) or abort(404)
+    # Autocorrige numeraciones viejas cargadas fuera de orden (el nro sigue el
+    # período, no la fecha de carga). Idempotente; no toca el nro de recibo.
+    if (_renumerar_por_periodo(contrato)
+            and getattr(current_user, "rol", None) not in ("lectura", "contador")):
+        db.session.commit()
     pagos = sorted(contrato.pagos,
                    key=lambda p: (p.periodo_anio or 0, p.periodo_mes or 0), reverse=True)
     return render_ui("cobros/detalle.html", c=contrato, pagos=pagos,
@@ -397,6 +418,9 @@ def pagos_multiples(cid):
             pagados.add((a, m))
             nro += 1
             creados += 1
+        if creados:
+            db.session.flush()
+            _renumerar_por_periodo(contrato)   # el nro de pago sigue el período, no la carga
         try:
             db.session.commit()
         except IntegrityError:
@@ -530,6 +554,8 @@ def rapido():
         pago.gastos.append(GastoExtra(descripcion=desc, monto=monto,
                                       trasladar_liquidacion=trasladar))
     db.session.add(pago)
+    db.session.flush()
+    _renumerar_por_periodo(contrato)   # el nro de pago sigue el período, no la carga
     try:
         db.session.commit()
     except IntegrityError:
@@ -610,6 +636,8 @@ def nuevo(cid):
                                 + gastos_total - arrastrado, 2)
         _recalcular(pago, gastos_total)
         db.session.add(pago)
+        db.session.flush()
+        _renumerar_por_periodo(contrato)   # el nro de pago sigue el período, no la carga
         try:
             db.session.commit()
         except IntegrityError:
