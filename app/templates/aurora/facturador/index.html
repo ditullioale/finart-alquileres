@@ -1,0 +1,352 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Facturador{% endblock %}
+{% block crumb %}<b>Facturador</b>{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Facturador</h1>
+    <p class="sub">Subí un resumen bancario (Excel, CSV o PDF), revisá las transferencias recibidas y
+      emití las facturas de honorarios en ARCA.</p>
+  </div>
+</div>
+
+{% if not habilitado %}
+<div class="banner warn">{{ icon('alert-triangle', 16) }}
+  <div><b>El facturador no está configurado.</b> Falta la variable <code>FACTURADOR_URL</code> en el servidor.</div>
+</div>
+{% elif not autorizada %}
+<div class="banner err">{{ icon('shield', 16) }}
+  <div><b>El facturador no está habilitado para tu inmobiliaria.</b> Cada inmobiliaria factura con su
+    propio certificado de ARCA; por seguridad, esta cuenta no puede usar credenciales de otra.</div>
+</div>
+{% else %}
+
+<div class="card">
+  <div class="card-h">{{ icon('file-text', 15) }}<h2>1. Subir resumen bancario</h2></div>
+  <div class="card-b">
+    <form id="formSubir" class="filtros">
+      <input class="inp" type="file" id="archivo" name="archivo" accept=".xlsx,.xlsm,.xls,.csv,.pdf" required>
+      <button type="submit" class="btn pri" id="btnSubir">{{ icon('file-text', 13) }} Subir y detectar</button>
+      <span id="subiendo" class="mut" hidden>Procesando…</span>
+    </form>
+    <p id="resumenImport" class="hint" hidden></p>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px">
+  <div class="card-h">{{ icon('banknote', 15) }}<h2>2. Revisar y facturar</h2>
+    <div class="sp" style="flex:1"></div>
+    <button type="button" class="btn pri sm" id="btnFacturar" disabled>
+      {{ icon('receipt', 13) }} Facturar (<span id="nSel">0</span>)</button>
+  </div>
+  <div class="card-b">
+    <p id="msg" class="hint" hidden></p>
+    <div class="banner info">{{ icon('info', 16) }}
+      <div>¿Habías facturado transferencias en modo <b>prueba</b> y ahora pasaste a <b>producción</b>?
+        Emitilas de verdad:
+        <div style="margin-top:8px">
+          <button type="button" class="btn sm" id="btnRefacturarPrueba">
+            {{ icon('refresh-cw', 13) }} Re-facturar las de prueba</button>
+        </div>
+      </div>
+    </div>
+    <div id="progreso" style="margin-top:12px;display:none">
+      <div style="height:8px;background:var(--surface-3);border-radius:6px;overflow:hidden">
+        <div id="progresoBar" style="height:100%;width:0%;background:var(--ok);transition:width .2s"></div>
+      </div>
+      <p class="hint" id="progresoTxt"></p>
+    </div>
+  </div>
+  <table class="t">
+    <thead><tr>
+      <th style="width:34px"><input type="checkbox" id="chkAll"></th>
+      <th>Fecha</th><th>CUIT emisor</th><th class="off-sm">Razón social</th>
+      <th class="r">Importe</th><th class="off-sm">Descripción</th><th>Estado</th>
+    </tr></thead>
+    <tbody id="tbody"><tr><td colspan="7" class="mut">Todavía no importaste ningún resumen.</td></tr></tbody>
+  </table>
+</div>
+
+<div class="card" id="panelResultado" style="margin-top:16px" hidden>
+  <div class="card-h">{{ icon('receipt', 15) }}<h2>Facturas emitidas ahora</h2></div>
+  <div class="card-b">
+    <p class="hint" style="margin-top:0">Descargá o imprimí los PDF ahora: este listado <b>no se conserva</b>
+      (al recargar la página desaparece).</p>
+  </div>
+  <table class="t">
+    <thead><tr><th>Nº</th><th>Receptor</th><th class="r">Importe</th><th>CAE</th><th>Estado</th><th class="r"></th></tr></thead>
+    <tbody id="tbodyResultado"></tbody>
+  </table>
+</div>
+
+<script>
+(function(){
+  var money = new Intl.NumberFormat('es-AR', {style:'currency', currency:'ARS'});
+  var tbody = document.getElementById('tbody');
+  var msg = document.getElementById('msg');
+  var seleccion = new Set();
+  var datos = [];
+
+  function aviso(texto, tipo){
+    msg.hidden = false; msg.textContent = texto;
+    msg.style.color = tipo === 'error' ? 'var(--err)' : 'var(--ok)';
+  }
+  function limpiarAviso(){ msg.hidden = true; msg.textContent = ''; }
+  function setProgreso(hechos, total, etiqueta){
+    var box = document.getElementById('progreso');
+    if(!total || total <= 0){ box.style.display = 'none'; return; }
+    box.style.display = 'block';
+    var pct = Math.round(hechos / total * 100);
+    document.getElementById('progresoBar').style.width = pct + '%';
+    document.getElementById('progresoTxt').textContent =
+      (etiqueta || 'Emitiendo') + ' ' + hechos + ' de ' + total + ' (' + pct + '%)';
+  }
+  function ocultarProgreso(){ document.getElementById('progreso').style.display = 'none'; }
+  // El backend (FastAPI) a veces manda 'detail' como lista de objetos de validación.
+  // Lo convertimos a texto legible en vez de mostrar "[object Object]".
+  function detalleError(j, porDefecto){
+    if(!j) return porDefecto || 'Ocurrió un error.';
+    var d = j.detail;
+    if(typeof d === 'string' && d) return d;
+    if(Array.isArray(d)) {
+      var partes = d.map(function(e){ return (e && (e.msg || e.message)) || ''; })
+                    .filter(Boolean);
+      if(partes.length) return partes.join(' · ');
+    }
+    if(d && typeof d === 'object' && (d.msg || d.message)) return d.msg || d.message;
+    if(typeof j.error === 'string' && j.error) return j.error;
+    return porDefecto || 'Ocurrió un error.';
+  }
+  function esFacturable(t){
+    return t.estado === 'pendiente' && t.cuit && (!t.factura || t.factura.estado !== 'emitida');
+  }
+  function chipEstado(t){
+    if(t.estado === 'facturada' && t.factura && t.factura.cae) return '<span class="chip ok">CAE '+t.factura.cae+'</span>';
+    if(t.factura && t.factura.estado === 'error') return '<span class="chip err" title="'+(t.factura.error||'')+'">Error ARCA</span>';
+    if(t.estado === 'ignorada') return '<span class="chip">Ignorada</span>';
+    return '<span class="chip warn">Pendiente</span>';
+  }
+  function actualizarBoton(){
+    document.getElementById('nSel').textContent = seleccion.size;
+    document.getElementById('btnFacturar').disabled = seleccion.size === 0;
+  }
+
+  function render(){
+    if(!datos.length){ tbody.innerHTML = '<tr><td colspan="7" class="mut">Todavía no importaste ningún resumen.</td></tr>'; actualizarBoton(); return; }
+    tbody.innerHTML = '';
+    datos.forEach(function(t){
+      var tr = document.createElement('tr');
+      var facturable = esFacturable(t);
+      var cuitCell = t.estado === 'facturada' ? (t.cuit||'—')
+        : '<input class="inp cuit-inp" data-id="'+t.id+'" value="'+(t.cuit||'')+'" placeholder="CUIT" style="width:130px'+(t.cuit?'':';border-color:var(--err)')+'">';
+      tr.innerHTML =
+        '<td><input type="checkbox" class="chk" data-id="'+t.id+'" '+(facturable?'':'disabled')+' '+(seleccion.has(t.id)?'checked':'')+'></td>'+
+        '<td data-l="Fecha">'+t.fecha+'</td>'+
+        '<td data-l="CUIT">'+cuitCell+'</td>'+
+        '<td data-l="Razón social">'+(t.razon_social||'—')+'</td>'+
+        '<td data-l="Importe" class="r">'+money.format(Number(t.importe))+(t.supera_minimo===false?' <span title="No supera el mínimo" style="color:var(--warn)">!</span>':'')+'</td>'+
+        '<td data-l="Descripción" style="max-width:280px"><span class="mut" title="'+(t.descripcion||'')+'" style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(t.descripcion||'')+'</span></td>'+
+        '<td data-l="Estado">'+chipEstado(t)+'</td>';
+      tbody.appendChild(tr);
+    });
+    tbody.querySelectorAll('.chk').forEach(function(c){
+      c.addEventListener('change', function(){
+        var id = Number(c.dataset.id);
+        if(c.checked) seleccion.add(id); else seleccion.delete(id);
+        actualizarBoton();
+      });
+    });
+    tbody.querySelectorAll('.cuit-inp').forEach(function(inp){
+      inp.addEventListener('blur', function(){
+        var val = inp.value.replace(/\D/g,'');
+        var id = Number(inp.dataset.id);
+        var t = datos.find(function(x){return x.id===id;});
+        if(val.length===11 && val!==(t&&t.cuit)){
+          limpiarAviso();
+          fetch('/facturador/transferencias/'+id, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({cuit: val})})
+            .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+            .then(function(res){ if(res.ok){ limpiarAviso(); var i=datos.findIndex(function(x){return x.id===id;}); if(i>=0) datos[i]=res.j; render(); } else { aviso(detalleError(res.j, 'CUIT inválido'),'error'); } })
+            .catch(function(){ aviso('No se pudo contactar al facturador.','error'); });
+        } else if(val.length && val.length!==11){
+          aviso('El CUIT debe tener 11 dígitos.','error');
+        }
+      });
+    });
+    actualizarBoton();
+  }
+
+  function cargar(){ render(); }
+
+  function badgeResultado(r){
+    if(r.estado==='emitida') return '<span class="chip ok">Emitida</span>';
+    if(r.estado==='sin_cuit') return '<span class="chip err" title="Falta el CUIT">Sin CUIT</span>';
+    if(r.estado==='requiere_confirmacion') return '<span class="chip warn" title="No supera el mínimo">Bajo mínimo</span>';
+    if(r.estado==='revisar') return '<span class="chip warn" title="'+(r.mensaje||'')+'">A revisar</span>';
+    return '<span class="chip err" title="'+(r.mensaje||'')+'">Error</span>';
+  }
+  function renderResultado(resultados){
+    var tb = document.getElementById('tbodyResultado');
+    tb.innerHTML='';
+    resultados.forEach(function(r){
+      var f = r.factura;
+      var nro = (f && f.estado==='emitida')
+        ? String(f.punto_venta).padStart(4,'0')+'-'+String(f.numero||0).padStart(8,'0') : '—';
+      var pdf = (f && f.estado==='emitida')
+        ? '<a class="btn sm" href="/facturador/factura/'+f.id+'/pdf" target="_blank">PDF</a>' : '';
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td data-l="Nº">'+nro+'</td>'+
+        '<td data-l="Receptor">'+(r.receptor||'—')+'</td>'+
+        '<td data-l="Importe" class="r">'+(r.importe!=null?money.format(Number(r.importe)):'—')+'</td>'+
+        '<td data-l="CAE">'+((f&&f.cae)||'—')+'</td>'+
+        '<td data-l="Estado">'+badgeResultado(r)+'</td>'+
+        '<td>'+pdf+'</td>';
+      tb.appendChild(tr);
+    });
+    document.getElementById('panelResultado').hidden = resultados.length===0;
+  }
+
+  document.getElementById('chkAll').addEventListener('change', function(e){
+    tbody.querySelectorAll('.chk:not(:disabled)').forEach(function(c){
+      c.checked = e.target.checked;
+      var id = Number(c.dataset.id);
+      if(e.target.checked) seleccion.add(id); else seleccion.delete(id);
+    });
+    actualizarBoton();
+  });
+
+  document.getElementById('formSubir').addEventListener('submit', function(e){
+    e.preventDefault();
+    var f = document.getElementById('archivo').files[0];
+    if(!f) return;
+    var fd = new FormData(); fd.append('archivo', f);
+    document.getElementById('subiendo').hidden = false;
+    document.getElementById('btnSubir').disabled = true;
+    fetch('/facturador/subir', {method:'POST', body: fd})
+      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+      .then(function(res){
+        document.getElementById('subiendo').hidden = true;
+        document.getElementById('btnSubir').disabled = false;
+        var box = document.getElementById('resumenImport');
+        if(res.ok){
+          box.hidden = false; box.style.color='var(--ok)';
+          box.textContent = 'Importado: '+res.j.nuevas+' nuevas, '+res.j.duplicadas+' duplicadas, '+res.j.sin_cuit+' sin CUIT.';
+          document.getElementById('formSubir').reset();
+          datos = Array.isArray(res.j.transferencias) ? res.j.transferencias : [];
+          seleccion.clear();
+          document.getElementById('panelResultado').hidden = true;
+          render();
+        } else {
+          box.hidden = false; box.style.color='var(--err)';
+          box.textContent = detalleError(res.j, 'No se pudo importar el archivo.');
+        }
+      })
+      .catch(function(){
+        document.getElementById('subiendo').hidden = true;
+        document.getElementById('btnSubir').disabled = false;
+      });
+  });
+
+  document.getElementById('btnFacturar').addEventListener('click', async function(){
+    var ids = Array.from(seleccion);
+    if(!ids.length) return;
+    var bajoMin = datos.filter(function(t){ return seleccion.has(t.id) && t.supera_minimo===false; });
+    var confirmar = false;
+    if(bajoMin.length){
+      if(!confirm(bajoMin.length+' transferencia(s) no superan el mínimo para facturar. ¿Emitir igual?')) return;
+      confirmar = true;
+    }
+    var btn = document.getElementById('btnFacturar');
+    btn.disabled = true;
+    // Se emite de a UNA (cada una en su propio request): evita el timeout del lote grande
+    // y permite mostrar el resultado por ítem.
+    var resultados = [];
+    for(var i=0;i<ids.length;i++){
+      var id = ids[i];
+      var t = datos.find(function(x){return x.id===id;});
+      var receptor = t ? (t.razon_social || t.cuit || t.descripcion || '—') : '—';
+      var importe = t ? t.importe : null;
+      aviso('Facturando '+(i+1)+'/'+ids.length+'…');
+      setProgreso(i, ids.length, 'Facturando');
+      var conf = (t && t.supera_minimo===false) ? confirmar : false;
+      try{
+        var r = await fetch('/facturador/transferencias/'+id+'/facturar?confirmar='+conf, {method:'POST'});
+        var j = await r.json();
+        if(r.ok){
+          resultados.push({transferencia_id:id, estado:j.estado, mensaje:j.error, factura:j,
+            receptor:(j.razon_social||j.cuit_receptor||receptor), importe:(j.importe!=null?j.importe:importe)});
+        } else {
+          var est = r.status===422 ? 'sin_cuit' : (r.status===409 ? 'requiere_confirmacion' : 'error');
+          resultados.push({transferencia_id:id, estado:est, mensaje:detalleError(j,''), factura:null,
+            receptor:receptor, importe:importe});
+        }
+      }catch(e){
+        resultados.push({transferencia_id:id, estado:'error', mensaje:'No se pudo contactar al facturador.',
+          factura:null, receptor:receptor, importe:importe});
+      }
+    }
+    var emitidas = resultados.filter(function(r){return r.estado==='emitida';}).length;
+    var otros = resultados.length - emitidas;
+    aviso(emitidas+' emitida(s)'+(otros? ' · '+otros+' con observaciones (ver abajo)':'')+'. Descargá los PDF (no se guardan).', otros? 'error':'ok');
+    renderResultado(resultados);
+    var okIds = resultados.filter(function(r){return r.estado==='emitida';}).map(function(r){return r.transferencia_id;});
+    datos = datos.filter(function(t){ return okIds.indexOf(t.id)===-1; });
+    seleccion.clear();
+    render();
+    btn.disabled = false;
+  });
+
+  document.getElementById('btnRefacturarPrueba').addEventListener('click', async function(){
+    var btn = this;
+    btn.disabled = true;
+    aviso('Buscando facturas de prueba…');
+    var lista;
+    try{
+      var r = await fetch('/facturador/pendientes-produccion');
+      lista = await r.json();
+    }catch(e){ aviso('No se pudo contactar al facturador.','error'); btn.disabled=false; return; }
+    if(!Array.isArray(lista) || !lista.length){
+      aviso('No hay facturas de prueba para re-emitir: ya está todo en producción.','ok');
+      btn.disabled=false; return;
+    }
+    if(!confirm('Se van a emitir '+lista.length+' factura(s) REALES en producción (las que habías probado en modo mock).\n\nGeneran comprobantes fiscales de verdad en ARCA. ¿Continuar?')){
+      btn.disabled=false; return;
+    }
+    var resultados = [];
+    for(var i=0;i<lista.length;i++){
+      var t = lista[i];
+      var receptor = t.razon_social || t.cuit || t.descripcion || '—';
+      aviso('Re-emitiendo '+(i+1)+'/'+lista.length+'…');
+      setProgreso(i, lista.length, 'Re-emitiendo');
+      try{
+        var rr = await fetch('/facturador/transferencias/'+t.id+'/facturar?confirmar=true', {method:'POST'});
+        var j = await rr.json();
+        if(rr.ok){
+          resultados.push({transferencia_id:t.id, estado:j.estado, mensaje:j.error, factura:j,
+            receptor:(j.razon_social||j.cuit_receptor||receptor), importe:(j.importe!=null?j.importe:t.importe)});
+        } else {
+          var est = rr.status===422 ? 'sin_cuit' : (rr.status===409 ? 'requiere_confirmacion' : 'error');
+          resultados.push({transferencia_id:t.id, estado:est, mensaje:detalleError(j,''), factura:null,
+            receptor:receptor, importe:t.importe});
+        }
+      }catch(e){
+        resultados.push({transferencia_id:t.id, estado:'error', mensaje:'No se pudo contactar al facturador.',
+          factura:null, receptor:receptor, importe:t.importe});
+      }
+    }
+    var emitidas = resultados.filter(function(r){return r.estado==='emitida';}).length;
+    var otros = resultados.length - emitidas;
+    setProgreso(lista.length, lista.length, 'Re-emitiendo');
+    aviso(emitidas+' emitida(s) en producción'+(otros? ' · '+otros+' con observaciones (ver abajo)':'')+'. Descargá los PDF.', otros? 'error':'ok');
+    renderResultado(resultados);
+    setTimeout(ocultarProgreso, 1500);
+    btn.disabled = false;
+  });
+
+  cargar();
+})();
+</script>
+{% endif %}
+{% endblock %}

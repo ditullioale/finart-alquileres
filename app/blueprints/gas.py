@@ -3,9 +3,11 @@
 Cruza el N° de cuenta de gas cargado en cada inmueble con el estado de deuda
 que el robot deja en la tabla GasEstado, y muestra un tablero con quién debe.
 """
-from flask import (Blueprint, render_template, request, jsonify, abort,
+from flask import (Blueprint, request, jsonify, abort,
                    redirect, url_for, flash)
 from flask_login import login_required
+
+from ..ui import render_ui
 
 from .. import db
 from ..models import Inmueble, GasEstado, Contrato, Ajustes, GasCredencial
@@ -51,7 +53,7 @@ def index():
                    .filter(db.or_(Inmueble.cuenta_gas.is_(None), Inmueble.cuenta_gas == ""))
                    .order_by(Inmueble.direccion).all())
 
-    return render_template("gas/index.html", filas=filas, con_deuda=con_deuda,
+    return render_ui("gas/index.html", filas=filas, con_deuda=con_deuda,
                            deuda_total=deuda_total, total=len(inmuebles),
                            sin_asignar=sin_asignar, disponibles=disponibles,
                            ultima_actualizacion=ultima_actualizacion,

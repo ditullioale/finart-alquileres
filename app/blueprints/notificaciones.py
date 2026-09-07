@@ -7,13 +7,14 @@ notificaciones (ver app/blueprints/portal.py).
 """
 from datetime import date, datetime
 
-from flask import (Blueprint, render_template, redirect, url_for, request, flash, jsonify)
+from flask import (Blueprint, redirect, url_for, request, flash, jsonify)
 from flask_login import login_required
 
 from .. import db
 from ..models import Persona, Contrato, GasEstado, Notificacion, NotificacionDestinatario, TIPOS_NOTIFICACION
 from ..calculos import deuda_real, periodos_impagos, proximo_aumento
 from ..utils import MESES_ES
+from ..ui import render_ui
 
 notificaciones_bp = Blueprint("notificaciones", __name__, url_prefix="/notificaciones")
 
@@ -125,7 +126,7 @@ def listar():
         vistas = sum(1 for d in n.destinatarios if d.vista_at)
         filas.append({"n": n, "total": total, "vistas": vistas,
                       "estilo": estilo_tipo(n.tipo)})
-    return render_template("notificaciones/list.html", filas=filas)
+    return render_ui("notificaciones/list.html", filas=filas)
 
 
 @notificaciones_bp.route("/nueva", methods=["GET", "POST"])
@@ -145,19 +146,19 @@ def nueva():
 
         if not mensaje:
             flash("Escribí el contenido del aviso.", "error")
-            return render_template("notificaciones/nueva.html", personas=personas,
+            return render_ui("notificaciones/nueva.html", personas=personas,
                                    tipos=TIPOS_NOTIFICACION, sel=set(ids), tipo_sel=tipo,
                                    mensaje=mensaje)
         if not ids:
             flash("Elegí al menos un destinatario.", "error")
-            return render_template("notificaciones/nueva.html", personas=personas,
+            return render_ui("notificaciones/nueva.html", personas=personas,
                                    tipos=TIPOS_NOTIFICACION, sel=set(ids), tipo_sel=tipo,
                                    mensaje=mensaje)
 
         destinatarios = [p for p in personas if p.id in set(ids)]
         if not destinatarios:
             flash("Elegí al menos un destinatario.", "error")
-            return render_template("notificaciones/nueva.html", personas=personas,
+            return render_ui("notificaciones/nueva.html", personas=personas,
                                    tipos=TIPOS_NOTIFICACION, sel=set(ids), tipo_sel=tipo,
                                    mensaje=mensaje)
 
@@ -188,7 +189,7 @@ def nueva():
 
     persona_id = request.args.get("persona_id", type=int)
     sel = {persona_id} if persona_id else set()
-    return render_template("notificaciones/nueva.html", personas=personas,
+    return render_ui("notificaciones/nueva.html", personas=personas,
                            tipos=TIPOS_NOTIFICACION, sel=sel, tipo_sel="Otro", mensaje="")
 
 
@@ -197,7 +198,7 @@ def nueva():
 def ver(nid):
     from ..tenant import get_or_404_tenant
     n = get_or_404_tenant(Notificacion, nid)
-    return render_template("notificaciones/ver.html", n=n, estilo=estilo_tipo(n.tipo))
+    return render_ui("notificaciones/ver.html", n=n, estilo=estilo_tipo(n.tipo))
 
 
 def _mandar_mail(persona, notificacion):

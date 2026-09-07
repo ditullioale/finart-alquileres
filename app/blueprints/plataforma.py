@@ -7,7 +7,7 @@ administrar todas las inmobiliarias.
 """
 from functools import wraps
 
-from flask import (Blueprint, render_template, redirect, url_for, request,
+from flask import (Blueprint, redirect, url_for, request,
                    flash, abort)
 from flask_login import login_required, current_user
 
@@ -15,6 +15,7 @@ from datetime import datetime
 
 from .. import db
 from ..models import Inmobiliaria, Usuario, SolicitudAlta
+from ..ui import render_ui
 
 plataforma_bp = Blueprint("plataforma", __name__, url_prefix="/plataforma")
 
@@ -49,7 +50,7 @@ def index():
         datos.append(dict(i=i, usuarios=usuarios))
     solicitudes = (SolicitudAlta.query.filter_by(estado="pendiente")
                    .order_by(SolicitudAlta.creada).all())
-    return render_template("plataforma/index.html", datos=datos,
+    return render_ui("plataforma/index.html", datos=datos,
                            solicitudes=solicitudes)
 
 
@@ -124,7 +125,7 @@ def nueva_inmobiliaria():
             error = "La contraseña del administrador debe tener al menos 6 caracteres."
         if error:
             flash(error, "error")
-            return render_template("plataforma/form.html", datos=request.form)
+            return render_ui("plataforma/form.html", datos=request.form)
 
         inmo = Inmobiliaria(nombre=nombre, cuit=cuit, localidad=localidad, plan=plan)
         db.session.add(inmo)
@@ -138,4 +139,4 @@ def nueva_inmobiliaria():
         flash(f"Inmobiliaria «{nombre}» creada. Su administrador ({admin_user}) "
               "deberá cambiar la contraseña en el primer ingreso.", "ok")
         return redirect(url_for("plataforma.index"))
-    return render_template("plataforma/form.html", datos={})
+    return render_ui("plataforma/form.html", datos={})

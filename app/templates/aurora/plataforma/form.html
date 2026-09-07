@@ -1,0 +1,56 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Nueva inmobiliaria{% endblock %}
+{% block crumb %}
+<a href="{{ url_for('plataforma.index') }}">Plataforma</a><span class="sep">›</span>
+<b>Nueva inmobiliaria</b>
+{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Nueva inmobiliaria</h1>
+    <p class="sub">Se crea la inmobiliaria y su primer administrador. Ese administrador deberá cambiar
+      la contraseña en su primer ingreso.</p>
+  </div>
+</div>
+
+<form method="post" class="card" style="max-width:680px">
+  <div class="card-h">{{ icon('building', 15) }}<h2>Datos de la inmobiliaria</h2></div>
+  <div class="card-b">
+    <div class="gridf">
+      <div class="field full"><label>Nombre <span class="req">*</span></label>
+        <input class="inp" name="nombre" value="{{ datos.nombre or '' }}" required autofocus></div>
+      <div class="field"><label>CUIT</label>
+        <input class="inp" name="cuit" value="{{ datos.cuit or '' }}"></div>
+      <div class="field"><label>Localidad</label>
+        <input class="inp" name="localidad" value="{{ datos.localidad or '' }}"></div>
+      <div class="field"><label>Plan</label>
+        <select class="inp" name="plan">
+          <option value="inicial" {{ 'selected' if datos.plan == 'inicial' }}>Inicial</option>
+          <option value="profesional" {{ 'selected' if datos.plan == 'profesional' }}>Profesional</option>
+          <option value="empresa" {{ 'selected' if datos.plan == 'empresa' }}>Empresa</option>
+        </select></div>
+    </div>
+  </div>
+
+  <div class="card-h">{{ icon('user', 15) }}<h2>Primer administrador</h2></div>
+  <div class="card-b">
+    <div class="gridf">
+      <div class="field"><label>Usuario <span class="req">*</span></label>
+        <input class="inp" name="admin_user" value="{{ datos.admin_user or '' }}" required></div>
+      <div class="field"><label>Nombre y apellido</label>
+        <input class="inp" name="admin_nombre" value="{{ datos.admin_nombre or '' }}"></div>
+      <div class="field full"><label>Contraseña temporal <span class="req">*</span></label>
+        <input class="inp" name="admin_pass" type="text" placeholder="Al menos 6 caracteres" required>
+        <p class="hint">Se la das al administrador; la cambia al entrar por primera vez.</p></div>
+    </div>
+
+    <div class="formbtns">
+      <a class="btn" href="{{ url_for('plataforma.index') }}">Cancelar</a>
+      <button class="btn pri" type="submit">{{ icon('check', 13) }} Crear inmobiliaria</button>
+    </div>
+  </div>
+</form>
+{% endblock %}

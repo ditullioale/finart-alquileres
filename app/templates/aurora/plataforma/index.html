@@ -1,0 +1,107 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Plataforma{% endblock %}
+{% block crumb %}<b>Plataforma</b>{% endblock %}
+
+{% block acciones %}
+<a class="btn pri sm" href="{{ url_for('plataforma.nueva_inmobiliaria') }}">{{ icon('plus', 13) }} Nueva inmobiliaria</a>
+{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Plataforma · Inmobiliarias</h1>
+    <p class="sub">Panel del superadministrador. Cada inmobiliaria opera aislada, con sus propios datos y usuarios.</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-h">{{ icon('users', 15) }}<h2>Link para invitar a una inmobiliaria</h2></div>
+  <div class="card-b">
+    <p class="sub" style="margin-top:0">Pasale este link: completa sus datos y elige su usuario y
+      contraseña; después la aprobás en «Solicitudes de acceso pendientes».</p>
+    <div class="filtros">
+      <input class="inp" id="reg-link" readonly value="{{ url_for('auth.registro', _external=True) }}"
+             style="flex:1;min-width:260px">
+      <button type="button" class="btn" onclick="copiarLink()">Copiar</button>
+      <a class="btn" href="{{ url_for('auth.registro') }}" target="_blank" rel="noopener">Abrir</a>
+    </div>
+    <p class="hint" id="reg-copiado" style="color:var(--ok);display:none">Link copiado.</p>
+  </div>
+</div>
+<script>
+function copiarLink(){
+  var i = document.getElementById('reg-link');
+  i.select(); i.setSelectionRange(0, 99999);
+  var ok = function(){ document.getElementById('reg-copiado').style.display='block'; };
+  if(navigator.clipboard){ navigator.clipboard.writeText(i.value).then(ok, function(){ document.execCommand('copy'); ok(); }); }
+  else { document.execCommand('copy'); ok(); }
+}
+</script>
+
+{% if solicitudes %}
+<div class="card" style="margin-top:16px;border-color:var(--warn)">
+  <div class="card-h">{{ icon('bell', 15) }}<h2>Solicitudes de acceso pendientes ({{ solicitudes|length }})</h2></div>
+  <div class="card-b">
+    <p class="sub" style="margin-top:0">Inmobiliarias que pidieron acceso. Al aprobar se crea la
+      inmobiliaria y su administrador con el usuario y la contraseña que eligieron.</p>
+  </div>
+  <table class="t">
+    <thead><tr><th>Inmobiliaria</th><th class="off-sm">Contacto</th><th>Email / Tel.</th>
+      <th class="off-sm">Localidad</th><th>Usuario</th><th class="off-sm">Fecha</th><th class="r"></th></tr></thead>
+    <tbody>
+      {% for s in solicitudes %}
+      <tr>
+        <td><b>{{ s.nombre_inmobiliaria }}</b></td>
+        <td class="mut off-sm">{{ s.nombre_contacto or '—' }}</td>
+        <td class="mut">{{ s.email or '—' }}{% if s.telefono %}<div style="font-size:12px">{{ s.telefono }}</div>{% endif %}</td>
+        <td class="mut off-sm">{{ s.localidad or '—' }}</td>
+        <td><code>{{ s.username }}</code></td>
+        <td class="mut off-sm">{{ s.creada.strftime('%d/%m/%Y') if s.creada }}</td>
+        <td>
+          <div class="acts">
+            <form method="post" action="{{ url_for('plataforma.aprobar_solicitud', sid=s.id) }}"
+                  onsubmit="return confirm('¿Aprobar y crear la inmobiliaria «{{ s.nombre_inmobiliaria }}»?')">
+              <button class="btn pri sm" type="submit">{{ icon('check', 13) }} Aprobar</button>
+            </form>
+            <form method="post" action="{{ url_for('plataforma.rechazar_solicitud', sid=s.id) }}"
+                  onsubmit="return confirm('¿Rechazar esta solicitud?')">
+              <button class="btn ghost sm peligro" type="submit">Rechazar</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<div class="card" style="margin-top:16px">
+  {% if datos %}
+  <table class="t">
+    <thead><tr><th>#</th><th>Inmobiliaria</th><th class="off-sm">CUIT</th><th class="off-sm">Localidad</th>
+      <th>Plan</th><th class="r">Usuarios</th><th>Estado</th></tr></thead>
+    <tbody>
+      {% for d in datos %}
+      <tr>
+        <td class="mut">{{ d.i.id }}</td>
+        <td><b>{{ d.i.nombre }}</b></td>
+        <td class="mut off-sm">{{ d.i.cuit or '—' }}</td>
+        <td class="mut off-sm">{{ d.i.localidad or '—' }}</td>
+        <td>{{ d.i.plan or 'inicial' }}</td>
+        <td class="r">{{ d.usuarios }}</td>
+        <td>{% if d.i.activa %}<span class="chip ok">Activa</span>
+          {% else %}<span class="chip err">Suspendida</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">{{ icon('building', 26) }}
+    <h3>Todavía no hay inmobiliarias</h3>
+    <p>Creá la primera o pasá el link de invitación de arriba.</p></div>
+  {% endif %}
+</div>
+{% endblock %}

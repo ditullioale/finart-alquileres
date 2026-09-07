@@ -1,0 +1,229 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Control de gas{% endblock %}
+{% block crumb %}<b>Gas</b>{% endblock %}
+
+{% block acciones %}
+<button type="button" class="btn sm" onclick="abrirAct()">
+  {{ icon('refresh-cw', 13) }} Actualizar</button>
+<a class="btn sm" href="https://www.litoralgas.com.ar/ov/" target="_blank" rel="noopener">Abrir Litoral Gas</a>
+{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Control de gas</h1>
+    <p class="sub">Estado de deuda de Litoral Gas por propiedad.
+      {% if ultima_actualizacion %}Última actualización: {{ ultima_actualizacion.strftime('%d/%m/%Y %H:%M') }}.{% endif %}</p>
+  </div>
+</div>
+
+{% if not gas_configurado %}
+<div class="banner warn" style="margin-bottom:16px">{{ icon('key', 16) }}
+  <div><b>Configurá tu cuenta de Litoral Gas.</b> Para que la app traiga el estado de deuda de tus
+    inmuebles, cargá el usuario y la contraseña de tu Oficina Virtual. Se guardan cifrados y solo se
+    usan para consultar tu deuda.
+    <div style="margin-top:8px"><a class="btn sm" href="{{ url_for('ajustes.index') }}#gas">Configurar credenciales</a></div>
+  </div>
+</div>
+{% endif %}
+
+<div class="kpis">
+  <div class="kpi"><div class="l">Propiedades con cuenta</div><div class="v">{{ total }}</div></div>
+  <div class="kpi"><div class="l">Con deuda de gas</div><div class="v {{ 'err' if con_deuda }}">{{ con_deuda }}</div></div>
+  <div class="kpi"><div class="l">Deuda total de gas</div>
+    <div class="v {{ 'err' if deuda_total }}">$ {{ deuda_total|money }}</div></div>
+</div>
+
+<div class="card" style="margin-top:16px">
+  {% if filas %}
+  <table class="t">
+    <thead>
+      <tr><th>Inmueble</th><th class="off-sm">Inquilino</th><th class="off-sm">Cuenta</th><th>Estado</th>
+          <th class="r">Deuda</th><th class="off-sm">Vencimiento</th><th class="r"></th></tr>
+    </thead>
+    <tbody>
+      {% for f in filas %}
+      <tr>
+        <td><a href="{{ url_for('inmuebles.editar', iid=f.inm.id) }}"><b>{{ f.inm.direccion }}</b></a>
+          {% if f.inm.codigo %}<div class="mut" style="font-size:12px">{{ f.inm.codigo }}</div>{% endif %}</td>
+        <td class="mut off-sm">{{ f.inquilino or '—' }}</td>
+        <td class="mut off-sm">{{ f.inm.cuenta_gas }}</td>
+        <td>
+          {% if not f.g %}<span class="chip">Sin datos</span>
+          {% elif f.g.tiene_deuda %}<span class="chip err js-vergas" data-cuenta="{{ f.inm.cuenta_gas }}"
+            style="cursor:pointer" title="Ver facturas">Debe</span>
+          {% else %}<span class="chip ok">Al día</span>{% endif %}
+        </td>
+        <td class="r">
+          {% if f.g and f.g.tiene_deuda %}
+          <a class="js-vergas" data-cuenta="{{ f.inm.cuenta_gas }}"
+             style="cursor:pointer;color:var(--err);font-weight:600" title="Ver facturas">$ {{ f.g.deuda_total|money }}</a>
+          {% else %}—{% endif %}
+        </td>
+        <td class="mut off-sm">{{ f.g.ultimo_vencimiento.strftime('%d/%m/%Y') if f.g and f.g.ultimo_vencimiento else '—' }}</td>
+        <td>
+          {% if f.g %}
+          <details class="rmenu">
+            <summary title="Más acciones">⋯</summary>
+            <div class="pop">
+              <form method="post" action="{{ url_for('gas.eliminar', gid=f.g.id) }}"
+                    onsubmit="return confirm('¿Eliminar el suministro {{ f.g.cuenta }} del panel? Si sigue existiendo en Litoral Gas, volverá a aparecer en la próxima actualización.')">
+                <button class="peligro" type="submit">{{ icon('trash', 13) }} Eliminar suministro</button>
+              </form>
+            </div>
+          </details>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">{{ icon('flame', 26) }}
+    <h3>Todavía no hay propiedades con cuenta de gas</h3>
+    <p>Vinculá las cuentas de abajo con tus inmuebles, o cargá el N° de cuenta de Litoral Gas en la
+      ficha de cada inmueble.</p></div>
+  {% endif %}
+</div>
+
+{% if sin_asignar %}
+<div class="card" style="margin-top:16px">
+  <div class="card-h">{{ icon('alert-triangle', 15) }}<h2>Cuentas sin asignar</h2></div>
+  <div class="card-b">
+    <p class="sub" style="margin-top:0">El robot trajo estas cuentas pero no están vinculadas a ningún
+      inmueble. Como el domicilio o el titular pueden no coincidir exactamente, elegí a mano el inmueble
+      de tu base y asignalo. El vínculo se hace por el N° de cuenta, no por dirección.</p>
+  </div>
+  <table class="t">
+    <thead><tr><th>Cuenta</th><th class="off-sm">Titular</th><th class="off-sm">Dirección</th>
+      <th>Estado</th><th>Asignar a inmueble</th><th class="r"></th></tr></thead>
+    <tbody>
+      {% for g in sin_asignar %}
+      <tr data-cuenta="{{ g.cuenta }}">
+        <td><b>{{ g.cuenta }}</b></td>
+        <td class="mut off-sm">{{ g.titular or '—' }}</td>
+        <td class="mut off-sm">{{ g.direccion or '—' }}</td>
+        <td>{% if g.tiene_deuda %}<span class="chip err">Debe</span>
+          {% else %}<span class="chip ok">Al día</span>{% endif %}</td>
+        <td>
+          <div class="filtros">
+            <select class="inp asig-sel" style="min-width:220px">
+              <option value="">— Elegí inmueble —</option>
+              {% for inm in disponibles %}
+              <option value="{{ inm.id }}">{{ (inm.codigo ~ ' · ' if inm.codigo else '') }}{{ inm.direccion }}</option>
+              {% endfor %}
+            </select>
+            <button type="button" class="btn pri sm asig-btn">Asignar</button>
+          </div>
+        </td>
+        <td>
+          <details class="rmenu">
+            <summary title="Más acciones">⋯</summary>
+            <div class="pop">
+              <form method="post" action="{{ url_for('gas.eliminar', gid=g.id) }}"
+                    onsubmit="return confirm('¿Eliminar el suministro {{ g.cuenta }} del panel? Si sigue existiendo en Litoral Gas, volverá a aparecer en la próxima actualización.')">
+                <button class="peligro" type="submit">{{ icon('trash', 13) }} Eliminar suministro</button>
+              </form>
+            </div>
+          </details>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<div id="actOv" class="ov" onclick="cerrarAct()"></div>
+<aside id="actPeek" class="peek" aria-hidden="true">
+  <div class="peek-h">
+    <b>Actualizar el gas</b><div class="sp"></div>
+    <button type="button" class="btn sm" onclick="cerrarAct()">{{ icon('x', 13) }}</button>
+  </div>
+  <div class="peek-b">
+    {% if gas_configurado %}
+    <p class="sub" style="margin-top:0">Consultamos ahora mismo tu deuda en Litoral Gas con tus
+      credenciales y actualizamos el panel. Puede tardar unos segundos.</p>
+    <p class="hint" id="actGasMsg"></p>
+    {% else %}
+    <p class="sub" style="margin-top:0">Para actualizar necesitás cargar tu usuario y contraseña de
+      Litoral Gas.</p>
+    {% endif %}
+  </div>
+  <div class="peek-f">
+    <div class="sp" style="flex:1"></div>
+    <button type="button" class="btn" onclick="cerrarAct()">Cancelar</button>
+    {% if gas_configurado %}
+    <button type="button" class="btn pri" id="btnActGas" onclick="actualizarGas()">Actualizar ahora</button>
+    {% else %}
+    <a class="btn pri" href="{{ url_for('ajustes.index') }}#gas">Configurar credenciales</a>
+    {% endif %}
+  </div>
+</aside>
+
+<script>
+function abrirAct(){
+  document.getElementById('actOv').classList.add('on');
+  var pk = document.getElementById('actPeek');
+  pk.classList.add('on'); pk.setAttribute('aria-hidden', 'false');
+}
+function cerrarAct(){
+  document.getElementById('actOv').classList.remove('on');
+  var pk = document.getElementById('actPeek');
+  pk.classList.remove('on'); pk.setAttribute('aria-hidden', 'true');
+}
+function actualizarGas(){
+  var b = document.getElementById('btnActGas');
+  var msg = document.getElementById('actGasMsg');
+  b.disabled = true; b.textContent = 'Consultando Litoral Gas…';
+  msg.textContent = 'Esto puede demorar unos segundos, no cierres la ventana.';
+  msg.style.color = 'var(--tx-3)';
+  fetch('{{ url_for("gas.actualizar") }}', { method:'POST' })
+    .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+    .then(function(res){
+      if(res.ok && res.j.ok){
+        msg.style.color = 'var(--ok)';
+        msg.textContent = 'Listo: ' + res.j.guardadas + ' suministro(s), ' + res.j.con_deuda + ' con deuda. Actualizando…';
+        setTimeout(function(){ location.reload(); }, 900);
+      } else {
+        b.disabled = false; b.textContent = 'Reintentar';
+        msg.style.color = 'var(--err)';
+        msg.textContent = res.j.error || 'No se pudo actualizar. Probá de nuevo en un rato.';
+      }
+    })
+    .catch(function(){
+      b.disabled = false; b.textContent = 'Reintentar';
+      msg.style.color = 'var(--err)';
+      msg.textContent = 'Error de conexión. Probá de nuevo.';
+    });
+}
+
+document.querySelectorAll('tr[data-cuenta]').forEach(function(row){
+  var btn = row.querySelector('.asig-btn');
+  if(!btn) return;
+  btn.addEventListener('click', function(){
+    var sel = row.querySelector('.asig-sel');
+    if(!sel.value){ (window.showToast||alert)('Elegí un inmueble primero.', 'error'); return; }
+    btn.disabled = true; btn.textContent = 'Asignando…';
+    fetch('{{ url_for("gas.asignar") }}', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({cuenta: row.dataset.cuenta, inmueble_id: sel.value})
+    }).then(function(r){ return r.json(); }).then(function(j){
+      if(j.ok){
+        (window.showToast||function(){})('Cuenta ' + row.dataset.cuenta + ' vinculada a ' + j.inmueble, 'ok');
+        row.style.transition='opacity .3s'; row.style.opacity='.4';
+        setTimeout(function(){ row.remove(); }, 600);
+      } else {
+        btn.disabled = false; btn.textContent = 'Asignar';
+        (window.showToast||alert)(j.error || 'No se pudo asignar.', 'error');
+      }
+    }).catch(function(){
+      btn.disabled = false; btn.textContent = 'Asignar';
+      (window.showToast||alert)('Error de conexión.', 'error');
+    });
+  });
+});
+</script>
+{% endblock %}

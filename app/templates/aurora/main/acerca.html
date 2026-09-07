@@ -1,0 +1,29 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Acerca de{% endblock %}
+{% block crumb %}<b>Acerca de</b>{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Acerca del sistema</h1>
+    <p class="sub">Versión instalada y datos de tu sesión.</p>
+  </div>
+</div>
+
+<div class="card" style="max-width:560px">
+  <div class="card-h">{{ icon('home', 15) }}<h2>Gestión de Alquileres</h2></div>
+  <div class="card-b">
+    <p class="sub" style="margin-top:0">Sistema de administración de alquileres: contratos, cobranzas,
+      aumentos, liquidaciones, recibos y control de gas.</p>
+    <div class="facts">
+      <div class="fact"><div class="l">Versión</div><div class="v">{{ app_version }}</div></div>
+      <div class="fact"><div class="l">Usuario actual</div>
+        <div class="v">{{ current_user.nombre or current_user.username }}</div></div>
+    </div>
+    <p class="hint">Producto en desarrollo continuo. Ante cualquier problema o sugerencia, guardá una
+      copia con el botón de respaldo (en Ajustes) antes de cambios importantes.</p>
+  </div>
+</div>
+{% endblock %}

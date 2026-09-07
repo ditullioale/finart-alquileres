@@ -70,6 +70,17 @@ def _pantallas(ids, pid):
         "personas": "/personas/",
         "inmuebles": "/inmuebles/",
         "ajustes": "/ajustes/",
+        "usuarios": "/usuarios/",
+        "usuario_nuevo": "/usuarios/nuevo",
+        "cambiar_clave": "/usuarios/cambiar-clave",
+        "auditoria": "/usuarios/auditoria",
+        "notificaciones": "/notificaciones/",
+        "notificacion_nueva": "/notificaciones/nueva",
+        "telefonos": "/personas/telefonos",
+        "gas": "/gas/",
+        "facturador": "/facturador/",
+        "asistente": "/asistente/",
+        "acerca": "/acerca",
     }
 
 

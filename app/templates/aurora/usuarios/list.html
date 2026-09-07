@@ -1,0 +1,50 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Usuarios{% endblock %}
+{% block crumb %}<b>Usuarios</b>{% endblock %}
+
+{% block acciones %}
+<a class="btn pri sm" href="{{ url_for('usuarios.nuevo') }}">{{ icon('plus', 13) }} Nuevo usuario</a>
+{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Usuarios</h1>
+    <p class="sub">Cada persona entra con su propio usuario y contraseña.</p>
+  </div>
+</div>
+
+<div class="card">
+  <table class="t">
+    <thead><tr><th>Usuario</th><th class="off-sm">Nombre</th><th>Rol</th><th>Estado</th><th class="r"></th></tr></thead>
+    <tbody>
+      {% for u in usuarios %}
+      <tr>
+        <td><a href="{{ url_for('usuarios.editar', uid=u.id) }}"><b>{{ u.username }}</b></a>
+          {% if u.id == current_user.id %}<span class="mut">(vos)</span>{% endif %}</td>
+        <td class="mut off-sm">{{ u.nombre or '—' }}</td>
+        <td>{% if u.rol == 'admin' %}<span class="chip info">Administrador</span>
+          {% else %}<span class="chip">Operador</span>{% endif %}</td>
+        <td>{% if u.activo %}<span class="chip ok">Activo</span>
+          {% else %}<span class="chip err">Inactivo</span>{% endif %}</td>
+        <td>
+          <div class="acts">
+            <a class="btn ghost sm" href="{{ url_for('usuarios.editar', uid=u.id) }}">Editar</a>
+            {% if u.id != current_user.id %}
+            <form method="post" action="{{ url_for('usuarios.eliminar', uid=u.id) }}"
+                  onsubmit="return confirm('¿Eliminar al usuario {{ u.username }}?')">
+              <button class="btn ghost sm peligro" type="submit">Eliminar</button>
+            </form>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<p class="hint">El rol <b>Administrador</b> puede gestionar usuarios; el <b>Operador</b> usa el sistema pero no ve esta sección.</p>
+{% endblock %}

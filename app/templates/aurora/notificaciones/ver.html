@@ -1,0 +1,55 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Notificación{% endblock %}
+{% block crumb %}
+<a href="{{ url_for('notificaciones.listar') }}">Notificaciones</a><span class="sep">›</span>
+<b>{{ n.tipo }}</b>
+{% endblock %}
+
+{% block acciones %}
+<a class="btn sm" href="{{ url_for('notificaciones.listar') }}">Volver</a>
+{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Notificación</h1>
+    <p class="sub">Quién la recibió por mail y quién ya la vio en el portal.</p>
+  </div>
+</div>
+
+<div class="card" style="max-width:760px">
+  <div class="card-h">
+    <span class="chip {{ estilo.chip }}">{{ icon(estilo.icono, 12) }} {{ n.tipo }}</span>
+  </div>
+  <div class="card-b">
+    <p style="white-space:pre-wrap;margin:0 0 8px">{{ n.mensaje }}</p>
+    <p class="hint">Cargada el {{ n.creada_at.strftime('%d/%m/%Y %H:%M') if n.creada_at }}
+      {% if n.creada_por %}por {{ n.creada_por }}{% endif %}.</p>
+  </div>
+</div>
+
+<div class="card" style="max-width:760px;margin-top:16px">
+  <div class="card-h">{{ icon('users', 15) }}<h2>Destinatarios</h2></div>
+  <table class="t">
+    <thead><tr><th>Destinatario</th><th class="off-sm">Email</th><th>Mail</th><th>Estado</th></tr></thead>
+    <tbody>
+      {% for d in n.destinatarios %}
+      <tr>
+        <td>{{ d.persona.nombre if d.persona else '—' }}</td>
+        <td class="mut off-sm">{{ d.persona.email if d.persona and d.persona.email else '—' }}</td>
+        <td>{{ 'Enviado' if d.mail_enviado_at else ('Sin email' if d.persona and not d.persona.email else 'No se pudo enviar') }}</td>
+        <td>
+          {% if d.vista_at %}
+          <span class="chip ok">Vista el {{ d.vista_at.strftime('%d/%m/%Y %H:%M') }}</span>
+          {% else %}
+          <span class="chip warn">Pendiente</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

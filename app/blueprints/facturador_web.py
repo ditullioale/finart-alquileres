@@ -3,11 +3,12 @@
 Reusa el servicio externo Facturador ARCA: esta pantalla es un proxy con login que
 habla con su backend por detrás (el navegador nunca toca el facturador directo).
 """
-from flask import (Blueprint, Response, jsonify, render_template, request)
+from flask import (Blueprint, Response, jsonify, request)
 from flask_login import login_required
 
 from .. import facturador
 from ..models import Ajustes
+from ..ui import render_ui
 
 facturador_bp = Blueprint("facturador", __name__, url_prefix="/facturador")
 
@@ -35,7 +36,7 @@ def _reenviar(resp):
 @facturador_bp.route("/")
 @login_required
 def index():
-    return render_template("facturador/index.html", habilitado=facturador.habilitado(),
+    return render_ui("facturador/index.html", habilitado=facturador.habilitado(),
                            autorizada=_autorizada())
 
 
