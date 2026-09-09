@@ -121,10 +121,19 @@
   <div class="peek-h"><b>Pago registrado</b><div class="sp"></div>
     <button type="button" class="btn sm" onclick="cerrarAsk()">{{ icon('x', 13) }}</button></div>
   <div class="peek-b">
-    <p>¿Querés imprimir o enviar el recibo de este pago?</p>
+    <p>¿Querés enviar o imprimir el recibo de este pago?</p>
+    <div id="emailFallback" style="display:none;margin-top:8px">
+      <p class="hint" style="margin:0 0 6px">El inquilino no tiene email cargado. Escribilo y lo guardamos para la próxima:</p>
+      <div style="display:flex;gap:6px">
+        <input class="inp" id="emailInput" type="email" placeholder="correo@ejemplo.com" style="flex:1">
+        <button type="button" class="btn ok sm" onclick="emailRecibo(true)">Enviar</button>
+      </div>
+      <p class="hint" id="emailMsg" style="margin:6px 0 0"></p>
+    </div>
   </div>
   <div class="peek-f">
-    <a class="btn pri" href="{{ url_for('recibos.recibo', pid=recibo_id) }}">Abrir recibo</a>
+    <button type="button" class="btn pri" id="btnEmailRecibo" onclick="emailRecibo()">Enviar por email</button>
+    <a class="btn" href="{{ url_for('recibos.recibo', pid=recibo_id) }}">Abrir recibo</a>
     <a class="btn" href="{{ url_for('recibos.recibo_pdf', pid=recibo_id) }}">Descargar PDF</a>
     <button type="button" class="btn ghost" onclick="cerrarAsk()">Ahora no</button>
   </div>
@@ -136,6 +145,40 @@ function cerrarAsk(){
   if(window.history && history.replaceState){ history.replaceState(null, '', window.location.pathname); }
 }
 document.addEventListener('keydown', function(e){ if(e.key === 'Escape') cerrarAsk(); });
+
+var URL_EMAIL_RECIBO = "{{ url_for('recibos.recibo_email', pid=recibo_id) }}";
+var CSRF_RECIBO = "{{ csrf_token() }}";
+function emailRecibo(conInput){
+  var btn = document.getElementById('btnEmailRecibo');
+  var fb  = document.getElementById('emailFallback');
+  var msg = document.getElementById('emailMsg');
+  var body = {};
+  if(conInput){
+    var v = (document.getElementById('emailInput').value || '').trim();
+    if(!v){ if(msg) msg.textContent = 'Escribí un email.'; return; }
+    body.email = v;
+  }
+  if(btn){ btn.disabled = true; btn.textContent = 'Enviando…'; }
+  fetch(URL_EMAIL_RECIBO, {method:'POST', credentials:'same-origin',
+        headers:{'Content-Type':'application/json','X-CSRFToken':CSRF_RECIBO},
+        body: JSON.stringify(body)})
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if(btn){ btn.disabled = false; btn.textContent = 'Enviar por email'; }
+      if(j && j.need_email){ if(fb){ fb.style.display = 'block'; document.getElementById('emailInput').focus(); } return; }
+      if(j && j.ok){
+        if(fb) fb.style.display = 'none';
+        if(btn){ btn.textContent = '✓ Enviado'; btn.disabled = true; }
+        alert(j.mensaje || 'Recibo enviado por email.');
+      } else {
+        if(msg) msg.textContent = (j && j.error) || 'No se pudo enviar.';
+        alert((j && j.error) || 'No se pudo enviar el email.');
+      }
+    }).catch(function(){
+      if(btn){ btn.disabled = false; btn.textContent = 'Enviar por email'; }
+      alert('Error de conexión. Probá de nuevo.');
+    });
+}
 </script>
 {% endif %}
 {% endblock %}

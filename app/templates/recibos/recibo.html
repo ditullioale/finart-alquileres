@@ -4,10 +4,11 @@
 <meta charset="utf-8">
 <title>Recibo {{ pago.recibo_numero }}</title>
 <style>
-  body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:0;background:#f0f0f0}
-  .toolbar{background:#12263f;color:#fff;padding:10px 16px;display:flex;gap:10px;align-items:center}
-  .toolbar a{color:#cfe0f5;text-decoration:none}
-  .toolbar button{background:#2f6fed;color:#fff;border:0;border-radius:7px;padding:8px 16px;font-weight:600;cursor:pointer}
+  body{font-family:'Segoe UI',system-ui,Arial,Helvetica,sans-serif;color:#1a1a2e;margin:0;background:#f4f5fb}
+  .toolbar{background:#fff;color:#1a1a2e;padding:11px 18px;display:flex;gap:10px;align-items:center;
+           border-bottom:1px solid #e6e8f2;position:sticky;top:0;z-index:5}
+  .toolbar a{color:#5b5f7a;text-decoration:none;font-weight:600}
+  .toolbar button{background:#6d5efc;color:#fff;border:0;border-radius:9px;padding:8px 16px;font-weight:600;cursor:pointer}
   .hoja{max-width:820px;margin:16px auto;background:#fff;padding:24px}
   .recibo{border:1.5px solid #111;padding:0;margin-bottom:10px}
   .cab{display:grid;grid-template-columns:1fr 90px 1fr;border-bottom:1.5px solid #111}
@@ -33,10 +34,10 @@
   .pie{display:flex;justify-content:space-between;padding:6px 12px;font-size:11px;align-items:end}
   .firma{border-top:1px solid #333;width:220px;text-align:center;padding-top:3px;margin-top:26px}
   .corte{text-align:center;color:#888;font-size:11px;letter-spacing:3px;margin:6px 0}
-  .toolbar .tb-btn{background:#2f6fed;color:#fff;text-decoration:none;border-radius:7px;padding:8px 14px;font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:6px}
+  .toolbar .tb-btn{background:#6d5efc;color:#fff;text-decoration:none;border-radius:9px;padding:8px 14px;font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:6px;border:0;cursor:pointer}
   .toolbar .tb-btn.wa{background:#25d366}
-  .toolbar .tb-btn.mail{background:#d6482f}
-  .toolbar .tb-btn.grey{background:#3a5170}
+  .toolbar .tb-btn.mail{background:#7a5cff}
+  .toolbar .tb-btn.grey{background:#eceef7;color:#3a3c56}
   .aviso-adj{background:#fff8e6;color:#8a5a00;font-size:12.5px;padding:8px 16px;text-align:center}
   @media print{ .toolbar,.aviso-adj{display:none} body{background:#fff} .hoja{margin:0;max-width:none;padding:0} }
 </style>

@@ -66,26 +66,32 @@ function copiarLink(){
 </div>
 {% endif %}
 
+<h2 style="margin-bottom:8px">Inmobiliarias y actividad</h2>
 <div class="table-wrap">
 <table class="grid">
   <thead>
-    <tr><th>#</th><th>Inmobiliaria</th><th>CUIT</th><th>Localidad</th><th>Plan</th><th class="r">Usuarios</th><th>Estado</th></tr>
+    <tr><th>#</th><th>Inmobiliaria</th><th>Localidad</th><th class="r">Usuarios</th>
+      <th class="r">Contratos</th><th class="r">Pagos</th><th class="r">Movim. 7d</th>
+      <th>Última actividad</th><th>Estado</th></tr>
   </thead>
   <tbody>
     {% for d in datos %}
     <tr>
       <td>{{ d.i.id }}</td>
       <td><b>{{ d.i.nombre }}</b></td>
-      <td>{{ d.i.cuit or '—' }}</td>
       <td>{{ d.i.localidad or '—' }}</td>
-      <td>{{ d.i.plan or 'inicial' }}</td>
       <td class="r">{{ d.usuarios }}</td>
+      <td class="r">{{ d.contratos }}</td>
+      <td class="r">{{ d.pagos }}</td>
+      <td class="r">{{ d.acciones_7d }}</td>
+      <td>{{ d.ultima_actividad.strftime('%d/%m/%Y %H:%M') if d.ultima_actividad else 'sin actividad' }}</td>
       <td>{% if d.i.activa %}<span class="badge pagado">Activa</span>{% else %}<span class="badge pendiente">Suspendida</span>{% endif %}</td>
     </tr>
     {% else %}
-    <tr><td colspan="7" class="empty">Todavía no hay inmobiliarias.</td></tr>
+    <tr><td colspan="9" class="empty">Todavía no hay inmobiliarias.</td></tr>
     {% endfor %}
   </tbody>
 </table>
 </div>
+<p class="hint">«Movim. 7d» son altas, cambios y cobros de los últimos 7 días. Los horarios están en UTC (Argentina = −3 h).</p>
 {% endblock %}

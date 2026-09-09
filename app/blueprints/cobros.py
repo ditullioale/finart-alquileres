@@ -375,9 +375,14 @@ def _periodos_pendientes(contrato, hoy):
         a, m = ym // 12, ym % 12 + 1
         if (a, m) in pagados:
             continue
+        venc = vencimiento(a, m, contrato.dia_vencimiento or 10)
+        # El mes en curso cuyo vencimiento todavía no llegó NO es un atrasado:
+        # no se muestra en "pagos anteriores" ni cuenta como deuda hasta vencer.
+        if venc > hoy:
+            continue
         out.append({"mes": m, "anio": a,
                     "esperado": canon_vigente(contrato, m, a),
-                    "venc": vencimiento(a, m, contrato.dia_vencimiento or 10)})
+                    "venc": venc})
     return out
 
 

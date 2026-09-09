@@ -43,11 +43,42 @@ def test_sentry():
 @login_required
 @superadmin_required
 def index():
+    from datetime import timedelta
+    from sqlalchemy import func
+    from ..models import RegistroAuditoria, Contrato, Pago
+
+    # Actividad por inmobiliaria (el superadmin ve todas, sin filtro de tenant).
+    # La bitácora de auditoría registra cada alta/cambio/cobro con su fecha, así
+    # que sirve para ver quién está usando de verdad la app y cuándo fue lo último.
+    hoy = datetime.utcnow()
+    hace7 = hoy - timedelta(days=7)
+
+    def _mapa(filas):
+        return {inm_id: valor for (inm_id, valor) in filas}
+
+    ultima = _mapa(db.session.query(
+        RegistroAuditoria.inmobiliaria_id, func.max(RegistroAuditoria.fecha))
+        .group_by(RegistroAuditoria.inmobiliaria_id).all())
+    act7 = _mapa(db.session.query(
+        RegistroAuditoria.inmobiliaria_id, func.count(RegistroAuditoria.id))
+        .filter(RegistroAuditoria.fecha >= hace7)
+        .group_by(RegistroAuditoria.inmobiliaria_id).all())
+    n_contratos = _mapa(db.session.query(
+        Contrato.inmobiliaria_id, func.count(Contrato.id))
+        .group_by(Contrato.inmobiliaria_id).all())
+    n_pagos = _mapa(db.session.query(
+        Pago.inmobiliaria_id, func.count(Pago.id))
+        .group_by(Pago.inmobiliaria_id).all())
+
     inmos = Inmobiliaria.query.order_by(Inmobiliaria.id).all()
     datos = []
     for i in inmos:
         usuarios = Usuario.query.filter_by(inmobiliaria_id=i.id).count()
-        datos.append(dict(i=i, usuarios=usuarios))
+        datos.append(dict(i=i, usuarios=usuarios,
+                          ultima_actividad=ultima.get(i.id),
+                          acciones_7d=act7.get(i.id, 0),
+                          contratos=n_contratos.get(i.id, 0),
+                          pagos=n_pagos.get(i.id, 0)))
     solicitudes = (SolicitudAlta.query.filter_by(estado="pendiente")
                    .order_by(SolicitudAlta.creada).all())
     return render_ui("plataforma/index.html", datos=datos,

@@ -79,25 +79,30 @@ function copiarLink(){
 {% endif %}
 
 <div class="card" style="margin-top:16px">
+  <div class="card-h">{{ icon('building', 15) }}<h2>Inmobiliarias y actividad</h2></div>
   {% if datos %}
   <table class="t">
-    <thead><tr><th>#</th><th>Inmobiliaria</th><th class="off-sm">CUIT</th><th class="off-sm">Localidad</th>
-      <th>Plan</th><th class="r">Usuarios</th><th>Estado</th></tr></thead>
+    <thead><tr><th>#</th><th>Inmobiliaria</th><th class="off-sm">Localidad</th>
+      <th class="r">Usuarios</th><th class="r off-sm">Contratos</th><th class="r off-sm">Pagos</th>
+      <th class="r">Movim. 7d</th><th>Última actividad</th><th>Estado</th></tr></thead>
     <tbody>
       {% for d in datos %}
       <tr>
         <td class="mut">{{ d.i.id }}</td>
         <td><b>{{ d.i.nombre }}</b></td>
-        <td class="mut off-sm">{{ d.i.cuit or '—' }}</td>
         <td class="mut off-sm">{{ d.i.localidad or '—' }}</td>
-        <td>{{ d.i.plan or 'inicial' }}</td>
         <td class="r">{{ d.usuarios }}</td>
+        <td class="r off-sm">{{ d.contratos }}</td>
+        <td class="r off-sm">{{ d.pagos }}</td>
+        <td class="r">{% if d.acciones_7d %}<span class="chip ok">{{ d.acciones_7d }}</span>{% else %}<span class="mut">0</span>{% endif %}</td>
+        <td class="mut">{{ d.ultima_actividad.strftime('%d/%m/%Y %H:%M') if d.ultima_actividad else 'sin actividad' }}</td>
         <td>{% if d.i.activa %}<span class="chip ok">Activa</span>
           {% else %}<span class="chip err">Suspendida</span>{% endif %}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
+  <p class="hint" style="padding:0 16px 12px">«Movim. 7d» son altas, cambios y cobros de los últimos 7 días. Los horarios están en UTC (Argentina = −3 h).</p>
   {% else %}
   <div class="empty">{{ icon('building', 26) }}
     <h3>Todavía no hay inmobiliarias</h3>
