@@ -207,6 +207,10 @@ actualizarVenc();
 addGasto({desc:{{ g.descripcion|tojson }}, monto:{{ (g.monto|float) }},
          trasladar:{{ 'true' if g.trasladar_liquidacion else 'false' }}});
 {% endfor %}
+{% if nuevo %}{% for cc in conceptos_precargados or [] %}
+addGasto({desc:{{ cc.descripcion|tojson }}, monto:{{ (cc.monto|float) }},
+         trasladar:{{ 'true' if cc.trasladar_liquidacion else 'false' }}});
+{% endfor %}{% endif %}
 recalc();
 </script>
 {% endblock %}

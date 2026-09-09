@@ -54,6 +54,18 @@ def _crear_contrato_via_form(cl, inm_id, inq_id, **concepto):
     return cl.post("/contratos/nuevo", data=data, follow_redirects=True)
 
 
+def test_concepto_precargado_en_form_pago(client):
+    cl, app, ids = client
+    inq_id, inm_id = _contrato_con_concepto(app, ids)
+    _crear_contrato_via_form(cl, inm_id, inq_id, concepto_desc="Seguro",
+                             concepto_monto="5000", concepto_traslada="0")
+    with app.app_context():
+        cid = Contrato.query.filter_by(inmueble_id=inm_id).first().id
+    # El formulario de registrar pago precarga el concepto fijo como fila de gasto.
+    html = cl.get(f"/cobros/contrato/{cid}/nuevo").get_data(as_text=True)
+    assert "Seguro" in html
+
+
 def test_concepto_fijo_se_guarda_en_el_contrato(client):
     cl, app, ids = client
     inq_id, inm_id = _contrato_con_concepto(app, ids)

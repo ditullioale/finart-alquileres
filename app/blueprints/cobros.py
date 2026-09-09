@@ -614,14 +614,16 @@ def nuevo(cid):
             _fa = aumento_en_mes(contrato, pago.periodo_anio, pago.periodo_mes)
             return render_ui("cobros/form_pago.html", c=contrato, pago=pago,
                                    formas=FORMAS_PAGO, meses=MESES_ES, nuevo=True,
+                                   conceptos_precargados=[cc for cc in contrato.conceptos_fijos if cc.activo],
                                    aum_pendiente=(bool(_fa) and not aumento_registrado_en_mes(
                                        contrato, pago.periodo_anio, pago.periodo_mes)),
                                    aplicar_aumento_url=url_for(
                                        "aumentos.aplicar", cid=contrato.id,
                                        volver=url_for("cobros.nuevo", cid=contrato.id)))
+        # Los conceptos fijos (ej.: seguro) vienen precargados como filas de gasto
+        # en el formulario, así que ya los toma _leer_gastos. No se re-inyectan
+        # acá: lo que se ve en el form es lo que se guarda (podés quitar uno ese mes).
         gastos_total = _leer_gastos(pago)
-        # Conceptos fijos del contrato (ej.: seguro): se agregan a cada recibo.
-        gastos_total += _agregar_conceptos_fijos(pago, contrato)
 
         # Arrastrar saldo pendiente de meses anteriores a este pago.
         arrastrado = 0.0
@@ -676,6 +678,7 @@ def nuevo(cid):
     return render_ui("cobros/form_pago.html", c=contrato, pago=pago,
                            formas=FORMAS_PAGO, meses=MESES_ES, nuevo=True,
                            deuda_previa=_deuda_previa(contrato),
+                           conceptos_precargados=[cc for cc in contrato.conceptos_fijos if cc.activo],
                            aum_pendiente=aum_pendiente,
                            aplicar_aumento_url=url_for(
                                "aumentos.aplicar", cid=contrato.id,
