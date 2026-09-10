@@ -61,8 +61,17 @@ def listar():
                           joinedload(Contrato.propietario),
                           joinedload(Contrato.inmueble))
     contratos = query.all()
+    # Contratos con un cobro del mes en curso todavía sin liquidar al propietario:
+    # habilita la opción "Liquidar alquiler" en el menú de cada fila.
+    from ..models import Pago
+    hoy = date.today()
+    liquidables = {cid for (cid,) in db.session.query(Pago.contrato_id).filter(
+        Pago.periodo_mes == hoy.month, Pago.periodo_anio == hoy.year,
+        Pago.pagado_al_propietario.is_(None),
+        Pago.estado.in_(("Pagado", "Parcial"))).distinct().all()}
     return render_ui("contratos/list.html", contratos=contratos,
-                           q=q, estado=estado, estados=ESTADOS)
+                           q=q, estado=estado, estados=ESTADOS,
+                           liquidables=liquidables)
 
 
 @contratos_bp.route("/react")

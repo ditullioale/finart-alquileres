@@ -74,6 +74,10 @@
               <summary title="Más acciones">⋯</summary>
               <div class="pop">
                 <a href="{{ url_for('contratos.ver', cid=c.id) }}">{{ icon('file-text', 14) }} Ver ficha</a>
+                {% set prop_liq = c.propietario or (c.inmueble.propietario if c.inmueble else none) %}
+                {% if prop_liq and c.id in liquidables %}
+                <a href="{{ url_for('liquidaciones.gestionar', pid=prop_liq.id) }}">{{ icon('receipt', 14) }} Liquidar alquiler</a>
+                {% endif %}
                 {% if c.documento_html %}
                 <a href="{{ url_for('contratos.documento', cid=c.id) }}" target="_blank" rel="noopener">{{ icon('scroll', 14) }} Ver contrato</a>
                 {% endif %}

@@ -37,11 +37,15 @@
 </div>
 
 <div class="card" style="margin-top:18px">
-  <div class="card-h"><h2>{{ meses[mes] }} {{ anio }}</h2></div>
+  <div class="card-h"><h2>{{ meses[mes] }} {{ anio }}</h2>
+    <div class="sp" style="flex:1"></div>
+    <input class="inp" data-live-filter="#liqTbody" placeholder="Buscar propietario…"
+           style="max-width:260px" aria-label="Buscar propietario">
+  </div>
   {% if filas %}
   <table class="t">
     <thead><tr><th>Propietario</th><th class="r">Inmuebles</th><th class="r">Cobrado</th><th class="r">Comisión</th><th class="r">Neto</th><th class="r">Estado</th><th class="r"></th></tr></thead>
-    <tbody>
+    <tbody id="liqTbody">
       {% for f in filas %}
       <tr>
         <td><b>{{ f.prop.nombre if f.prop else '—' }}</b>
