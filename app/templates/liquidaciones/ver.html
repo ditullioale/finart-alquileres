@@ -151,10 +151,9 @@
     <div class="tot">
       <div class="l"><span>Total cobrado (alquiler)</span><span>{{ ingresos|money }}</span></div>
       <div class="l neg"><span>Comisión por administración</span><span>- {{ comision|money }}</span></div>
-      {% set total_extras = items|sum(attribute='extras') %}
-      {% if total_extras %}
-      <div class="l"><span>Gastos extra trasladados (agua, expensas...)</span><span>{{ total_extras|money }}</span></div>
-      {% endif %}
+      {% for e in extras_desglose %}
+      <div class="l{{ ' neg' if e.monto < 0 }}"><span>{{ e.descripcion }}</span><span>{{ e.monto|money }}</span></div>
+      {% endfor %}
       {% for c in conceptos %}
       <div class="l{{ ' neg' if c.monto < 0 }}"><span>{{ c.descripcion }}</span><span>{{ c.monto|money }}</span></div>
       {% endfor %}

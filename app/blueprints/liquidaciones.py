@@ -79,6 +79,21 @@ def _detalle(pagos):
            round(ingresos - comision + extras, 2))
 
 
+def _desglose_extras(items):
+    """Agrupa los gastos extra trasladados de todos los ítems por descripción,
+    para desglosarlos en el resumen de la liquidación con su concepto real (en
+    lugar de un genérico "gastos extra")."""
+    agg, orden = {}, []
+    for it in items:
+        for g in (it.get("gastos") or []):
+            d = g.get("descripcion") or "Gasto"
+            if d not in agg:
+                agg[d] = 0.0
+                orden.append(d)
+            agg[d] += float(g.get("monto") or 0)
+    return [{"descripcion": d, "monto": round(agg[d], 2)} for d in orden]
+
+
 def _facturar_honorarios(liq, prop, confirmar=False):
     """Emite (best-effort) la factura de honorarios de la liquidación al propietario.
 
@@ -371,6 +386,7 @@ def ver(pid):
     a = Ajustes.get()
     return render_template("liquidaciones/ver.html", prop=prop, items=items,
                            ingresos=ingresos, comision=comision, neto=neto,
+                           extras_desglose=_desglose_extras(items),
                            conceptos=conceptos, neto_final=neto_final,
                            neto_letras=pesos_letras(neto_final), mes=mes, anio=anio,
                            meses=MESES_ES, a=a, liq=liq, hoy=hoy,
