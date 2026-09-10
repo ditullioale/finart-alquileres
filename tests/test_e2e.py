@@ -44,9 +44,11 @@ def test_circuito_completo(client, monkeypatch):
     # Que la inmobiliaria esté autorizada a facturar en el test.
     monkeypatch.setattr(fact, "inmobiliaria_autorizada", lambda ajustes: True)
 
-    # 4) Generar la liquidación (dispara la facturación de honorarios).
+    # 4) Generar la liquidación pidiendo facturar la comisión en ARCA
+    #    (facturar_arca=1: ahora la facturación es opcional al generar).
     g = cl.post("/liquidaciones/generar", data={
-        "propietario_id": ids["prop"], "mes": hoy.month, "anio": hoy.year},
+        "propietario_id": ids["prop"], "mes": hoy.month, "anio": hoy.year,
+        "facturar_arca": "1"},
         follow_redirects=True)
     assert g.status_code == 200
 

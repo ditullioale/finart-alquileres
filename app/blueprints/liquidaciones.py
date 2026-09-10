@@ -97,8 +97,9 @@ def _desglose_extras(items):
 def _facturar_honorarios(liq, prop, confirmar=False):
     """Emite (best-effort) la factura de honorarios de la liquidación al propietario.
 
-    Aplica siempre que se genera una liquidación: toma la CUIT del propietario y
-    factura la comisión. Si la comisión no supera el mínimo, el facturador pide
+    Se usa cuando se pide facturar: al generar con la opción "Emitir factura en
+    ARCA" tildada, o desde "Pendientes de facturar". Toma la CUIT del propietario
+    y factura la comisión. Si la comisión no supera el mínimo, el facturador pide
     confirmación y acá se informa para que el usuario decida. Devuelve el estado.
     """
     ajustes = Ajustes.get()
@@ -365,7 +366,8 @@ def gestionar(pid):
     return render_ui("liquidaciones/gestionar.html", prop=prop, items=items,
                            ingresos=ingresos, comision=comision, neto=neto,
                            pendientes=pendientes, mes=mes, anio=anio, meses=MESES_ES,
-                           idem_todas=nueva_clave())
+                           idem_todas=nueva_clave(),
+                           facturador_habilitado=facturador.habilitado())
 
 
 @liquidaciones_bp.route("/imprimir/<int:pid>")
@@ -467,8 +469,12 @@ def generar():
         p.pagado_al_propietario = date.today()
     db.session.commit()
 
-    # Emisión automática de la factura de honorarios al propietario.
-    fact = _facturar_honorarios(liq, prop)
+    # Factura de honorarios al propietario: SOLO si se pidió al generar. Si no se
+    # tilda, la liquidación queda generada pero sin facturar, y se puede emitir
+    # después desde "Pendientes de facturar".
+    fact = None
+    if request.form.get("facturar_arca"):
+        fact = _facturar_honorarios(liq, prop)
 
     if contrato_id:
         flash(f"Liquidación individual {liq.numero} generada.", "ok")

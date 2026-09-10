@@ -45,6 +45,13 @@
         <div id="conceptos"></div>
         <button type="button" class="btn sm" style="margin-top:8px" onclick="addConcepto()">+ Agregar concepto</button>
       </div>
+      {% if facturador_habilitado %}
+      <label class="chk" id="factArcaWrap" style="display:flex;align-items:center;gap:8px;margin-top:14px">
+        <input type="checkbox" name="facturar_arca" id="factArca">
+        <span>Emitir la <b>factura de honorarios en ARCA</b> por la comisión al generar.
+          <span class="mut" style="display:block;font-size:12px">Si no lo tildás, la liquidación queda generada y la podés facturar después desde «Pendientes de facturar».</span></span>
+      </label>
+      {% endif %}
       <div class="formbtns" style="align-items:center">
         <span style="margin-right:auto">Neto a pagar: <b>$ <span id="netoPrev">{{ neto|money }}</span></b></span>
         {% if pendientes > 0 %}
@@ -106,6 +113,20 @@
 
 <script>
 var NETO_BASE = {{ neto|default(0) }};
+// Arrastrar la opción "facturar en ARCA" (tildada arriba) también a la
+// liquidación individual de cada inmueble.
+document.querySelectorAll('form[action="{{ url_for('liquidaciones.generar') }}"]').forEach(function(f){
+  if(f.id === 'formTodas') return;
+  f.addEventListener('submit', function(){
+    var old = f.querySelector('input[name="facturar_arca"]'); if(old) old.remove();
+    var chk = document.getElementById('factArca');
+    if(chk && chk.checked){
+      var h = document.createElement('input');
+      h.type = 'hidden'; h.name = 'facturar_arca'; h.value = '1';
+      f.appendChild(h);
+    }
+  });
+});
 function fmtN(n){ return n.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 function recalcNeto(){
   var extra = 0;
