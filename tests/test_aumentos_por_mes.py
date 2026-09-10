@@ -61,6 +61,19 @@ def test_ia_aumentos_del_mes_sin_aumentos(client):
         assert not any("9003" in x["inmueble"] for x in r["contratos"])
 
 
+def test_aviso_aumento_persiste_meses_siguientes(client):
+    cl, app, ids = client
+    from app.calculos import aumento_pendiente_para
+    # Arranca 15/03/2025 y aumenta cada 6 -> aumento en 09/2025. Nunca se registra.
+    cid = _mk_contrato(app, ids, date(2025, 3, 15), 6, "9006")
+    with app.app_context():
+        c = db.session.get(Contrato, cid)
+        assert aumento_pendiente_para(c, 2025, 8) is False   # antes del aumento
+        assert aumento_pendiente_para(c, 2025, 9) is True    # el mes del aumento
+        assert aumento_pendiente_para(c, 2025, 10) is True   # el mes siguiente: sigue avisando
+        assert aumento_pendiente_para(c, 2026, 1) is True    # meses después: sigue avisando
+
+
 def test_form_pago_avisa_aumento(client):
     cl, app, ids = client
     # Arranca el 15/09/2025 y aumenta cada 12 meses -> aumenta en 09/2026.
@@ -72,6 +85,6 @@ def test_form_pago_avisa_aumento(client):
 def test_form_pago_sin_aumento_no_avisa(client):
     cl, app, ids = client
     cid = _mk_contrato(app, ids, date(2025, 9, 15), 12, "9005")
-    # Octubre no es mes de aumento para este contrato.
-    html = cl.get(f"/cobros/contrato/{cid}/nuevo?mes=10&anio=2026").get_data(as_text=True)
+    # Agosto 2026 es ANTES del primer aumento (09/2026): no debe avisar.
+    html = cl.get(f"/cobros/contrato/{cid}/nuevo?mes=8&anio=2026").get_data(as_text=True)
     assert "aumento sin registrar" not in html

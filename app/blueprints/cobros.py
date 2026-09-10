@@ -14,7 +14,8 @@ from ..ui import render_ui
 from ..utils import (parse_fecha, parse_num, vencimiento, calcular_mora,
                      periodo_siguiente, MESES_ES, link_whatsapp, whatsapp_valido, q2)
 from ..calculos import (estado_periodo, canon_vigente, deuda_real,
-                        aumento_en_mes, aumento_registrado_en_mes)
+                        aumento_en_mes, aumento_registrado_en_mes,
+                        aumento_pendiente_para)
 
 cobros_bp = Blueprint("cobros", __name__, url_prefix="/cobros")
 
@@ -162,10 +163,10 @@ def index():
         if estado != "Pagado":
             tot_pendiente += saldo
         prox_nro = (max((p.numero or 0) for p in c.pagos) + 1) if c.pagos else 1
-        # ¿A este contrato le corresponde un aumento en el mes que se está cobrando
-        # y todavía no se registró? Sirve para avisar antes de cobrar al precio viejo.
-        f_aum = aumento_en_mes(c, anio, mes)
-        aum_pendiente = bool(f_aum) and not aumento_registrado_en_mes(c, anio, mes)
+        # ¿A este contrato le corresponde un aumento ya vencido y sin registrar?
+        # Sigue avisando en los meses siguientes mientras no se cargue (no sólo en
+        # el mes exacto en que caía).
+        aum_pendiente = aumento_pendiente_para(c, anio, mes)
         # Contrato vencido: pasó su fecha de fin pero sigue Vigente (no se renovó).
         contrato_vencido = bool(c.fecha_fin and c.fecha_fin < hoy)
         filas.append(dict(c=c, pago=pago, esperado=esperado, estado=estado,
@@ -611,12 +612,11 @@ def nuevo(cid):
                          f"{pago.periodo_anio}. Abrí ese pago para completarlo o corregirlo.")
         if error:
             flash(error, "error")
-            _fa = aumento_en_mes(contrato, pago.periodo_anio, pago.periodo_mes)
             return render_ui("cobros/form_pago.html", c=contrato, pago=pago,
                                    formas=FORMAS_PAGO, meses=MESES_ES, nuevo=True,
                                    conceptos_precargados=[cc for cc in contrato.conceptos_fijos if cc.activo],
-                                   aum_pendiente=(bool(_fa) and not aumento_registrado_en_mes(
-                                       contrato, pago.periodo_anio, pago.periodo_mes)),
+                                   aum_pendiente=aumento_pendiente_para(
+                                       contrato, pago.periodo_anio, pago.periodo_mes),
                                    aplicar_aumento_url=url_for(
                                        "aumentos.aplicar", cid=contrato.id,
                                        volver=url_for("cobros.nuevo", cid=contrato.id)))
@@ -672,9 +672,8 @@ def nuevo(cid):
                 fecha_pago=date.today(),
                 precio_alquiler=contrato.precio_actual or contrato.precio_inicial)
     # ¿Al período que se va a cobrar le corresponde un aumento sin registrar?
-    # Sirve para avisar antes de cobrar al precio viejo, igual que en cobranzas.
-    f_aum = aumento_en_mes(contrato, anio, mes)
-    aum_pendiente = bool(f_aum) and not aumento_registrado_en_mes(contrato, anio, mes)
+    # (Incluye aumentos de meses anteriores que quedaron sin cargar.)
+    aum_pendiente = aumento_pendiente_para(contrato, anio, mes)
     return render_ui("cobros/form_pago.html", c=contrato, pago=pago,
                            formas=FORMAS_PAGO, meses=MESES_ES, nuevo=True,
                            deuda_previa=_deuda_previa(contrato),

@@ -81,6 +81,18 @@ def aumento_registrado_en_mes(contrato, anio, mes):
                for a in (contrato.aumentos or []))
 
 
+def aumento_pendiente_para(contrato, anio, mes):
+    """True si, mirando el período (anio, mes), el contrato tiene un aumento de la
+    grilla que YA corresponde (su mes es <= ese período) y todavía no se registró.
+
+    A diferencia de `aumento_en_mes` (que sólo detecta el aumento en el mes exacto
+    en que cae), este chequeo sigue avisando en los meses siguientes mientras el
+    aumento quede sin cargar. Así, si el aumento de septiembre no se registró, en
+    octubre el sistema sigue avisando que hay un aumento pendiente."""
+    e = estado_aumento(contrato, date(anio, mes, 1))
+    return bool(e["pendiente"])
+
+
 def proximo_aumento(contrato, hoy=None):
     """Fecha de aumento a mostrar: la que corresponde ahora si está pendiente; si
     no, la próxima de la grilla. Se cuenta desde la fecha de inicio del contrato,
