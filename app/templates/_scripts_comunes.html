@@ -128,6 +128,19 @@ document.querySelectorAll('input[data-live-filter]').forEach(function(inp){
   // Evitar recargar al apretar Enter cuando se usa el filtro en vivo.
   inp.addEventListener('keydown', function(e){ if(e.key === 'Enter') e.preventDefault(); });
 });
+// Ventanas que se acumulan: los links internos que abren "en otra pestaña"
+// (recibos, liquidaciones, PDFs, documentos) reutilizan UNA sola ventana en vez
+// de abrir una nueva cada vez. Los externos (WhatsApp, sitios de terceros) no se
+// tocan. Con la app instalada, esto evita que queden muchas ventanas sueltas.
+document.addEventListener('click', function(e){
+  var a = (e.target && e.target.closest) ? e.target.closest('a[target="_blank"]') : null;
+  if(!a || !a.href) return;
+  try{
+    if(new URL(a.href, location.href).origin === location.origin){
+      a.target = 'finartVisor';
+    }
+  }catch(_){}
+}, true);
 // Feedback al enviar formularios: deshabilita el botón y muestra "Guardando…".
 document.addEventListener('submit', function(e){
   var form = e.target;
