@@ -99,8 +99,8 @@
           '<p class="hint" id="cobro-mora-hint">Se suma al importe recibido. Poné 0 (o tocá "Sacar mora" / "Calcular") si esta vez no la cobrás.</p></div>' +
         '<div class="field"><label>Medio de pago</label>' +
           '<div class="seg" id="cobro-forma">' +
-          '<button type="button" class="on">Transferencia</button>' +
-          '<button type="button">Efectivo</button>' +
+          '<button type="button" class="on">Efectivo</button>' +
+          '<button type="button">Transferencia</button>' +
           '<button type="button">Cheque</button></div></div>' +
         '<div class="field"><label>Fecha</label><input class="inp" type="date" id="cobro-fecha" value="' +
           (r.hoy || new Date().toISOString().slice(0, 10)) + '"></div>' +
