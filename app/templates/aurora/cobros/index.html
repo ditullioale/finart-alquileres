@@ -72,6 +72,7 @@
              "periodo": "Alquiler " ~ meses[mes]|lower,
              "det": (c.inmueble.direccion if c.inmueble else ""),
              "aumento": f.aum_pendiente,
+             "conceptos": f.conceptos,
              "aplicar_url": url_for('aumentos.aplicar', cid=c.id, volver=url_for('cobros.index', mes=mes, anio=anio)),
              "hoy": hoy.isoformat()}|tojson }})'>{{ icon('banknote', 13) }} Cobrar</button>
           {% elif f.estado != 'Pagado' %}

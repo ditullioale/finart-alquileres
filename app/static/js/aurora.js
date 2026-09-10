@@ -133,6 +133,12 @@
         if (!Peek.moraTocada) Peek.calcularMora();
       });
       Peek.idem = 'cobro-' + (r.cid || '') + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+      // Conceptos fijos del contrato (ej.: seguro): se precargan como gastos y
+      // se suman al importe sugerido, para que el total del cobro los incluya.
+      (r.conceptos || []).forEach(function (cc) {
+        Peek.agregarGasto(cc.desc, cc.monto, cc.trasladar);
+      });
+      Peek.syncMonto();
       Peek.recalc();
     },
     // Recalcula la mora para la fecha de pago elegida: gracia hasta el

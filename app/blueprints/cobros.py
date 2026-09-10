@@ -169,10 +169,14 @@ def index():
         aum_pendiente = aumento_pendiente_para(c, anio, mes)
         # Contrato vencido: pasó su fecha de fin pero sigue Vigente (no se renovó).
         contrato_vencido = bool(c.fecha_fin and c.fecha_fin < hoy)
+        # Conceptos fijos (ej.: seguro) para precargarlos en el cobro rápido.
+        conceptos = [{"desc": cc.descripcion, "monto": float(cc.monto or 0),
+                      "trasladar": bool(cc.trasladar_liquidacion)}
+                     for cc in c.conceptos_fijos if cc.activo]
         filas.append(dict(c=c, pago=pago, esperado=esperado, estado=estado,
                           cobrado=cobrado, saldo=saldo, prox_nro=prox_nro,
                           venc=venc, aum_pendiente=aum_pendiente,
-                          contrato_vencido=contrato_vencido,
+                          contrato_vencido=contrato_vencido, conceptos=conceptos,
                           mora=float(calcular_mora(esperado, c.mora_diaria_pct,
                                                    venc, hoy) or 0),
                           registrable=pago is None))
