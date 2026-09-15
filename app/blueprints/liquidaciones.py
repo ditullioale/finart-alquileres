@@ -411,6 +411,43 @@ def facturar_honorarios(liq_id):
                             mes=liq.periodo_mes, anio=liq.periodo_anio))
 
 
+@liquidaciones_bp.route("/<int:liq_id>/eliminar", methods=["POST"])
+@login_required
+def eliminar(liq_id):
+    """Borra una liquidación ya generada y deja sus cobros como pendientes de
+    liquidar de nuevo (pagado_al_propietario = None).
+
+    Cuidado con la factura de honorarios: si ya se emitió en ARCA, el CAE no se
+    puede anular borrando el registro acá -- para revertirla hay que hacer una
+    nota de crédito en ARCA. Por eso, si la liquidación está facturada, sólo se
+    borra cuando el usuario lo confirma explícitamente (confirmar_facturada=1),
+    y se le avisa que la factura sigue emitida."""
+    liq = db.session.get(Liquidacion, liq_id) or abort(404)
+    pid = liq.propietario_id
+    mes, anio, contrato_id = liq.periodo_mes, liq.periodo_anio, liq.contrato_id
+    numero = liq.numero
+
+    if liq.facturada and not request.form.get("confirmar_facturada"):
+        flash(f"La liquidación {numero} tiene una factura de honorarios ya emitida "
+              f"en ARCA (CAE {liq.factura_cae or 's/d'}). Borrar la liquidación NO "
+              "anula esa factura: para revertirla hay que hacer una nota de crédito "
+              "en ARCA. Volvé a confirmar si querés borrarla igual.", "error")
+        return redirect(url_for("liquidaciones.ver", pid=pid, mes=mes, anio=anio,
+                                contrato=contrato_id) if contrato_id else
+                        url_for("liquidaciones.ver", pid=pid, mes=mes, anio=anio))
+
+    # Los cobros vuelven a quedar pendientes de liquidar (para poder rehacerla).
+    for p in _pagos_periodo(pid, mes, anio, contrato_id=contrato_id):
+        p.pagado_al_propietario = None
+
+    db.session.delete(liq)          # los ConceptoLiquidacion se borran en cascada
+    db.session.commit()
+
+    flash(f"Liquidación {numero} borrada. Los cobros quedaron pendientes de "
+          "liquidar de nuevo.", "ok")
+    return redirect(url_for("liquidaciones.index", mes=mes, anio=anio))
+
+
 def _leer_conceptos():
     """Lee las líneas de 'Otros conceptos' del form → lista de (descripción, monto).
     El signo lo da 'concepto_signo' (+/-); el monto se ingresa positivo."""

@@ -10,6 +10,7 @@
   .toolbar button{border:0;border-radius:7px;padding:8px 16px;font-weight:600;cursor:pointer}
   .toolbar .print{background:#2f6fed;color:#fff}
   .toolbar .gen{background:#1f9d55;color:#fff}
+  .toolbar .del{background:#c0392b;color:#fff}
   .hoja{max-width:800px;margin:16px auto;background:#fff;padding:26px}
   .doc{border:1.5px solid #111}
   .cab{display:flex;justify-content:space-between;padding:12px 14px;border-bottom:1.5px solid #111}
@@ -39,6 +40,15 @@
   <a href="{{ url_for('liquidaciones.gestionar', pid=prop.id, mes=mes, anio=anio) }}">← Volver</a>
   <span style="flex:1"></span>
   <button class="print" onclick="window.print()">🖨️ Imprimir / PDF</button>
+  {% if liq %}
+  <form method="post" action="{{ url_for('liquidaciones.eliminar', liq_id=liq.id) }}"
+        style="display:inline"
+        onsubmit="return confirm({% if liq.facturada %}'⚠️ Esta liquidación tiene una factura de honorarios YA EMITIDA en ARCA.\n\nBorrarla NO anula esa factura (para revertirla hay que hacer una nota de crédito en ARCA). Los cobros vuelven a quedar pendientes de liquidar.\n\n¿Borrar la liquidación igual?'{% else %}'¿Borrar la liquidación {{ liq.numero }}?\n\nLos cobros de este período vuelven a quedar pendientes de liquidar. Esta acción no se puede deshacer.'{% endif %});">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if liq.facturada %}<input type="hidden" name="confirmar_facturada" value="1">{% endif %}
+    <button type="submit" class="del">🗑️ Borrar</button>
+  </form>
+  {% endif %}
 </div>
 
 {% if liq %}<div class="aviso">Liquidación <b>{{ liq.numero }}</b>{% if individual %} (individual){% endif %} generada el {{ liq.fecha.strftime('%d/%m/%Y') if liq.fecha }}.</div>{% endif %}
