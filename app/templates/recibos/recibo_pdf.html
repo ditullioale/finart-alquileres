@@ -92,6 +92,11 @@
       {% endfor %}
       {% endif %}
       {% if pago.observaciones %}<p style="margin-top:5pt"><b>Observaciones:</b> {{ pago.observaciones }}</p>{% endif %}
+      {% if aviso_aumento %}
+      <table class="in" style="margin-top:5pt"><tr><td style="border:1pt solid #e0a800;background-color:#fff8e1;padding:5pt 7pt;font-size:9pt;color:#7a5300">
+        <b>Recordatorio:</b> el mes siguiente ({{ meses[aviso_aumento[0]] }} de {{ aviso_aumento[1] }}) se aplicará la actualización del precio del alquiler. Consultá el nuevo importe antes de abonar.
+      </td></tr></table>
+      {% endif %}
     </div>
 
     <table class="in tot-box">

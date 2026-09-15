@@ -39,6 +39,8 @@
   .toolbar .tb-btn.mail{background:#7a5cff}
   .toolbar .tb-btn.grey{background:#eceef7;color:#3a3c56}
   .aviso-adj{background:#fff8e6;color:#8a5a00;font-size:12.5px;padding:8px 16px;text-align:center}
+  .aviso-aumento{margin:8px 0 2px;padding:7px 10px;border:1.5px solid #e0a800;background:#fff8e1;
+                 border-radius:6px;font-size:12px;color:#7a5300;line-height:1.35}
   @media print{ .toolbar,.aviso-adj{display:none} body{background:#fff} .hoja{margin:0;max-width:none;padding:0} }
 </style>
 </head>
@@ -112,6 +114,9 @@
     </div>
     {% endif %}
     {% if pago.observaciones %}<div style="margin-top:6px"><b>Observaciones:</b> {{ pago.observaciones }}</div>{% endif %}
+    {% if aviso_aumento %}
+    <div class="aviso-aumento">⚠️ <b>Recordatorio:</b> el mes siguiente ({{ meses[aviso_aumento[0]] }} de {{ aviso_aumento[1] }}) se aplicará la actualización del precio del alquiler. Consultá el nuevo importe antes de abonar.</div>
+    {% endif %}
   </div>
   <div class="tot"><span><b>Forma de pago:</b> {{ pago.forma_pago or '—' }}</span><span>Total Recibo: {{ c.moneda|simbolo }} {{ pago.total|money }}</span></div>
   {% if pago.pagado is not none and (pago.saldo or 0) > 0 %}

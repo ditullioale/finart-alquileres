@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from datetime import timedelta
 
 from .. import db
+from ..calculos import aumento_en_mes
 from ..models import Pago, Contrato, Ajustes, ReciboManual, PagareManual
 from ..utils import (pesos_letras, numero_letras, MESES_ES, parse_num,
                      parse_fecha, vencimiento)
@@ -21,6 +22,22 @@ def _venc_pago(pago):
     if not (c and pago.periodo_mes and pago.periodo_anio):
         return None
     return vencimiento(pago.periodo_anio, pago.periodo_mes, c.dia_vencimiento or 10)
+
+
+def _aviso_proximo_aumento(pago):
+    """Si el MES SIGUIENTE al período de este recibo tiene un aumento programado,
+    devuelve (mes, anio) de ese aumento; si no, None. Sirve para avisar en el
+    recibo inmediatamente anterior que el mes que viene se actualiza el alquiler."""
+    c = pago.contrato
+    if not (c and pago.periodo_mes and pago.periodo_anio):
+        return None
+    mes_sig = pago.periodo_mes + 1
+    anio_sig = pago.periodo_anio
+    if mes_sig > 12:
+        mes_sig, anio_sig = 1, anio_sig + 1
+    if aumento_en_mes(c, anio_sig, mes_sig):
+        return (mes_sig, anio_sig)
+    return None
 
 recibos_bp = Blueprint("recibos", __name__, url_prefix="/recibos")
 
@@ -62,6 +79,7 @@ def recibo(pid):
     return render_template("recibos/recibo.html", pago=pago, c=pago.contrato, a=a,
                            conceptos=conceptos, meses=MESES_ES, venc=_venc_pago(pago),
                            total_letras=pesos_letras(pago.total or 0),
+                           aviso_aumento=_aviso_proximo_aumento(pago),
                            hoy=date.today())
 
 
@@ -72,6 +90,7 @@ def _recibo_pdf_bytes(pago):
     html = render_template("recibos/recibo_pdf.html", pago=pago, c=pago.contrato, a=a,
                            conceptos=conceptos, meses=MESES_ES, venc=_venc_pago(pago),
                            total_letras=pesos_letras(pago.total or 0),
+                           aviso_aumento=_aviso_proximo_aumento(pago),
                            hoy=date.today())
     buf = BytesIO()
     pisa.CreatePDF(html, dest=buf, encoding="utf-8")
