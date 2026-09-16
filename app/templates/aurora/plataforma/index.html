@@ -47,6 +47,7 @@ function copiarLink(){
     <p class="sub" style="margin-top:0">Inmobiliarias que pidieron acceso. Al aprobar se crea la
       inmobiliaria y su administrador con el usuario y la contraseña que eligieron.</p>
   </div>
+  <div class="tscroll">
   <table class="t">
     <thead><tr><th>Inmobiliaria</th><th class="off-sm">Contacto</th><th>Email / Tel.</th>
       <th class="off-sm">Localidad</th><th>Usuario</th><th class="off-sm">Fecha</th><th class="r"></th></tr></thead>
@@ -75,12 +76,14 @@ function copiarLink(){
       {% endfor %}
     </tbody>
   </table>
+  </div>
 </div>
 {% endif %}
 
 <div class="card" style="margin-top:16px">
   <div class="card-h">{{ icon('building', 15) }}<h2>Inmobiliarias y actividad</h2></div>
   {% if datos %}
+  <div class="tscroll">
   <table class="t">
     <thead><tr><th>#</th><th>Inmobiliaria</th><th class="off-sm">Localidad</th>
       <th class="r">Usuarios</th><th class="r off-sm">Contratos</th><th class="r off-sm">Pagos</th>
@@ -102,6 +105,7 @@ function copiarLink(){
       {% endfor %}
     </tbody>
   </table>
+  </div>
   <p class="hint" style="padding:0 16px 12px">«Movim. 7d» son altas, cambios y cobros de los últimos 7 días. Los horarios están en UTC (Argentina = −3 h).</p>
   {% else %}
   <div class="empty">{{ icon('building', 26) }}

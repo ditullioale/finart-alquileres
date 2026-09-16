@@ -416,11 +416,29 @@ body.light .seg button.on{box-shadow:0 1px 2px rgba(16,24,40,.1)}
 @media(max-width:980px){ .burger{display:grid} }
 
 /* En pantallas chicas las tablas arrastraban la página al costado: se ocultan
-   las columnas secundarias y quedan las que se usan para decidir y actuar. */
+   las columnas secundarias y quedan las que se usan para decidir y actuar;
+   lo imprescindible que se oculta (el estado) reaparece dentro de la primera
+   celda con .only-sm. */
+.only-sm{display:none}
 @media(max-width:760px){
   .off-sm{display:none}
+  .only-sm{display:block}
   table.t th,table.t td{padding:9px 8px}
   .filtros,.tabs{flex-wrap:wrap}
+}
+
+/* Tablas que igual no entran (muchas columnas, sin menú flotante por fila):
+   scrollean dentro de la tarjeta en vez de arrastrar la página entera. */
+.tscroll{overflow-x:auto}
+
+/* En teléfonos la tabla se compacta antes que desbordar: las filas con menú de
+   acciones no pueden scrollear porque recortarían el menú. */
+@media(max-width:480px){
+  table.t{font-size:12px}
+  table.t th,table.t td{padding:8px 6px}
+  table.t th{letter-spacing:.03em}
+  .acts .btn.sm,.acts .btn{padding:3px 7px;font-size:11px}
+  .chip{padding:1px 6px;font-size:11px}
 }
 
 /* ===== estados en claro ==================================================

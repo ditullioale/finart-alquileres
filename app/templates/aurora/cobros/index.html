@@ -48,20 +48,21 @@
   </div>
   {% if filas %}
   <table class="t">
-    <thead><tr><th>Inquilino</th><th>Inmueble</th><th>Vence</th><th class="r">Esperado</th><th class="r">Cobrado</th><th class="r">Saldo</th><th class="r">Estado</th><th class="r"></th></tr></thead>
+    <thead><tr><th>Inquilino</th><th class="off-sm">Inmueble</th><th>Vence</th><th class="r off-sm">Esperado</th><th class="r off-sm">Cobrado</th><th class="r">Saldo</th><th class="r off-sm">Estado</th><th class="r"></th></tr></thead>
     <tbody>
       {% for f in filas %}
       {% set c = f.c %}
       <tr>
         <td><a href="{{ url_for('contratos.ver', cid=c.id) }}"><b>{{ c.inquilino.nombre if c.inquilino else '—' }}</b></a>
           {% if f.aum_pendiente %}<div class="mut">{{ icon('trending-up', 11) }} tiene un aumento sin registrar</div>{% endif %}
-          {% if f.contrato_vencido %}<div class="mut">contrato vencido</div>{% endif %}</td>
-        <td class="mut">{{ c.inmueble.direccion if c.inmueble else '—' }}</td>
+          {% if f.contrato_vencido %}<div class="mut">contrato vencido</div>{% endif %}
+          <span class="only-sm"><span class="chip {{ 'ok' if f.estado == 'Pagado' else ('warn' if f.estado == 'Parcial' else 'err') }}">{{ f.estado }}</span></span></td>
+        <td class="mut off-sm">{{ c.inmueble.direccion if c.inmueble else '—' }}</td>
         <td class="mut">{{ f.venc.strftime('%d/%m') if f.venc else '—' }}</td>
-        <td class="r">$ {{ f.esperado|money }}</td>
-        <td class="r">{{ ('$ ' ~ f.cobrado|money) if f.cobrado else '—' }}</td>
+        <td class="r off-sm">$ {{ f.esperado|money }}</td>
+        <td class="r off-sm">{{ ('$ ' ~ f.cobrado|money) if f.cobrado else '—' }}</td>
         <td class="r">{% if f.saldo > 0 %}<span class="err">$ {{ f.saldo|money }}</span>{% else %}—{% endif %}</td>
-        <td class="r"><span class="chip {{ 'ok' if f.estado == 'Pagado' else ('warn' if f.estado == 'Parcial' else 'err') }}">{{ f.estado }}</span></td>
+        <td class="r off-sm"><span class="chip {{ 'ok' if f.estado == 'Pagado' else ('warn' if f.estado == 'Parcial' else 'err') }}">{{ f.estado }}</span></td>
         <td class="r"><span style="display:inline-flex;gap:6px;justify-content:flex-end;align-items:center">
           {% if f.estado != 'Pagado' and f.registrable %}
           <button class="btn ok sm" onclick='Peek.cobro({{

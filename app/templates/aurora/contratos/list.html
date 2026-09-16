@@ -49,12 +49,13 @@
   <table class="t">
     <thead>
       <tr>{{ th('Inquilino', 'inquilino') }}{{ th('Inmueble', 'inmueble') }}{{ th('Propietario', 'propietario', 'off-sm') }}
-          {{ th('Precio actual', 'precio', 'r') }}{{ th('Ajuste', 'ajuste', 'off-sm') }}{{ th('Estado', 'estado') }}<th></th></tr>
+          {{ th('Precio actual', 'precio', 'r') }}{{ th('Ajuste', 'ajuste', 'off-sm') }}{{ th('Estado', 'estado', 'off-sm') }}<th></th></tr>
     </thead>
     <tbody>
       {% for c in contratos %}
       <tr>
-        <td><a href="{{ url_for('contratos.ver', cid=c.id) }}"><b>{{ c.inquilino.nombre if c.inquilino else '—' }}</b></a></td>
+        <td><a href="{{ url_for('contratos.ver', cid=c.id) }}"><b>{{ c.inquilino.nombre if c.inquilino else '—' }}</b></a>
+          <span class="only-sm"><span class="chip {{ 'ok' if c.estado == 'Vigente' else '' }}">{{ c.estado }}</span></span></td>
         <td>{{ c.inmueble.direccion }}
           {% if c.inmueble.localidad %}<div class="mut" style="font-size:12px">{{ c.inmueble.localidad }}</div>{% endif %}</td>
         <td class="mut off-sm">{{ c.propietario.nombre if c.propietario else '—' }}</td>
@@ -64,11 +65,12 @@
           {% elif c.metodo_ajuste == 'porcentaje' %}{{ c.porcentaje_ajuste }}%
           {% else %}—{% endif %}
         </td>
-        <td><span class="chip {{ 'ok' if c.estado == 'Vigente' else '' }}">{{ c.estado }}</span></td>
+        <td class="off-sm"><span class="chip {{ 'ok' if c.estado == 'Vigente' else '' }}">{{ c.estado }}</span></td>
         <td>
           <div class="acts">
             {% if c.estado == 'Vigente' %}
-            <a class="btn ok sm" href="{{ url_for('cobros.nuevo', cid=c.id) }}">{{ icon('banknote', 13) }} Cobrar</a>
+            <a class="btn ok sm" href="{{ url_for('cobros.nuevo', cid=c.id) }}"
+               title="Cobrar">{{ icon('banknote', 13) }}<span class="off-sm">Cobrar</span></a>
             {% endif %}
             <details class="rmenu">
               <summary title="Más acciones">⋯</summary>
