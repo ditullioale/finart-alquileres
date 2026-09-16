@@ -25,7 +25,7 @@ def _armar_y_cobrar(app, cl, tag):
     hoy = date.today()
     cl.post("/cobros/rapido", json={"cid": cid, "mes": hoy.month, "anio": hoy.year,
                                     "precio": 100000, "pagado": 100000})
-    return pid
+    return pid, cid
 
 
 def _generar(cl, pid):
@@ -37,7 +37,7 @@ def _generar(cl, pid):
 
 def test_borrar_libera_los_cobros(client):
     cl, app, ids = client
-    pid = _armar_y_cobrar(app, cl, "9001")
+    pid, cid = _armar_y_cobrar(app, cl, "9001")
     _generar(cl, pid)
 
     with app.app_context():
@@ -45,7 +45,8 @@ def test_borrar_libera_los_cobros(client):
         assert liq is not None
         liq_id = liq.id
         # el cobro quedó marcado como liquidado al propietario
-        pago = Pago.query.filter_by(periodo_mes=date.today().month,
+        pago = Pago.query.filter_by(contrato_id=cid,
+                                    periodo_mes=date.today().month,
                                     periodo_anio=date.today().year).first()
         assert pago.pagado_al_propietario is not None
 
@@ -55,14 +56,15 @@ def test_borrar_libera_los_cobros(client):
         assert db.session.get(Liquidacion, liq_id) is None
         assert ConceptoLiquidacion.query.filter_by(liquidacion_id=liq_id).count() == 0
         # el cobro vuelve a quedar pendiente de liquidar
-        pago = Pago.query.filter_by(periodo_mes=date.today().month,
+        pago = Pago.query.filter_by(contrato_id=cid,
+                                    periodo_mes=date.today().month,
                                     periodo_anio=date.today().year).first()
         assert pago.pagado_al_propietario is None
 
 
 def test_facturada_no_se_borra_sin_confirmar(client):
     cl, app, ids = client
-    pid = _armar_y_cobrar(app, cl, "9002")
+    pid, _cid = _armar_y_cobrar(app, cl, "9002")
     _generar(cl, pid)
 
     with app.app_context():
