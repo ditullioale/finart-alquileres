@@ -1,0 +1,88 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Nuevo pagaré manual{% endblock %}
+{% block crumb %}
+<a href="{{ url_for('recibos.pagares_manuales') }}">Pagarés manuales</a><span class="sep">›</span><b>Nuevo</b>
+{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Nuevo pagaré manual</h1>
+    <p class="sub">Pagarés sueltos: garantías, cuotas de convenios, etc.</p>
+  </div>
+</div>
+
+<form method="post" class="card" style="max-width:860px">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card-b">
+    <h2 class="secttl">Deudor (quien firma / paga)</h2>
+    <div class="gridf">
+      <div class="field">
+        <label>Nombre y apellido <span class="req">*</span></label>
+        <input class="inp" name="deudor" required autofocus>
+      </div>
+      <div class="field">
+        <label>DNI / CUIT</label>
+        <input class="inp" name="deudor_dni">
+      </div>
+      <div class="field full">
+        <label>Domicilio</label>
+        <input class="inp" name="deudor_domicilio">
+      </div>
+    </div>
+
+    <h2 class="secttl">Pagaré</h2>
+    <div class="gridf">
+      <div class="field">
+        <label>Beneficiario (a la orden de)</label>
+        <input class="inp" name="beneficiario" value="{{ a.nombre }}">
+      </div>
+      <div class="field">
+        <label>Concepto</label>
+        <input class="inp" name="concepto" placeholder="ej. Garantía / Cuota convenio">
+      </div>
+      <div class="field">
+        <label>Fecha de libramiento</label>
+        <input class="inp" type="date" name="fecha" value="{{ hoy.isoformat() }}">
+      </div>
+      <div class="field">
+        <label>Lugar de pago</label>
+        <input class="inp" name="lugar" value="{{ a.pagare_lugar or a.localidad or '' }}">
+      </div>
+      <div class="field">
+        <label>Monto de cada pagaré <span class="req">*</span></label>
+        <input class="inp" name="monto" required>
+      </div>
+      <div class="field">
+        <label>Moneda</label>
+        <select class="inp" name="moneda"><option>Pesos</option><option>Dólares</option></select>
+      </div>
+    </div>
+
+    <h2 class="secttl">Cantidad y vencimientos</h2>
+    <div class="gridf">
+      <div class="field">
+        <label>Cantidad de pagarés</label>
+        <input class="inp" name="cantidad" value="1">
+      </div>
+      <div class="field">
+        <label>Vencimiento del 1º</label>
+        <input class="inp" type="date" name="primer_venc">
+        <p class="hint">Vacío = todos “a la vista”.</p>
+      </div>
+      <div class="field">
+        <label>Cada cuántos días vence el siguiente</label>
+        <input class="inp" name="cada_dias" value="30">
+      </div>
+    </div>
+    <p class="hint">Ej: 10 pagarés, primer vencimiento el 10/08, cada 30 días → uno por mes con numeración automática.</p>
+
+    <div class="formbtns">
+      <a class="btn" href="{{ url_for('recibos.pagares_manuales') }}">Cancelar</a>
+      <button class="btn pri" type="submit">{{ icon('check', 13) }} Generar pagarés</button>
+    </div>
+  </div>
+</form>
+{% endblock %}

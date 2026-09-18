@@ -523,6 +523,18 @@ table.t td b{font-weight:550}
 body.light .banner.ok{border-color:rgba(18,128,92,.3)}
 @media(max-width:720px){ .gridf{grid-template-columns:1fr} }
 .req{color:var(--err)}
+
+/* Títulos de sección dentro de un formulario largo, y las filas de conceptos
+   sueltos de los recibos manuales (descripción + monto + quitar). */
+.secttl{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--tx-3);
+  font-weight:600;margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.secttl:first-child{margin-top:0}
+.gasto-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.gasto-row .inp{margin:0}
+.totalbox{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;
+  padding:12px 14px;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r)}
+.totalbox .k{font-size:12.5px;color:var(--tx-2)}
+.totalbox b{font-size:20px;font-variant-numeric:tabular-nums}
 .segr{display:flex;gap:8px;flex-wrap:wrap}
 .segr .chk{border:1px solid var(--line-2);border-radius:var(--r-sm);padding:8px 12px;background:var(--surface)}
 .segr .chk:hover{border-color:var(--acc)}

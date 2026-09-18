@@ -12,6 +12,7 @@ from datetime import timedelta
 from .. import db
 from ..calculos import aumento_en_mes
 from ..models import Pago, Contrato, Ajustes, ReciboManual, PagareManual
+from ..ui import render_ui
 from ..utils import (pesos_letras, numero_letras, MESES_ES, parse_num,
                      parse_fecha, vencimiento)
 
@@ -204,7 +205,7 @@ def manuales():
                                     ReciboManual.numero.ilike(like),
                                     ReciboManual.concepto_general.ilike(like)))
     recibos = query.order_by(ReciboManual.id.desc()).limit(200).all()
-    return render_template("recibos/manuales_list.html", recibos=recibos, q=q)
+    return render_ui("recibos/manuales_list.html", recibos=recibos, q=q)
 
 
 @recibos_bp.route("/manuales/nuevo", methods=["GET", "POST"])
@@ -227,9 +228,9 @@ def manual_nuevo():
 
         def _volver_con_error(msg):
             flash(msg, "error")
-            return render_template("recibos/manual_form.html", formas=FORMAS_PAGO,
-                                   hoy=date.today(), datos=request.form,
-                                   conceptos=conceptos)
+            return render_ui("recibos/manual_form.html", formas=FORMAS_PAGO,
+                             hoy=date.today(), datos=request.form,
+                             conceptos=conceptos)
         if not cliente:
             return _volver_con_error("Indicá el nombre del cliente.")
         if not lineas:
@@ -253,7 +254,7 @@ def manual_nuevo():
         db.session.commit()
         flash(f"Recibo {r.numero} creado.", "ok")
         return redirect(url_for("recibos.manual_ver", rid=r.id))
-    return render_template("recibos/manual_form.html", formas=FORMAS_PAGO, hoy=date.today())
+    return render_ui("recibos/manual_form.html", formas=FORMAS_PAGO, hoy=date.today())
 
 
 @recibos_bp.route("/manuales/<int:rid>")
@@ -290,7 +291,7 @@ def pagares_manuales():
                                     PagareManual.beneficiario.ilike(like),
                                     PagareManual.concepto.ilike(like)))
     pagares = query.order_by(PagareManual.id.desc()).limit(200).all()
-    return render_template("recibos/pagares_manuales_list.html", pagares=pagares, q=q)
+    return render_ui("recibos/pagares_manuales_list.html", pagares=pagares, q=q)
 
 
 @recibos_bp.route("/pagares-manuales/nuevo", methods=["GET", "POST"])
@@ -302,7 +303,7 @@ def pagare_manual_nuevo():
         monto = parse_num(request.form.get("monto"))
         if not deudor or not monto:
             flash("Completá el deudor y el monto.", "error")
-            return render_template("recibos/pagare_manual_form.html", a=a, hoy=date.today())
+            return render_ui("recibos/pagare_manual_form.html", a=a, hoy=date.today())
         pm = PagareManual(
             fecha=parse_fecha(request.form.get("fecha")) or date.today(),
             lugar=request.form.get("lugar", "").strip() or (a.pagare_lugar or a.localidad or ""),
@@ -321,7 +322,7 @@ def pagare_manual_nuevo():
         db.session.commit()
         flash("Pagaré(s) generado(s).", "ok")
         return redirect(url_for("recibos.pagare_manual_ver", pmid=pm.id))
-    return render_template("recibos/pagare_manual_form.html", a=a, hoy=date.today())
+    return render_ui("recibos/pagare_manual_form.html", a=a, hoy=date.today())
 
 
 @recibos_bp.route("/pagares-manuales/<int:pmid>")
