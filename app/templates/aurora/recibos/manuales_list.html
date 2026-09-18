@@ -1,0 +1,70 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Recibos manuales{% endblock %}
+{% block crumb %}<b>Recibos manuales</b><span class="sep">·</span>{{ recibos|length }}{% endblock %}
+
+{% block acciones %}
+<a class="btn pri sm" href="{{ url_for('recibos.manual_nuevo') }}">{{ icon('plus', 13) }} Nuevo recibo</a>
+{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Recibos manuales</h1>
+    <p class="sub">Recibos de cobro por conceptos sueltos: señas, depósitos, gastos.</p>
+  </div>
+  <div class="sp" style="flex:1"></div>
+  <form method="get" class="filtros">
+    <div class="buscar">{{ icon('search', 14) }}
+      <input class="inp" name="q" value="{{ q }}" placeholder="Cliente, número o concepto">
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  {% if recibos %}
+  <table class="t">
+    <thead>
+      <tr><th>Número</th><th class="off-sm">Fecha</th><th>Cliente</th><th class="off-sm">Concepto</th>
+          <th class="r">Total</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for r in recibos %}
+      <tr>
+        <td><a href="{{ url_for('recibos.manual_ver', rid=r.id) }}" target="_blank"><b>{{ r.numero }}</b></a>
+          <span class="only-sm"><span class="mut">{{ r.fecha.strftime('%d/%m/%Y') if r.fecha }}</span></span></td>
+        <td class="mut off-sm">{{ r.fecha.strftime('%d/%m/%Y') if r.fecha }}</td>
+        <td>{{ r.cliente }}</td>
+        <td class="mut off-sm">{{ r.concepto_general or '—' }}</td>
+        <td class="r"><b>{{ r.moneda|simbolo }} {{ r.total|money }}</b></td>
+        <td>
+          <div class="acts">
+            <a class="btn sm" href="{{ url_for('recibos.manual_ver', rid=r.id) }}" target="_blank"
+               title="Imprimir">{{ icon('file-text', 13) }}<span class="off-sm">Imprimir</span></a>
+            <details class="rmenu">
+              <summary title="Más acciones">⋯</summary>
+              <div class="pop">
+                <form method="post" action="{{ url_for('recibos.manual_eliminar', rid=r.id) }}"
+                      onsubmit="return confirm('¿Eliminar el recibo {{ r.numero }}?')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="peligro">{{ icon('alert-triangle', 14) }} Eliminar</button>
+                </form>
+              </div>
+            </details>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">
+    <div class="ic">{{ icon('file-text', 20) }}</div>
+    <b>No hay recibos manuales{{ ' con esa búsqueda' if q }}</b>
+    <p>Usalos para cobros fuera del alquiler mensual: señas, depósitos, gastos varios.</p>
+    <a class="btn pri" href="{{ url_for('recibos.manual_nuevo') }}" style="margin-top:6px">{{ icon('plus', 14) }} Nuevo recibo</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

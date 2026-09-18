@@ -3,6 +3,7 @@
 El diseño clásico tiene que seguir siendo el default y poder recuperarse en
 cualquier momento, sin redeploy: es la red de seguridad del rediseño.
 """
+from app.ui import plantilla
 
 
 def test_default_es_el_diseno_clasico(client):
@@ -89,6 +90,10 @@ def test_formularios_y_pantallas_operativas_en_los_dos_disenos(client):
         "/cobros/recordatorios",
         "/liquidaciones/pendientes-facturar",
         f"/liquidaciones/propietario/{ids['prop']}",
+        "/recibos/manuales",
+        "/recibos/manuales/nuevo",
+        "/recibos/pagares-manuales",
+        "/recibos/pagares-manuales/nuevo",
     )
     for url in urls:
         clasica = cl.get(url + "?ui=clasica")
@@ -100,8 +105,11 @@ def test_formularios_y_pantallas_operativas_en_los_dos_disenos(client):
 
 
 def test_pantalla_sin_migrar_sigue_usando_el_clasico(client):
-    """Sólo se rediseña de a una pantalla: el resto no cambia."""
-    cl, _app, _ = client
-    html = cl.get("/recibos/manuales?ui=nueva").get_data(as_text=True)
-    assert 'class="sidebar"' in html
-    assert "aurora.css" not in html
+    """Sólo se rediseña de a una pantalla: si falta la de Aurora, va la clásica.
+
+    Los comprobantes imprimibles (recibos, pagarés) conservan a propósito el
+    diseño del papel, así que sirven de caso real de plantilla sin migrar."""
+    _cl, app, _ = client
+    with app.test_request_context("/?ui=nueva"):
+        assert plantilla("recibos/recibo.html") == "recibos/recibo.html"
+        assert plantilla("recibos/manuales_list.html") == "aurora/recibos/manuales_list.html"

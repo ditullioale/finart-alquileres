@@ -1,0 +1,70 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Pagarés manuales{% endblock %}
+{% block crumb %}<b>Pagarés manuales</b><span class="sep">·</span>{{ pagares|length }}{% endblock %}
+
+{% block acciones %}
+<a class="btn pri sm" href="{{ url_for('recibos.pagare_manual_nuevo') }}">{{ icon('plus', 13) }} Nuevo pagaré</a>
+{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Pagarés manuales</h1>
+    <p class="sub">Uno o varios pagarés sueltos, sin depender de un contrato.</p>
+  </div>
+  <div class="sp" style="flex:1"></div>
+  <form method="get" class="filtros">
+    <div class="buscar">{{ icon('search', 14) }}
+      <input class="inp" name="q" value="{{ q }}" placeholder="Deudor, beneficiario o concepto">
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  {% if pagares %}
+  <table class="t">
+    <thead>
+      <tr><th class="off-sm">Fecha</th><th>Deudor</th><th class="off-sm">Beneficiario</th>
+          <th class="r">Monto c/u</th><th class="r">Cant.</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for pm in pagares %}
+      <tr>
+        <td class="mut off-sm">{{ pm.fecha.strftime('%d/%m/%Y') if pm.fecha }}</td>
+        <td><b>{{ pm.deudor }}</b>
+          <span class="only-sm"><span class="mut">{{ pm.fecha.strftime('%d/%m/%Y') if pm.fecha }}</span></span></td>
+        <td class="mut off-sm">{{ pm.beneficiario or '—' }}</td>
+        <td class="r"><b>{{ pm.moneda|simbolo }} {{ pm.monto|money }}</b></td>
+        <td class="r">{{ pm.cantidad }}</td>
+        <td>
+          <div class="acts">
+            <a class="btn sm" href="{{ url_for('recibos.pagare_manual_ver', pmid=pm.id) }}" target="_blank"
+               title="Imprimir">{{ icon('file-text', 13) }}<span class="off-sm">Imprimir</span></a>
+            <details class="rmenu">
+              <summary title="Más acciones">⋯</summary>
+              <div class="pop">
+                <form method="post" action="{{ url_for('recibos.pagare_manual_eliminar', pmid=pm.id) }}"
+                      onsubmit="return confirm('¿Eliminar este pagaré?')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="peligro">{{ icon('alert-triangle', 14) }} Eliminar</button>
+                </form>
+              </div>
+            </details>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">
+    <div class="ic">{{ icon('scroll', 20) }}</div>
+    <b>No hay pagarés manuales{{ ' con esa búsqueda' if q }}</b>
+    <p>Creá pagarés sueltos: garantías, cuotas de convenios, etc.</p>
+    <a class="btn pri" href="{{ url_for('recibos.pagare_manual_nuevo') }}" style="margin-top:6px">{{ icon('plus', 14) }} Nuevo pagaré</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

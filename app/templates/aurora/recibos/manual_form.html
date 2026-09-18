@@ -1,0 +1,110 @@
+{% extends "aurora/base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Nuevo recibo manual{% endblock %}
+{% block crumb %}
+<a href="{{ url_for('recibos.manuales') }}">Recibos manuales</a><span class="sep">›</span><b>Nuevo</b>
+{% endblock %}
+
+{% block content %}
+{% set datos = datos or {} %}
+<div class="pagehead">
+  <div>
+    <h1>Nuevo recibo manual</h1>
+    <p class="sub">Para cobros fuera del alquiler mensual: señas, depósitos, gastos.</p>
+  </div>
+</div>
+
+<form method="post" class="card" style="max-width:860px">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card-b">
+    <h2 class="secttl">Cliente</h2>
+    <div class="gridf">
+      <div class="field">
+        <label>Nombre y apellido <span class="req">*</span></label>
+        <input class="inp" name="cliente" required autofocus value="{{ datos.cliente or '' }}">
+      </div>
+      <div class="field">
+        <label>DNI / CUIT</label>
+        <input class="inp" name="cliente_dni" value="{{ datos.cliente_dni or '' }}">
+      </div>
+      <div class="field full">
+        <label>Domicilio</label>
+        <input class="inp" name="cliente_domicilio" value="{{ datos.cliente_domicilio or '' }}">
+      </div>
+    </div>
+
+    <h2 class="secttl">Recibo</h2>
+    <div class="gridf">
+      <div class="field">
+        <label>Fecha</label>
+        <input class="inp" type="date" name="fecha" value="{{ datos.fecha or hoy.isoformat() }}">
+      </div>
+      <div class="field">
+        <label>En concepto de</label>
+        <input class="inp" name="concepto_general" value="{{ datos.concepto_general or '' }}"
+               placeholder="ej. Seña reserva depto Belgrano 639">
+      </div>
+      <div class="field">
+        <label>Moneda</label>
+        <select class="inp" name="moneda">
+          {% for m in ['Pesos','Dólares'] %}<option {{ 'selected' if datos.moneda == m }}>{{ m }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Forma de pago</label>
+        <select class="inp" name="forma_pago">
+          {% for f in formas %}<option {{ 'selected' if datos.forma_pago == f }}>{{ f }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <h2 class="secttl">Conceptos</h2>
+    <p class="hint">Detalle de lo cobrado. Para un descuento, monto en negativo.</p>
+    <div id="conceptos">
+      {% for c in conceptos or [] %}
+      <div class="gasto-row">
+        <input class="inp" placeholder="Descripción" name="concepto_desc" style="flex:2" value="{{ c.desc }}">
+        <input class="inp" placeholder="Monto" name="concepto_monto" style="flex:1" oninput="recalc()" value="{{ c.monto }}">
+        <button type="button" class="btn ghost sm" onclick="this.parentNode.remove();recalc()">{{ icon('x', 13) }}</button>
+      </div>
+      {% endfor %}
+    </div>
+    <button type="button" class="btn sm" style="margin-top:8px" onclick="addConcepto()">{{ icon('plus', 13) }} Agregar concepto</button>
+
+    <div class="totalbox">
+      <span class="k">Total del recibo</span>
+      <b id="total">0,00</b>
+    </div>
+
+    <div class="field" style="margin-top:12px">
+      <label>Observaciones</label>
+      <textarea class="inp" name="observaciones" rows="2"></textarea>
+    </div>
+
+    <div class="formbtns">
+      <a class="btn" href="{{ url_for('recibos.manuales') }}">Cancelar</a>
+      <button class="btn pri" type="submit">{{ icon('check', 13) }} Guardar recibo</button>
+    </div>
+  </div>
+</form>
+
+<script>
+function num(v){ v=(v||'').toString().trim(); if(v==='')return 0;
+  if(v.indexOf(',')>=0) v=v.replace(/\./g,'').replace(',','.'); return parseFloat(v)||0; }
+function addConcepto(){
+  const div=document.createElement('div'); div.className='gasto-row';
+  div.innerHTML=`<input class="inp" placeholder="Descripción" name="concepto_desc" style="flex:2">
+    <input class="inp" placeholder="Monto" name="concepto_monto" style="flex:1" oninput="recalc()">
+    <button type="button" class="btn ghost sm" onclick="this.parentNode.remove();recalc()">✕</button>`;
+  document.getElementById('conceptos').appendChild(div);
+}
+function recalc(){
+  let t=0; document.querySelectorAll('input[name=concepto_monto]').forEach(i=>t+=num(i.value));
+  document.getElementById('total').textContent=t.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+// Si el servidor no dejó filas (alta nueva), arrancamos con una vacía.
+if(!document.querySelector('input[name=concepto_monto]')) addConcepto();
+recalc();
+</script>
+{% endblock %}
