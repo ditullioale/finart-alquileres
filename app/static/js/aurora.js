@@ -58,7 +58,11 @@
       $('#ov').classList.add('on');
       setTimeout(function () { var i = $('#peek-b input'); if (i) { i.focus(); i.select(); } }, 160);
     },
+    sucio: false,
     close: function () {
+      // Si alguna acción del panel cambió datos (p. ej. un cobro), recargamos al
+      // cerrar para que la pantalla refleje el cambio sin tener que salir y volver.
+      if (Peek.sucio) { Peek.sucio = false; location.reload(); return; }
       $('#peek').classList.remove('on');
       $('#ov').classList.remove('on');
     },
@@ -275,6 +279,11 @@
             : 'El período quedó al día', 'ok');
           // No recargamos de una: mostramos el pago guardado con las opciones de
           // recibo (imprimir / PDF / email / WhatsApp), igual que el flujo clásico.
+          // Pero marcamos la página como "sucia": el cobro cambió los datos, así que
+          // al cerrar el panel (Esc, fondo, X o Cancelar) se recarga para que la
+          // lista deje de mostrar el período ya cobrado. Antes había que salir y
+          // volver a mano.
+          Peek.sucio = true;
           Peek.cobroOk(res.j);
         })
         .catch(function () {
