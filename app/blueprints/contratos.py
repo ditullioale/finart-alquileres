@@ -99,13 +99,13 @@ def documento(cid):
     pagina = f"""<!doctype html><html lang="es"><head><meta charset="utf-8">
 <title>Contrato — {c.inmueble.direccion if c.inmueble else c.id}</title>
 <style>
-  body{{font-family:'Times New Roman',Georgia,serif;color:#111;margin:0;background:#f0f0f0}}
+  body{{font-family:Arial,Helvetica,sans-serif;color:#111;margin:0;background:#f0f0f0}}
   .toolbar{{background:#12263f;color:#fff;padding:10px 16px;display:flex;gap:10px;align-items:center;font-family:Arial}}
   .toolbar a{{color:#cfe0f5;text-decoration:none}}
   .toolbar button{{background:#2f6fed;color:#fff;border:0;border-radius:7px;padding:8px 16px;font-weight:600;cursor:pointer}}
-  .hoja{{max-width:820px;margin:16px auto;background:#fff;padding:40px 46px;line-height:1.55;text-align:justify}}
+  .hoja{{max-width:820px;margin:16px auto;background:#fff;padding:40px 46px;font-size:12pt;line-height:1.5;text-align:justify}}
   .hoja h2{{text-align:center}} .hoja ol li{{margin:9px 0}}
-  @media print{{ .toolbar{{display:none}} body{{background:#fff}} .hoja{{margin:0;max-width:none;box-shadow:none}} }}
+  @media print{{ .toolbar{{display:none}} body{{background:#fff}} .hoja{{margin:0;max-width:none;box-shadow:none}} @page{{size:A4;margin:2cm}} }}
 </style></head><body>
 <div class="toolbar"><a href="{volver}">← Volver</a><span style="flex:1"></span>
   <button onclick="window.print()">🖨️ Imprimir / Guardar PDF</button></div>
