@@ -13,8 +13,15 @@ from .. import db
 from ..calculos import aumento_en_mes
 from ..models import Pago, Contrato, Ajustes, ReciboManual, PagareManual
 from ..ui import render_ui
-from ..utils import (pesos_letras, numero_letras, MESES_ES, parse_num,
+from ..utils import (pesos_letras, importe_letras, numero_letras, MESES_ES, parse_num,
                      parse_fecha, vencimiento)
+
+
+def _importe(monto, moneda):
+    """Importe listo para el papel: 'US$ 8.500.000,00'."""
+    simbolo = "US$" if (moneda or "").strip().lower().startswith("d") else "$"
+    n = f"{float(monto or 0):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"{simbolo} {n}"
 
 
 def _venc_pago(pago):
@@ -336,10 +343,17 @@ def pagare_manual_ver(pmid):
             venc = pm.primer_venc + timedelta(days=(pm.cada_dias or 30) * i)
             venc_txt = venc.strftime("%d/%m/%Y")
         else:
-            venc_txt = "a la vista"
+            venc_txt = "A LA VISTA"
         pagares.append({"n": i + 1, "venc": venc_txt})
+    faltantes = []
+    if not pm.deudor_dni:
+        faltantes.append(f"{pm.deudor}: falta el D.N.I. / CUIT")
+    if not pm.deudor_domicilio:
+        faltantes.append(f"{pm.deudor}: falta el domicilio")
     return render_template("recibos/pagare_manual_ver.html", pm=pm, pagares=pagares,
-                           monto_letras=pesos_letras(pm.monto or 0))
+                           importe=_importe(pm.monto or 0, pm.moneda),
+                           faltantes=faltantes,
+                           monto_letras=importe_letras(pm.monto or 0, pm.moneda))
 
 
 @recibos_bp.route("/pagares-manuales/<int:pmid>/eliminar", methods=["POST"])
@@ -360,7 +374,17 @@ def pagares(cid):
     meses = request.args.get("meses", type=int) or a.pagare_meses or 10
     lugar = a.pagare_lugar or a.localidad or c.inmueble.localidad or ""
     monto = float(c.precio_actual or c.precio_inicial or 0) * meses
+    faltantes = []
+    for f in c.fiadores:
+        if not f.dni:
+            faltantes.append(f"{f.nombre}: falta el D.N.I.")
+        if not f.domicilio:
+            faltantes.append(f"{f.nombre}: falta el domicilio")
+    beneficiario = (c.propietario.nombre if c.propietario else None) or a.nombre
     return render_template("recibos/pagares.html", c=c, a=a, fiadores=c.fiadores,
                            meses_pagare=meses, lugar=lugar, monto=monto,
-                           monto_letras=pesos_letras(monto), meses_num=numero_letras(meses),
+                           importe=_importe(monto, c.moneda), beneficiario=beneficiario,
+                           faltantes=faltantes,
+                           monto_letras=importe_letras(monto, c.moneda),
+                           meses_num=numero_letras(meses),
                            hoy=date.today())

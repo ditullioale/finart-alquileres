@@ -275,14 +275,29 @@ def numero_letras(num):
     return res
 
 
-def pesos_letras(n):
+_MONEDA_LETRAS = {
+    'pesos': 'pesos',
+    'dolares': 'dólares estadounidenses',
+    'dólares': 'dólares estadounidenses',
+    'usd': 'dólares estadounidenses',
+    'u$s': 'dólares estadounidenses',
+}
+
+
+def importe_letras(n, moneda='Pesos'):
+    """Importe en letras con el nombre de la moneda ('Ocho mil pesos')."""
     n = float(n or 0)
     entero = int(n)
     centavos = round((n - entero) * 100)
-    s = numero_letras(entero) + ' pesos'
+    nombre = _MONEDA_LETRAS.get((moneda or 'Pesos').strip().lower(), 'pesos')
+    s = f'{numero_letras(entero)} {nombre}'
     if centavos:
         s += f' con {centavos:02d}/100'
     return s.capitalize()
+
+
+def pesos_letras(n):
+    return importe_letras(n, 'Pesos')
 
 
 # --------------------------------------------------------------------------- #

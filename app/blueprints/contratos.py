@@ -88,24 +88,43 @@ def crear():
     return render_ui("contratos/elegir_tipo.html")
 
 
-@contratos_bp.route("/<int:cid>/documento")
-@login_required
-def documento(cid):
-    c = db.session.get(Contrato, cid) or abort(404)
-    if not c.documento_html:
-        flash("Este contrato no tiene un documento generado guardado.", "error")
-        return redirect(url_for("contratos.ver", cid=c.id))
-    volver = url_for("contratos.ver", cid=c.id)
-    pagina = f"""<!doctype html><html lang="es"><head><meta charset="utf-8">
-<title>Contrato — {c.inmueble.direccion if c.inmueble else c.id}</title>
+#: Separa el contrato de los pagarés dentro de `documento_html`. Los documentos
+#: guardados antes de esta marca usaban un salto de página como separador.
+SEP_PAGARES = "<!--PAGARES-->"
+_SEP_VIEJO = '<div style="page-break-before:always"></div>'
+
+
+def _partes_documento(html):
+    """(contrato, pagarés) de un documento guardado. Los pagarés pueden faltar."""
+    html = html or ""
+    for sep in (SEP_PAGARES, _SEP_VIEJO):
+        if sep in html:
+            doc, _, pag = html.partition(sep)
+            return doc.strip(), pag.strip()
+    return html.strip(), ""
+
+
+def _pagina_documento(titulo, cuerpo, volver, *, pagares=False, otro=None):
+    """Hoja imprimible: el contrato y los pagarés son documentos separados, para
+    que al imprimir doble faz un pagaré nunca quede en el dorso del contrato."""
+    # Cada pagaré es un instrumento independiente y va solo en su hoja.
+    quiebre = (""".hoja .pagare{page-break-after:always;break-after:page}
+    .hoja .pagare:last-child{page-break-after:auto;break-after:auto}""" if pagares else "")
+    link_otro = (f'<a href="{otro[1]}" style="margin-left:14px">{otro[0]}</a>' if otro else "")
+    nota = ('<div class="nota">Un pagaré por hoja: imprimilos <b>a una sola cara</b>. '
+            'El contrato se imprime aparte, en doble faz.</div>' if pagares else "")
+    return f"""<!doctype html><html lang="es"><head><meta charset="utf-8">
+<title>{titulo}</title>
 <style>
   body{{font-family:Arial,Helvetica,sans-serif;color:#111;margin:0;background:#f0f0f0}}
   .toolbar{{background:#12263f;color:#fff;padding:10px 16px;display:flex;gap:10px;align-items:center;font-family:Arial}}
   .toolbar a{{color:#cfe0f5;text-decoration:none}}
   .toolbar button{{background:#2f6fed;color:#fff;border:0;border-radius:7px;padding:8px 16px;font-weight:600;cursor:pointer}}
+  .nota{{max-width:820px;margin:12px auto;background:#fff;border:1px solid #dfe3ea;border-radius:10px;
+        padding:12px 14px;font-size:13px;color:#333}}
   .hoja{{max-width:820px;margin:16px auto;background:#fff;padding:40px 46px;font-size:12pt;line-height:1.5;text-align:justify}}
   .hoja h2{{text-align:center}} .hoja ol li{{margin:9px 0}}
-  .hoja .pagare{{border:1.5px solid #222;padding:26px 30px;margin:22px 0}}
+  .hoja .pagare{{border:1.5px solid #222;padding:26px 30px;margin:22px 0;text-align:left}}
   .hoja .pagare .cab{{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #222;padding-bottom:12px;margin-bottom:16px}}
   .hoja .pagare .cab .ti{{font-size:22px;font-weight:800;letter-spacing:2px;line-height:1.05}}
   .hoja .pagare .cab .ti small{{display:block;font-size:10.5px;font-weight:700;letter-spacing:3px;color:#555;margin-top:4px}}
@@ -114,17 +133,46 @@ def documento(cid):
   .hoja .pagare .cuerpo{{font-size:12.5px;line-height:1.7;text-align:justify}}
   .hoja .pagare .firma-pg{{margin-top:58px;width:290px;border-top:1px solid #222;padding-top:6px;font-size:12px;line-height:1.5}}
   @media print{{
-    .toolbar{{display:none}} body{{background:#fff}} .hoja{{margin:0;max-width:none;box-shadow:none}}
-    /* Cada pagaré guardado arranca en hoja nueva por su frente: no se pega al
-       contrato ni entre sí al imprimir doble faz. */
-    .hoja .pagare{{break-before:right;page-break-before:right;page-break-inside:avoid}}
+    .toolbar,.nota{{display:none}} body{{background:#fff}} .hoja{{margin:0;max-width:none;box-shadow:none;padding:0}}
+    .hoja .pagare{{page-break-inside:avoid;break-inside:avoid}}
+    {quiebre}
     @page{{size:A4;margin:2cm}}
   }}
 </style></head><body>
-<div class="toolbar"><a href="{volver}">← Volver</a><span style="flex:1"></span>
+<div class="toolbar"><a href="{volver}">← Volver</a>{link_otro}<span style="flex:1"></span>
   <button onclick="window.print()">🖨️ Imprimir / Guardar PDF</button></div>
-<div class="hoja">{c.documento_html}</div>
+{nota}
+<div class="hoja">{cuerpo}</div>
 </body></html>"""
+
+
+@contratos_bp.route("/<int:cid>/documento")
+@login_required
+def documento(cid):
+    c = db.session.get(Contrato, cid) or abort(404)
+    if not c.documento_html:
+        flash("Este contrato no tiene un documento generado guardado.", "error")
+        return redirect(url_for("contratos.ver", cid=c.id))
+    doc, pag = _partes_documento(c.documento_html)
+    otro = (("Ver pagarés ▸", url_for("contratos.documento_pagares", cid=c.id))
+            if pag else None)
+    titulo = f"Contrato — {c.inmueble.direccion if c.inmueble else c.id}"
+    pagina = _pagina_documento(titulo, doc, url_for("contratos.ver", cid=c.id), otro=otro)
+    return Response(pagina, mimetype="text/html")
+
+
+@contratos_bp.route("/<int:cid>/documento/pagares")
+@login_required
+def documento_pagares(cid):
+    c = db.session.get(Contrato, cid) or abort(404)
+    _, pag = _partes_documento(c.documento_html)
+    if not pag:
+        flash("Este contrato no tiene pagarés guardados con el documento.", "error")
+        return redirect(url_for("contratos.ver", cid=c.id))
+    titulo = f"Pagarés — {c.inmueble.direccion if c.inmueble else c.id}"
+    otro = ("Ver contrato ▸", url_for("contratos.documento", cid=c.id))
+    pagina = _pagina_documento(titulo, pag, url_for("contratos.ver", cid=c.id),
+                               pagares=True, otro=otro)
     return Response(pagina, mimetype="text/html")
 
 
@@ -908,12 +956,12 @@ def desde_generador():
         estado="Vigente",
         origen="generador",
     )
-    # Guardar el documento generado (contrato + pagarés) para reimprimirlo luego.
+    # Guardar el documento generado para reimprimirlo luego. Contrato y pagarés
+    # quedan separados por SEP_PAGARES: se imprimen como documentos distintos.
     doc = (d.get("documento") or "").strip()
     pag = (d.get("pagares") or "").strip()
     if doc:
-        contrato.documento_html = doc + (
-            '<div style="page-break-before:always"></div>' + pag if pag else "")
+        contrato.documento_html = doc + (SEP_PAGARES + pag if pag else "")
     db.session.add(contrato)
     db.session.flush()
 
