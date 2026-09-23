@@ -652,8 +652,10 @@ def _generador_html():
         fiadores:fiadores,
         documento:(document.getElementById('contrato')?.innerHTML||''),
         pagares:(document.getElementById('pagares')?.innerHTML||''),
-        enviarBienvenida:!!(g('latEmail') && document.getElementById('sysEnviarBienvenida')?.checked)
+        enviarBienvenida:!!(g('latEmail') && document.getElementById('sysEnviarBienvenida')?.checked),
+        confirmarDuplicado: !!window._sysConfirmarDup
       };
+      window._sysConfirmarDup = false;  // la confirmación es de un solo uso
       const box = document.getElementById('sysMsg');
       box.style.display='block'; box.style.background='#fff8e6'; box.style.color='#8a5a00';
       box.textContent='Guardando en el sistema…';
@@ -662,6 +664,13 @@ def _generador_html():
         .then(function(r){return r.text().then(function(txt){return {status:r.status,ok:r.ok,txt:txt};});})
         .then(function(res){
           var d=null; try{ d=JSON.parse(res.txt); }catch(_e){}
+          if(d && d.duplicado){
+            if(confirm(d.mensaje || 'Ya existe un contrato igual. ¿Cargar otro de todas formas?')){
+              window._sysConfirmarDup = true; guardarEnSistema(); return;
+            }
+            box.style.background='#fff8e6'; box.style.color='#8a5a00';
+            box.textContent='Cancelado: no se cargó un contrato duplicado.'; return;
+          }
           if(!res.ok || !d || !d.ok){
             box.style.background='#fdecec'; box.style.color='#9c2020';
             var extra = (d&&d.mensaje) ? d.mensaje
@@ -883,6 +892,21 @@ def desde_generador():
         inmueble.propietario_id = propietario.id
     inmueble.estado = "Alquilado"
     db.session.flush()
+
+    # Anti-duplicado: si YA existe un contrato VIGENTE para el mismo inmueble e
+    # inquilino, no se crea otro salvo confirmación explícita. Evita que reprocesar
+    # el generador (doble clic, F5, varias pruebas) cargue el mismo contrato muchas
+    # veces -- que es lo que dejó decenas de contratos idénticos.
+    if not d.get("confirmarDuplicado"):
+        ya = Contrato.query.filter_by(
+            inmueble_id=inmueble.id,
+            inquilino_id=(inquilino.id if inquilino else None),
+            estado="Vigente").first()
+        if ya:
+            db.session.rollback()
+            return jsonify(ok=False, duplicado=True,
+                           mensaje="Ya existe un contrato vigente para este inquilino en "
+                                   "este inmueble. ¿Querés cargar otro igual de todas formas?")
 
     canon = parse_num(econ.get("canon"))
     plazo = parse_num(econ.get("plazo"), entero=True) or 0
