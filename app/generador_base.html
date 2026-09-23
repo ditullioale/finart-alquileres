@@ -456,11 +456,12 @@ function generar(){
   let ph='<h2 style="margin-bottom:18px">PAGARÉS EN GARANTÍA</h2>';
   if(!fiadores.length)ph+='<p style="color:#889">Agregá al menos un fiador para generar pagarés.</p>';
   fiadores.forEach((f,i)=>{
+    const payee = locPayee || '.................................................................';
     ph+=`<div class="pagare">
-      <div class="tt"><span>PAGARÉ ${i+1}/${fiadores.length} — SIN PROTESTO</span><span>$ ${fmt(monto)}</span></div>
+      <div class="tt"><span>PAGARÉ — SIN PROTESTO</span><span>$ ${fmt(monto)}</span></div>
       <p>${lugar}, ${fechaTexto(V('fechaFirma'))}.</p>
-      <p>Vencimiento: <b>a la vista</b>. Por igual valor recibido a mi entera satisfacción, pagaré SIN PROTESTO (art. 50 Dec. Ley 5965/63) a <b>${locPayee||'________'}</b> o a su orden, la cantidad de <b>$ ${fmt(monto)}</b> (${pesosLetras(monto)}), equivalente a ${numLetras(pagMeses)} (${pagMeses}) meses de alquiler.</p>
-      <p>Pagadero en ${lugar}. Librado en garantía de las obligaciones del contrato de locación del inmueble sito en ${V('inmDir')||'________'}, ${V('inmCiudad')}.</p>
+      <p>Vencimiento: <b>a la vista</b>.</p>
+      <p>Quien suscribe <b>${f.nombre}</b>, PAGARÉ SIN PROTESTO (art. 50 Dec. Ley 5965/63) a ${payee} o a su orden, la cantidad de <b>$ ${fmt(monto)}</b> (${pesosLetras(monto)}). Por igual valor recibido a entera satisfacción. Pagadero en ${lugar}. Librado en garantía de las obligaciones del contrato de locación del inmueble sito en ${V('inmDir')||'________'}, ${V('inmCiudad')}.</p>
       <div style="margin-top:34px;border-top:1px solid #333;width:60%;padding-top:5px;font-size:12px">
         <b>${f.nombre}</b> — Fiador/a<br>D.N.I.: ${f.dni||'____________'}<br>Domicilio: ${f.dom||'____________'}</div>
     </div>`;

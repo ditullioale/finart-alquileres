@@ -158,4 +158,11 @@ document.addEventListener('submit', function(e){
     }
   }, 0);
 }, true);
+// Volver atrás no debe mostrar una foto vieja de la pantalla. Si el navegador
+// restaura la página desde su caché de historial (bfcache) -- típico al tocar
+// "Atrás" o al volver de un recibo/PDF -- la recargamos para traer el estado
+// actual (cobros, saldos y liquidaciones cambian todo el tiempo).
+window.addEventListener('pageshow', function(e){
+  if (e.persisted) location.reload();
+});
 </script>

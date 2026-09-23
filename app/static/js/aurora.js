@@ -345,6 +345,28 @@
   };
   window.Peek = Peek;
 
+  /* ---- refresco automático tras guardar -------------------------------- */
+  // Toda acción que cambia datos (cobrar, aplicar un aumento, guardar algo del
+  // panel, etc.) se hace con fetch POST/PUT/PATCH/DELETE. Cuando una de esas sale
+  // bien, marcamos la pantalla como "sucia": al cerrar el panel lateral se recarga
+  // sola y muestra el cambio en el momento. Antes había que salir y volver.
+  (function () {
+    var _fetch = window.fetch;
+    if (!_fetch) return;
+    window.fetch = function (recurso, opciones) {
+      opciones = opciones || {};
+      var metodo = (opciones.method ||
+                    (recurso && typeof recurso === 'object' && recurso.method) ||
+                    'GET').toUpperCase();
+      var prom = _fetch.apply(this, arguments);
+      if (metodo !== 'GET' && metodo !== 'HEAD') {
+        prom.then(function (resp) { if (resp && resp.ok) Peek.sucio = true; })
+            .catch(function () {});
+      }
+      return prom;
+    };
+  })();
+
   /* ---- paleta de comandos ---------------------------------------------- */
   var COMANDOS = (window.AURORA_COMANDOS || []);
   var Pal = {

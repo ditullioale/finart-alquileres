@@ -301,6 +301,22 @@ def create_app(config_class=Config):
         resp.headers["Content-Type"] = "application/json"
         return resp
 
+    # Las páginas HTML muestran datos que cambian a cada rato (cobros, saldos,
+    # liquidaciones, aumentos). Le pedimos al navegador que NO las guarde en
+    # caché, así al navegar, volver atrás o refrescar siempre trae el estado
+    # actual y nunca una copia vieja. Los estáticos (CSS/JS/imágenes) se siguen
+    # cacheando normalmente -- acá sólo tocamos las respuestas HTML.
+    @app.after_request
+    def _no_cachear_html(resp):
+        try:
+            if resp.headers.get("Content-Type", "").startswith("text/html"):
+                resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+                resp.headers["Pragma"] = "no-cache"
+                resp.headers["Expires"] = "0"
+        except Exception:
+            pass
+        return resp
+
     # Arranque de la base. Se puede saltear con SKIP_STARTUP_DB=1 (se usa al
     # generar migraciones con Alembic, para no crear tablas antes de comparar).
     if not os.environ.get("SKIP_STARTUP_DB"):
