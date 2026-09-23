@@ -80,7 +80,12 @@
     #printCopies{position:absolute;left:0;top:0;width:100%}
     #printCopies .copia{page-break-after:always}
     #printCopies .copia:last-child{page-break-after:auto}
-    .toolbar,.tabs{display:none!important}
+    /* Ocultar del todo la interfaz para que en el papel salga SOLO el contrato:
+       barra de guardado (.no-print), encabezado, navegación del asistente,
+       pestañas, toolbar y paneles de revisión. display:none evita que un
+       elemento fijo/sticky se cuele igual (como pasaba con el botón). */
+    .no-print,header,.wz-nav,.toolbar,.tabs,#valPanel,#bcraPanel,#aiPanel{display:none!important}
+    #wzPrev,#wzGen,#wzNext{display:none!important}
     .pagare{page-break-inside:avoid}
     @page{size:A4;margin:2cm}
   }

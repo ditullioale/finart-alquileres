@@ -590,7 +590,7 @@ def _generador_html():
     api_url = url_for("contratos.api_personas")
     api_inm = url_for("contratos.api_inmuebles")
     barra = f"""
-    <div style="position:sticky;top:0;z-index:50;display:flex;gap:10px;align-items:center;
+    <div class="no-print" style="position:sticky;top:0;z-index:50;display:flex;gap:10px;align-items:center;
                 background:#12263f;color:#fff;padding:9px 16px;flex-wrap:wrap">
       <a href="{volver_url}" style="color:#cfe0f5;text-decoration:none;font-size:14px">← Volver al sistema</a>
       <span style="flex:1"></span>
@@ -601,7 +601,7 @@ def _generador_html():
               border-radius:8px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer">
         💾 Guardar contrato en el sistema</button>
     </div>
-    <div id="sysMsg" style="display:none;padding:10px 16px;font-size:14px"></div>
+    <div id="sysMsg" class="no-print" style="display:none;padding:10px 16px;font-size:14px"></div>
     """
 
     script = """
