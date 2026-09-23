@@ -1,0 +1,59 @@
+{# Pagaré: una sola pieza de papel para todo el sistema.
+   La usan los pagarés en garantía del contrato y los pagarés manuales, y
+   replica el diseño del generador (app/generador_base.html). #}
+
+{% macro estilos() %}
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:0;background:#f0f0f0}
+  .toolbar{background:#12263f;color:#fff;padding:10px 16px;display:flex;gap:10px;align-items:center;
+           font-family:Arial;flex-wrap:wrap}
+  .toolbar a{color:#cfe0f5;text-decoration:none}
+  .toolbar button{background:#2f6fed;color:#fff;border:0;border-radius:7px;padding:8px 16px;font-weight:600;cursor:pointer}
+  .aviso{max-width:820px;margin:12px auto;font-family:Arial;font-size:13px;background:#fff;border:1px solid #dfe3ea;
+         padding:12px 14px;border-radius:10px;color:#333}
+  .aviso b{color:#111}
+  .aviso ul{margin:6px 0 0;padding-left:18px}
+  .aviso.falta{background:#fff8e6;border-color:#e8cf8a;color:#8a5a00}
+  .hoja{max-width:820px;margin:16px auto}
+  .pagare{background:#fff;border:1.5px solid #222;padding:26px 30px;margin:0 auto 22px}
+  .pagare .cab{display:flex;justify-content:space-between;align-items:flex-start;
+               border-bottom:2px solid #222;padding-bottom:12px;margin-bottom:16px}
+  .pagare .cab .ti{font-size:22px;font-weight:800;letter-spacing:2px;line-height:1.05}
+  .pagare .cab .ti small{display:block;font-size:10.5px;font-weight:700;letter-spacing:3px;color:#555;margin-top:4px}
+  .pagare .cab .monto{border:2px solid #222;border-radius:6px;padding:8px 16px;font-size:18px;font-weight:800;white-space:nowrap}
+  .pagare .meta{display:flex;justify-content:space-between;gap:16px;font-size:12.5px;margin-bottom:14px}
+  .pagare .cuerpo{font-size:12.5px;line-height:1.7;text-align:justify}
+  .pagare .firma-pg{margin-top:58px;width:290px;border-top:1px solid #222;padding-top:6px;font-size:12px;line-height:1.5}
+  @media print{
+    .toolbar,.aviso{display:none}
+    body{background:#fff}
+    .hoja{margin:0;max-width:none}
+    /* Cada pagaré es un instrumento independiente: va solo en su hoja. */
+    .pagare{border-width:1.5px;margin:0;page-break-inside:avoid;break-inside:avoid;
+            page-break-after:always;break-after:page}
+    .pagare:last-child{page-break-after:auto;break-after:auto}
+    @page{size:A4;margin:2cm}
+  }
+</style>
+{% endmacro %}
+
+{% macro pagare(importe, letras, lugar, fecha, vencimiento, beneficiario,
+                firmante, firmante_doc, firmante_domicilio, rol='', causa='') %}
+<div class="pagare">
+  <div class="cab">
+    <div class="ti">PAGARÉ<small>SIN PROTESTO</small></div>
+    <div class="monto">{{ importe }}</div>
+  </div>
+  <div class="meta">
+    <span>{{ lugar or '________' }}, {{ fecha }}.</span>
+    <span><b>Vencimiento:</b> {{ vencimiento }}</span>
+  </div>
+  <div class="cuerpo">Quien suscribe, <b>{{ firmante }}</b>, D.N.I. N.º {{ firmante_doc or '____________' }},
+    con domicilio en {{ firmante_domicilio or '____________' }}, por medio del presente
+    <b>PAGARÉ SIN PROTESTO</b> (art. 50 del Decreto Ley N.º 5965/63) pagaré a
+    {{ beneficiario or '.....................................................' }} o a su orden,
+    la cantidad de <b>{{ letras }} ({{ importe }})</b>, por igual valor recibido a mi entera satisfacción.
+    Pagadero en {{ lugar or '________' }}.{% if causa %} {{ causa }}{% endif %}</div>
+  <div class="firma-pg"><b>{{ firmante }}</b>{% if rol %}<br>{{ rol }} — {% else %}<br>{% endif %}D.N.I. {{ firmante_doc or '____________' }}</div>
+</div>
+{% endmacro %}
