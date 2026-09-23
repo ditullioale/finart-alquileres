@@ -756,10 +756,14 @@ def _generador_html():
     """ % (api_url, api_inm)
 
     # OJO: el generador incluye, dentro del JS de descargarWord(), un string con
-    # "<body>...</body></html>" (para exportar a Word). Por eso NO se puede usar
-    # replace() del primer/​cualquier "<body>"/"</body>": hay que apuntar SIEMPRE
-    # a las etiquetas reales del documento, que son la ÚLTIMA aparición.
-    ib = html.rfind("<body>")
+    # "<body>...</body></html>" (para exportar a Word), que aparece DESPUÉS del
+    # cuerpo real de la página. Por eso hay que apuntar con cuidado:
+    #  - La barra (con el botón "Guardar contrato en el sistema") va tras el PRIMER
+    #    "<body>" -> find(): el cuerpo real del documento. Si usáramos rfind(),
+    #    caería DENTRO del string de descargarWord() y el botón no se vería en la
+    #    página (y además ensuciaría el .doc exportado).
+    #  - El script va antes del ÚLTIMO "</body>" -> rfind(): el cierre real.
+    ib = html.find("<body>")
     if ib != -1:
         fin = ib + len("<body>")
         html = html[:fin] + "\n" + barra + html[fin:]
