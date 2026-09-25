@@ -77,6 +77,7 @@
       <a class="nav-i {{ 'on' if bp=='inmuebles' }}" href="{{ url_for('inmuebles.listar') }}">{{ icon('building', 16) }}<span>Inmuebles</span></a>
       <a class="nav-i {{ 'on' if bp=='personas' }}" href="{{ url_for('personas.listar') }}">{{ icon('users', 16) }}<span>Personas</span></a>
       <a class="nav-i {{ 'on' if bp=='gas' }}" href="{{ url_for('gas.index') }}">{{ icon('flame', 16) }}<span>Gas</span></a>
+      <a class="nav-i {{ 'on' if bp=='notificaciones' }}" href="{{ url_for('notificaciones.listar') }}">{{ icon('bell', 16) }}<span>Notificaciones</span></a>
 
       <div class="nav-sec">Herramientas</div>
       <a class="nav-i {{ 'on' if ep in ('contratos.crear','contratos.generador') }}" href="{{ url_for('contratos.crear') }}">{{ icon('file-pen', 16) }}<span>Nuevo contrato</span></a>
@@ -186,6 +187,7 @@
     {g:'Ir a', t:'Personas', s:'Propietarios e inquilinos', k:['persona','inquilino','propietario'], url:"{{ url_for('personas.listar') }}"},
     {g:'Ir a', t:'Inmuebles', s:'', k:['inmueble','propiedad'], url:"{{ url_for('inmuebles.listar') }}"},
     {g:'Ir a', t:'Gas', s:'Deudas de servicios', k:['gas','servicio'], url:"{{ url_for('gas.index') }}"},
+    {g:'Ir a', t:'Notificaciones', s:'Avisos al portal de inquilinos y propietarios', k:['notificacion','aviso','mora','deuda de gas','portal'], url:"{{ url_for('notificaciones.listar') }}"},
     {% if facturador_disponible %}
     {g:'Ir a', t:'Facturación', s:'Comprobantes de ARCA', k:['factura','arca','cae'], url:"{{ url_for('facturador.index') }}"},
     {% endif %}
