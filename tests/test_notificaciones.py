@@ -50,7 +50,8 @@ def test_nueva_crea_notificacion_y_manda_mail(client, monkeypatch):
         "persona_id": [str(pid)],
     }, follow_redirects=True)
     assert r.status_code == 200
-    assert "Notificación cargada" in r.data.decode("utf-8", "ignore")
+    # "Mora" ahora se envía INDIVIDUAL por destinatario (con sus propios datos).
+    assert "Avisos individuales enviados" in r.data.decode("utf-8", "ignore")
     assert capt.get("to") == "notifuno@mail.com"
     assert "novedades en tu portal" in capt.get("asunto", "")
     assert "Tenés un pago atrasado de julio." in (capt.get("html") or "")
@@ -65,8 +66,9 @@ def test_nueva_crea_notificacion_y_manda_mail(client, monkeypatch):
 def test_nueva_sin_mensaje_muestra_error(client):
     cl, app, ids = client
     pid = _crear_persona(app, "Notif Dos", "notifdos@mail.com", "30222222")
+    # En tipos SIN datos automáticos (Otro/Arreglo) el mensaje sigue siendo obligatorio.
     r = cl.post("/notificaciones/nueva", data={
-        "tipo": "Aumento", "mensaje": "", "persona_id": [str(pid)],
+        "tipo": "Otro", "mensaje": "", "persona_id": [str(pid)],
     }, follow_redirects=True)
     assert "Escribí el contenido del aviso" in r.data.decode("utf-8", "ignore")
     with app.app_context():

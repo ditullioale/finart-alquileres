@@ -77,17 +77,33 @@ def _refrescar_deuda_gas(cuentas):
         db.session.rollback()
 
 
-def _texto_gas(persona):
-    """Texto de aviso de deuda de gas. Antes de armarlo, verifica la deuda EN EL
-    MOMENTO contra Litoral Gas (actualiza) y recién ahí usa el valor."""
+def _cuentas_gas_de(persona):
+    """Cuentas de gas (con su contrato) de los inmuebles alquilados por la persona."""
     contratos = (Contrato.query.filter_by(inquilino_id=persona.id)
                  .filter(Contrato.estado == "Vigente").all())
-    cuentas = [(c, (c.inmueble.cuenta_gas or "").strip())
-               for c in contratos
-               if c.inmueble and (c.inmueble.cuenta_gas or "").strip()]
+    return [(c, (c.inmueble.cuenta_gas or "").strip())
+            for c in contratos
+            if c.inmueble and (c.inmueble.cuenta_gas or "").strip()]
+
+
+def _refrescar_gas_de_personas(personas):
+    """Verifica de una sola vez (una consulta) la deuda de gas de TODAS las cuentas
+    de un grupo de personas -- para no loguearse a Litoral Gas una vez por persona."""
+    cuentas = []
+    for p in personas:
+        cuentas += [cta for _c, cta in _cuentas_gas_de(p)]
+    if cuentas:
+        _refrescar_deuda_gas(cuentas)
+
+
+def _texto_gas(persona, refrescar=True):
+    """Texto de aviso de deuda de gas. Si `refrescar`, verifica la deuda EN EL
+    MOMENTO contra Litoral Gas antes de armar el texto."""
+    cuentas = _cuentas_gas_de(persona)
     if not cuentas:
         return None
-    _refrescar_deuda_gas([cta for _c, cta in cuentas])   # verificación puntual
+    if refrescar:
+        _refrescar_deuda_gas([cta for _c, cta in cuentas])   # verificación puntual
     partes = []
     for c, cta in cuentas:
         direccion = c.inmueble.direccion if c.inmueble else f"contrato #{c.id}"
@@ -102,12 +118,17 @@ def _texto_gas(persona):
     return " ".join(partes) if partes else None
 
 
-def _texto_datos(persona, tipo):
+# Tipos de aviso que se arman con datos automáticos de cada destinatario, y por
+# eso se envían INDIVIDUALES (una notificación por persona con sus propios datos).
+TIPOS_CON_DATOS = ("Mora", "Aumento", "Deuda de gas")
+
+
+def _texto_datos(persona, tipo, refrescar=True):
     """Arma, a partir de la base, un texto sugerido para el aviso -- solo con
     datos que realmente están cargados (deuda real, próximo aumento, deuda de
     gas). Para tipos sin dato asociado (Arreglo, Otro) devuelve None."""
     if tipo == "Deuda de gas":
-        return _texto_gas(persona)
+        return _texto_gas(persona, refrescar=refrescar)
     if tipo not in ("Mora", "Aumento"):
         return None
 
@@ -207,8 +228,12 @@ def nueva():
             tipo = "Otro"
         mensaje = (request.form.get("mensaje") or "").strip()
         ids = [int(x) for x in request.form.getlist("persona_id") if x.isdigit()]
+        personalizar = tipo in TIPOS_CON_DATOS
 
-        if not mensaje:
+        # En los tipos con datos automáticos, el mensaje del textarea es un texto
+        # común OPCIONAL: a cada destinatario se le agregan SUS propios datos. En
+        # los demás (Arreglo/Otro) el mensaje es obligatorio y va igual para todos.
+        if not mensaje and not personalizar:
             flash("Escribí el contenido del aviso.", "error")
             return render_ui("notificaciones/nueva.html", personas=personas,
                                    tipos=TIPOS_NOTIFICACION, sel=set(ids), tipo_sel=tipo,
@@ -227,8 +252,43 @@ def nueva():
                                    mensaje=mensaje)
 
         from flask_login import current_user
-        n = Notificacion(tipo=tipo, mensaje=mensaje,
-                         creada_por=getattr(current_user, "username", None))
+        creado_por = getattr(current_user, "username", None)
+
+        if personalizar:
+            # INDIVIDUAL: una notificación por destinatario, con SUS datos. Así nadie
+            # ve la deuda/datos de otro y cada aviso corresponde a su propio contrato.
+            if tipo == "Deuda de gas":
+                _refrescar_gas_de_personas(destinatarios)   # una sola consulta para todos
+            enviados = sin_email = sin_datos = 0
+            for p in destinatarios:
+                propio = _texto_datos(p, tipo, refrescar=False)
+                if not propio and not mensaje:
+                    sin_datos += 1
+                    continue
+                cuerpo = (mensaje + "\n\n" + propio).strip() if (mensaje and propio) \
+                    else (propio or mensaje)
+                n = Notificacion(tipo=tipo, mensaje=cuerpo, creada_por=creado_por)
+                db.session.add(n)
+                db.session.flush()
+                d = NotificacionDestinatario(notificacion_id=n.id, persona_id=p.id)
+                db.session.add(d)
+                if p.email:
+                    if _mandar_mail(p, n):
+                        d.mail_enviado_at = datetime.utcnow()
+                    enviados += 1
+                else:
+                    sin_email += 1
+            db.session.commit()
+            msg = f"Avisos individuales enviados a {enviados + sin_email} destinatario(s)."
+            if sin_email:
+                msg += (f" {sin_email} sin email: lo van a ver al entrar al portal.")
+            if sin_datos:
+                msg += (f" {sin_datos} sin datos para este aviso: no se les envió.")
+            flash(msg, "ok")
+            return redirect(url_for("notificaciones.listar"))
+
+        # COMÚN (Arreglo/Otro): una notificación con el mismo mensaje para todos.
+        n = Notificacion(tipo=tipo, mensaje=mensaje, creada_por=creado_por)
         db.session.add(n)
         db.session.flush()  # necesita n.id para los destinatarios
 
@@ -237,8 +297,7 @@ def nueva():
             d = NotificacionDestinatario(notificacion_id=n.id, persona_id=p.id)
             db.session.add(d)
             if p.email:
-                enviado = _mandar_mail(p, n)
-                if enviado:
+                if _mandar_mail(p, n):
                     d.mail_enviado_at = datetime.utcnow()
             else:
                 sin_email += 1
