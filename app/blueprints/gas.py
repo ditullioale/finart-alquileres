@@ -48,10 +48,13 @@ def index():
     asignadas = {(i.cuenta_gas or "").strip() for i in inmuebles}
     sin_asignar = [g for g in estados.values() if g.cuenta not in asignadas]
 
-    # Inmuebles sin cuenta de gas, para el selector de asignación rápida.
-    disponibles = (Inmueble.query
-                   .filter(db.or_(Inmueble.cuenta_gas.is_(None), Inmueble.cuenta_gas == ""))
-                   .order_by(Inmueble.direccion).all())
+    # Selector de asignación rápida: inmuebles SIN cuenta de gas y también los que
+    # quedaron con una cuenta "colgada" (apunta a un estado que ya no existe, p. ej.
+    # tras borrar un suministro por error), para poder (re)asignarlos desde el panel.
+    cuentas_existentes = set(estados)
+    disponibles = [inm for inm in Inmueble.query.order_by(Inmueble.direccion).all()
+                   if not (inm.cuenta_gas or "").strip()
+                   or (inm.cuenta_gas or "").strip() not in cuentas_existentes]
 
     return render_ui("gas/index.html", filas=filas, con_deuda=con_deuda,
                            deuda_total=deuda_total, total=len(inmuebles),
@@ -225,10 +228,20 @@ def estado():
 @gas_bp.route("/<int:gid>/eliminar", methods=["POST"])
 @login_required
 def eliminar(gid):
-    """Elimina un suministro del panel de gas."""
-    g = db.session.get(GasEstado, gid) or abort(404)
+    """Elimina un suministro del panel de gas y DESVINCULA la cuenta de los
+    inmuebles que la tenían. Antes borraba solo el estado y dejaba al inmueble
+    'colgado' (con la cuenta puesta pero sin estado): así no aparecía en el
+    selector para reasignarlo. Ahora la propiedad queda disponible de nuevo."""
     from flask import flash, redirect
+    g = db.session.get(GasEstado, gid) or abort(404)
+    cuenta = (g.cuenta or "").strip()
+    desvinculados = 0
+    if cuenta:
+        for inm in Inmueble.query.filter_by(cuenta_gas=cuenta).all():
+            inm.cuenta_gas = None
+            desvinculados += 1
     db.session.delete(g)
     db.session.commit()
-    flash("Suministro eliminado del panel.", "ok")
+    flash("Suministro eliminado del panel."
+          + (" La propiedad quedó disponible para reasignar." if desvinculados else ""), "ok")
     return redirect(url_for("gas.index"))
