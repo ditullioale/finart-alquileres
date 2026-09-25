@@ -184,11 +184,26 @@ def deuda_real(contrato, hoy=None):
     return round(sum(p["saldo"] for p in periodos_impagos(contrato, hoy)), 2)
 
 
+def periodo_antes_del_inicio(contrato, mes, anio):
+    """True si el período (anio, mes) es anterior al mes de inicio del contrato.
+    Un contrato que empieza en octubre no debe generar deuda ni cobros de meses
+    previos (septiembre y anteriores)."""
+    inicio = getattr(contrato, "fecha_inicio", None)
+    if not inicio:
+        return False
+    return (anio * 12 + (mes - 1)) < _ym(inicio)
+
+
 def estado_periodo(contrato, mes, anio, hoy=None):
     """Estado del alquiler de un contrato en un período dado. Fuente única para
     'esperado / pagado / saldo / estado / vencimiento / vencido / días de atraso'."""
     hoy = hoy or date.today()
     pago = pago_de_periodo(contrato, mes, anio)
+    # Período anterior al inicio del contrato y sin pago: no corresponde cobrarlo,
+    # así que no cuenta como deuda ni como período vencido.
+    if not pago and periodo_antes_del_inicio(contrato, mes, anio):
+        return dict(pago=None, esperado=0.0, estado="Fuera de vigencia", cobrado=0.0,
+                    saldo=0.0, venc=None, vencido=False, dias_atraso=0)
     venc = vencimiento(anio, mes, contrato.dia_vencimiento or 10)
     if pago:
         # El importe esperado de un mes YA cobrado queda congelado en lo que se

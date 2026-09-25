@@ -21,10 +21,11 @@ notificaciones_bp = Blueprint("notificaciones", __name__, url_prefix="/notificac
 # Ícono y color por tipo -- "chip" para las pantallas Aurora (portal), "badge"
 # para las pantallas clásicas de la app (reutiliza clases .badge existentes).
 _ESTILO_TIPO = {
-    "Mora":    {"icono": "alert-triangle", "chip": "err",  "badge": "pendiente"},
-    "Aumento": {"icono": "trending-up",    "chip": "info", "badge": "alquilado"},
-    "Arreglo": {"icono": "settings",       "chip": "warn", "badge": "reservado"},
-    "Otro":    {"icono": "message-circle", "chip": "acc",  "badge": "finalizado"},
+    "Mora":         {"icono": "alert-triangle", "chip": "err",  "badge": "pendiente"},
+    "Aumento":      {"icono": "trending-up",    "chip": "info", "badge": "alquilado"},
+    "Deuda de gas": {"icono": "flame",          "chip": "err",  "badge": "pendiente"},
+    "Arreglo":      {"icono": "settings",       "chip": "warn", "badge": "reservado"},
+    "Otro":         {"icono": "message-circle", "chip": "acc",  "badge": "finalizado"},
 }
 
 
@@ -40,10 +41,73 @@ def _money(n):
     return f"{n:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
+def _refrescar_deuda_gas(cuentas):
+    """Consulta Litoral Gas EN EL MOMENTO y actualiza el estado de las cuentas
+    dadas, para que el aviso de deuda de gas use el dato más fresco (no el que
+    dejó el robot la última vez). Best-effort: si no hay credenciales cargadas o
+    la consulta falla, no rompe -- se usa el último dato guardado."""
+    try:
+        from ..litoralgas import consultar_deuda, CredencialesError, GasError
+        from ..models import GasCredencial
+        from flask_login import current_user
+        creds = GasCredencial.query.order_by(GasCredencial.id).all()
+        if not creds:
+            return
+        objetivo = {(c or "").strip() for c in cuentas if (c or "").strip()}
+        tid = getattr(current_user, "inmobiliaria_id", None)
+        for gc in creds:
+            try:
+                for r in consultar_deuda(gc.usuario, gc.get_clave()):
+                    if r["cuenta"] not in objetivo:
+                        continue
+                    venc = r["ultimo_vencimiento"]
+                    if venc and not isinstance(venc, date):
+                        venc = None
+                    g = GasEstado.upsert(
+                        r["cuenta"], titular=r["titular"], direccion=r["direccion"],
+                        contrato_vigente=r["contrato_vigente"], tiene_deuda=r["tiene_deuda"],
+                        deuda_total=r["deuda_total"], ultimo_vencimiento=venc,
+                        detalle=r["detalle"])
+                    if tid:
+                        g.inmobiliaria_id = tid
+            except (CredencialesError, GasError):
+                continue
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
+def _texto_gas(persona):
+    """Texto de aviso de deuda de gas. Antes de armarlo, verifica la deuda EN EL
+    MOMENTO contra Litoral Gas (actualiza) y recién ahí usa el valor."""
+    contratos = (Contrato.query.filter_by(inquilino_id=persona.id)
+                 .filter(Contrato.estado == "Vigente").all())
+    cuentas = [(c, (c.inmueble.cuenta_gas or "").strip())
+               for c in contratos
+               if c.inmueble and (c.inmueble.cuenta_gas or "").strip()]
+    if not cuentas:
+        return None
+    _refrescar_deuda_gas([cta for _c, cta in cuentas])   # verificación puntual
+    partes = []
+    for c, cta in cuentas:
+        direccion = c.inmueble.direccion if c.inmueble else f"contrato #{c.id}"
+        g = GasEstado.query.filter_by(cuenta=cta).first()
+        if g and g.tiene_deuda and float(g.deuda_total or 0) > 0:
+            venc = (f", con vencimiento {g.ultimo_vencimiento.strftime('%d/%m/%Y')}"
+                    if g.ultimo_vencimiento else "")
+            partes.append(f"La cuenta de gas de {direccion} (N° {cta}) registra una deuda de "
+                          f"$ {_money(g.deuda_total)}{venc}. Te pedimos regularizarla a la brevedad.")
+        elif g:
+            partes.append(f"La cuenta de gas de {direccion} (N° {cta}) no registra deuda a la fecha.")
+    return " ".join(partes) if partes else None
+
+
 def _texto_datos(persona, tipo):
     """Arma, a partir de la base, un texto sugerido para el aviso -- solo con
     datos que realmente están cargados (deuda real, próximo aumento, deuda de
     gas). Para tipos sin dato asociado (Arreglo, Otro) devuelve None."""
+    if tipo == "Deuda de gas":
+        return _texto_gas(persona)
     if tipo not in ("Mora", "Aumento"):
         return None
 

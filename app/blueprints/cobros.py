@@ -15,7 +15,7 @@ from ..utils import (parse_fecha, parse_num, vencimiento, calcular_mora,
                      periodo_siguiente, MESES_ES, link_whatsapp, whatsapp_valido, q2)
 from ..calculos import (estado_periodo, canon_vigente, deuda_real,
                         aumento_en_mes, aumento_registrado_en_mes,
-                        aumento_pendiente_para)
+                        aumento_pendiente_para, periodo_antes_del_inicio)
 
 cobros_bp = Blueprint("cobros", __name__, url_prefix="/cobros")
 
@@ -156,6 +156,9 @@ def index():
                 continue
         # Estado del período según la regla central (única fuente de verdad).
         info = estado_periodo(c, mes, anio, hoy=hoy)
+        # Contrato que todavía no empezó en este mes: no va en la cobranza.
+        if info["estado"] == "Fuera de vigencia":
+            continue
         pago, esperado, estado = info["pago"], info["esperado"], info["estado"]
         cobrado, saldo, venc = info["cobrado"], info["saldo"], info["venc"]
         tot_esperado += esperado
@@ -496,6 +499,13 @@ def rapido():
         return jsonify(ok=False, error="Falta el período."), 400
     if not precio or precio <= 0:
         return jsonify(ok=False, error="El precio del alquiler debe ser mayor a 0."), 400
+    # No cobrar un período anterior al inicio del contrato (ej.: contrato que
+    # arranca en octubre y se intenta cobrar septiembre).
+    if periodo_antes_del_inicio(contrato, mes, anio):
+        fi = contrato.fecha_inicio
+        return jsonify(ok=False, error=(
+            f"El contrato empieza en {MESES_ES[fi.month]} {fi.year}: no se puede "
+            "cobrar un mes anterior. Elegí el período correcto.")), 400
 
     # Evitar duplicar: si ya hay un pago ACTIVO de ese período, no crear otro.
     # (Un pago anulado no bloquea: se puede volver a cobrar el mes.)
@@ -605,6 +615,11 @@ def nuevo(cid):
         pago = Pago(contrato_id=contrato.id)
         _leer_pago(pago, contrato)
         error = _validar(pago)
+        # No permitir cobrar un período anterior al inicio del contrato.
+        if not error and periodo_antes_del_inicio(contrato, pago.periodo_mes, pago.periodo_anio):
+            fi = contrato.fecha_inicio
+            error = (f"El contrato empieza en {MESES_ES[fi.month]} {fi.year}: "
+                     "no se puede cobrar un mes anterior.")
         # Aviso claro si ya hay un pago de ese período (antes de tocar la base).
         if not error:
             dup = next((p for p in contrato.pagos

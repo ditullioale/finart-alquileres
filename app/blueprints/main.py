@@ -75,6 +75,9 @@ def index():
     morosos, cobrados, monto_pend, vencen_hoy = [], 0, 0.0, 0
     for c in contratos_vig:
         info = estado_periodo(c, hoy.month, hoy.year, hoy=hoy)
+        # Contrato que todavía no empezó este mes: no es ni moroso ni cobrado.
+        if info["estado"] == "Fuera de vigencia":
+            continue
         if info["estado"] == "Pagado":
             cobrados += 1
             continue

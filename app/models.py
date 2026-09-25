@@ -834,7 +834,7 @@ class ConceptoLiquidacion(db.Model):
     liquidacion = db.relationship("Liquidacion", back_populates="conceptos")
 
 
-TIPOS_NOTIFICACION = ["Mora", "Aumento", "Arreglo", "Otro"]
+TIPOS_NOTIFICACION = ["Mora", "Aumento", "Deuda de gas", "Arreglo", "Otro"]
 
 
 class Notificacion(db.Model):
