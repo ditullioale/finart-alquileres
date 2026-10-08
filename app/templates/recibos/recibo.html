@@ -41,7 +41,26 @@
   .aviso-adj{background:#fff8e6;color:#8a5a00;font-size:12.5px;padding:8px 16px;text-align:center}
   .aviso-aumento{margin:8px 0 2px;padding:7px 10px;border:1.5px solid #e0a800;background:#fff8e1;
                  border-radius:6px;font-size:12px;color:#7a5300;line-height:1.35}
-  @media print{ .toolbar,.aviso-adj{display:none} body{background:#fff} .hoja{margin:0;max-width:none;padding:0} }
+  @media print{
+    .toolbar,.aviso-adj{display:none} body{background:#fff} .hoja{margin:0;max-width:none;padding:0}
+    /* El recibo se imprime dos veces (original + duplicado) y tiene que entrar
+       SIEMPRE en una sola A4, mitad y mitad. Compactamos sólo para impresión;
+       en pantalla se sigue viendo como siempre. */
+    @page{ size:A4; margin:1cm; }
+    .recibo{ page-break-inside:avoid; margin-bottom:6px; }
+    .cab .emp .nom{font-size:13px} .cab .emp .datos{font-size:10px;margin-top:2px}
+    .cab .doc .tt{font-size:19px} .cab .doc .li{font-size:10px}
+    .cab .x .big{font-size:19px}
+    .band{padding:3px 12px;font-size:10px}
+    .cli{padding:4px 12px;font-size:11px}
+    .cuerpo{padding:4px 12px;font-size:11px;min-height:0}
+    .cuerpo .l{margin:1.5px 0}
+    .conceptos{margin:4px 0 0 24px}
+    .tot{padding:5px 12px;font-size:13px}
+    .pie{padding:4px 12px;font-size:10px}
+    .firma{margin-top:16px}
+    .corte{margin:3px 0}
+  }
 </style>
 </head>
 <body>

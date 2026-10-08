@@ -3,37 +3,41 @@
 <head>
 <meta charset="utf-8">
 <style>
-  @page { size: A4; margin: 1.4cm 1.4cm; }
-  body { font-family: Helvetica, Arial, sans-serif; color: #111; font-size: 10pt; }
-  /* Marco exterior del recibo: una sola celda con borde => solo bordes exteriores. */
-  table.marco { border: 1.2pt solid #111; border-collapse: collapse; width: 100%; margin-bottom: 12pt; }
+  /* Margen chico: el recibo va dos veces (original + duplicado) y tiene que
+     entrar SIEMPRE en una sola A4, mitad y mitad. */
+  /* Margen chico: el recibo va dos veces (original + duplicado) y tiene que
+     entrar SIEMPRE en una sola A4, mitad y mitad. Todo está dimensionado para
+     que cada copia ocupe ~media hoja. */
+  @page { size: A4; margin: 0.7cm 1.1cm; }
+  body { font-family: Helvetica, Arial, sans-serif; color: #111; font-size: 8.5pt; }
+  table.marco { border: 1.2pt solid #111; border-collapse: collapse; width: 100%;
+                margin-bottom: 5pt; }
   table.marco > tr > td { padding: 0; border: 0; }
-  /* Tablas internas sin ningún borde (solo maquetan columnas). */
   table.in { border: 0; border-collapse: collapse; width: 100%; }
   table.in td { border: 0; vertical-align: top; }
-  .emp { text-align: center; padding: 6pt 8pt; }
-  .emp .nom { font-weight: bold; font-size: 12pt; }
-  .emp .datos { font-size: 8pt; }
-  .xbox { width: 70pt; text-align: center; font-size: 7pt; padding: 6pt 4pt; }
-  .xbox .big { font-size: 20pt; font-weight: bold; }
-  .doc { text-align: right; width: 38%; padding: 6pt 8pt; }
-  .doc .tt { font-size: 18pt; font-weight: bold; }
-  .doc .nro { font-size: 12pt; font-weight: bold; }
-  .doc .li { font-size: 8pt; }
-  .band { padding: 4pt 8pt; font-weight: bold; font-size: 8pt; text-align: center;
+  .emp { text-align: center; padding: 3pt 8pt; }
+  .emp .nom { font-weight: bold; font-size: 10pt; }
+  .emp .datos { font-size: 7pt; line-height: 1.1; }
+  .xbox { width: 58pt; text-align: center; font-size: 6pt; padding: 3pt 4pt; }
+  .xbox .big { font-size: 15pt; font-weight: bold; }
+  .doc { text-align: right; width: 36%; padding: 3pt 8pt; }
+  .doc .tt { font-size: 15pt; font-weight: bold; }
+  .doc .nro { font-size: 10pt; font-weight: bold; }
+  .doc .li { font-size: 7pt; }
+  .band { padding: 2.5pt 8pt; font-weight: bold; font-size: 7pt; text-align: center;
           border-top: 1.2pt solid #111; border-bottom: 1.2pt solid #111; }
   .cli { border-bottom: 1.2pt solid #111; }
-  .cli td { padding: 2pt 8pt; font-size: 9.5pt; }
-  .cuerpo { padding: 6pt 8pt; font-size: 9.5pt; }
-  .cuerpo p { margin: 2pt 0; }
-  .cuerpo .concepto { margin-left: 20pt; }
+  .cli td { padding: 1pt 8pt; font-size: 8.5pt; }
+  .cuerpo { padding: 2pt 8pt; font-size: 8.5pt; }
+  .cuerpo p { margin: 0.5pt 0; }
+  .cuerpo .concepto { margin-left: 20pt; font-size: 8pt; }
   .tot-box { border-top: 1.2pt solid #111; }
-  .tot-box td { padding: 4pt 8pt; font-size: 10pt; }
-  .tot-box tr:first-child td { padding-top: 7pt; }
-  .tot { font-size: 13pt; font-weight: bold; }
-  .pie td { padding: 12pt 8pt 6pt; font-size: 8pt; }
-  .firma { border-top: 0.8pt solid #333; width: 180pt; text-align: center; padding-top: 2pt; }
-  .corte { text-align: center; color: #888; font-size: 8pt; letter-spacing: 2pt; margin: 5pt 0; }
+  .tot-box td { padding: 2.5pt 8pt; font-size: 9pt; }
+  .tot-box tr:first-child td { padding-top: 4pt; }
+  .tot { font-size: 11.5pt; font-weight: bold; }
+  .pie td { padding: 2pt 8pt 2pt; font-size: 7.5pt; }
+  .firma { border-top: 0.8pt solid #333; width: 170pt; text-align: center; padding-top: 2pt; }
+  .corte { text-align: center; color: #888; font-size: 7pt; letter-spacing: 2pt; margin: 2pt 0; }
 </style>
 </head>
 <body>
@@ -81,15 +85,11 @@
     <div class="cuerpo">
       <p><b>En concepto de:</b> ALQUILER &nbsp;&nbsp; <b>N° de pago:</b> {{ pago.numero or '—' }}</p>
       <p><b>Inmueble:</b> {% if c.inmueble.codigo %}({{ c.inmueble.codigo }}) {% endif %}{{ c.inmueble.direccion }}</p>
-      <p><b>Propietario:</b> {{ c.locadores_texto }}</p>
-      <p><b>Contrato:</b> {{ c.fecha_inicio.strftime('%d/%m/%Y') if c.fecha_inicio }} al {{ c.fecha_fin.strftime('%d/%m/%Y') if c.fecha_fin else '—' }}</p>
+      <p><b>Propietario:</b> {{ c.locadores_texto }} &nbsp;&nbsp; <b>Contrato:</b> {{ c.fecha_inicio.strftime('%d/%m/%Y') if c.fecha_inicio }} al {{ c.fecha_fin.strftime('%d/%m/%Y') if c.fecha_fin else '—' }}</p>
       <p><b>Correspondiente al mes de:</b> {{ meses[pago.periodo_mes] if pago.periodo_mes }} de {{ pago.periodo_anio }} &nbsp;&nbsp; <b>Vencimiento:</b> {{ venc.strftime('%d/%m/%Y') if venc else '—' }}</p>
       <p><b>Alquiler:</b> {{ c.moneda|simbolo }} {{ pago.precio_alquiler|money }}{% if pago.fecha_pago %} &nbsp;&nbsp; <b>Fecha de pago:</b> {{ pago.fecha_pago.strftime('%d/%m/%Y') }}{% endif %}</p>
       {% if conceptos %}
-      <p><b>Otros conceptos:</b></p>
-      {% for desc, monto in conceptos %}
-      <p class="concepto">{{ desc }} .......... {{ monto|money }}</p>
-      {% endfor %}
+      <p><b>Otros conceptos:</b> {% for desc, monto in conceptos %}{{ desc }} {{ c.moneda|simbolo }} {{ monto|money }}{% if not loop.last %} · {% endif %}{% endfor %}</p>
       {% endif %}
       {% if pago.observaciones %}<p style="margin-top:5pt"><b>Observaciones:</b> {{ pago.observaciones }}</p>{% endif %}
       {% if aviso_aumento %}
@@ -101,19 +101,18 @@
 
     <table class="in tot-box">
       <tr>
-        <td style="width:42%;white-space:nowrap"><b>Forma de pago:</b> {{ pago.forma_pago or '—' }}</td>
+        <td style="width:42%"><b>Forma de pago:</b> {{ pago.forma_pago or '—' }}</td>
         <td style="text-align:right"><b>Total Recibo:</b> &nbsp;&nbsp; <span class="tot">{{ c.moneda|simbolo }} {{ pago.total|money }}</span></td>
       </tr>
       {% if pago.pagado is not none and (pago.saldo or 0) > 0 %}
       <tr>
-        <td></td>
-        <td style="text-align:right">Pagado: {{ c.moneda|simbolo }} {{ pago.pagado|money }} &nbsp;&nbsp; <b>Saldo pendiente: {{ c.moneda|simbolo }} {{ pago.saldo|money }}</b></td>
+        <td colspan="2" style="text-align:right">Pagado: {{ c.moneda|simbolo }} {{ pago.pagado|money }} &nbsp;&nbsp; <b>Saldo pendiente: {{ c.moneda|simbolo }} {{ pago.saldo|money }}</b></td>
       </tr>
       {% endif %}
     </table>
 
     <table class="in pie"><tr>
-      <td width="45%"><br><br><div class="firma">Firma y aclaración</div></td>
+      <td width="45%"><div class="firma" style="margin-top:8pt">Firma y aclaración</div></td>
       <td style="text-align:right"><b>** {{ rotulo }} **</b><br>Recibí(mos) la suma de: {{ total_letras }}.</td>
     </tr></table>
 
