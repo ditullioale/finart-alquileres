@@ -88,6 +88,52 @@ def crear():
     return render_ui("contratos/elegir_tipo.html")
 
 
+# Script de exportación a Word del documento guardado (mismo criterio que el
+# generador: Arial 12, A4, interlineado 1,5, con estilos de pagaré en float para
+# que Word los respete). Se arma como string plano (sin f-string) para no pelear
+# con las llaves del JS; el nombre del archivo se inyecta con replace().
+_SCRIPT_WORD = r"""
+<script>
+function descargarWord(){
+  var hoja = document.querySelector('.hoja');
+  if(!hoja){ return; }
+  var estilos = '<style>'
+    + '@page{size:A4;margin:2cm}'
+    + 'body{font-family:Arial,Helvetica,sans-serif;font-size:12pt;line-height:1.5;text-align:justify}'
+    + 'h2{text-align:center;font-size:14pt}'
+    + 'ol li{margin:9pt 0;text-align:justify}'
+    + '.firmas{margin-top:50pt}'
+    + '.firma{border-top:1px solid #333;text-align:center;padding-top:6pt}'
+    + '.pagare{border:1.5pt solid #222;padding:16pt 20pt;margin:0 0 18pt;page-break-after:always}'
+    + '.pagare .cab{border-bottom:2px solid #222;padding-bottom:8pt;margin-bottom:10pt}'
+    + '.pagare .ti{font-size:18pt;font-weight:bold}'
+    + '.pagare .ti small{display:block;font-size:9pt;font-weight:bold}'
+    + '.pagare .monto{float:right;border:2px solid #222;padding:6pt 12pt;font-size:14pt;font-weight:bold}'
+    + '.pagare .cuerpo{text-align:justify}'
+    + '.pagare .firma-pg{margin-top:44pt;border-top:1px solid #222;width:280pt;padding-top:5pt}'
+    + '</style>';
+  var html = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>"
+    + "<head><meta charset='utf-8'><title>Contrato de locacion</title>" + estilos + "</head><body>"
+    + hoja.innerHTML + "</body></html>";
+  var blob = new Blob(['﻿' + html], {type: 'application/msword'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'NOMBREDOC.doc';
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1500);
+}
+</script>
+"""
+
+
+def _nombre_doc_word(contrato):
+    """Nombre de archivo .doc a partir de la dirección del inmueble."""
+    import re
+    base = (contrato.inmueble.direccion if contrato.inmueble else "") or f"contrato-{contrato.id}"
+    slug = re.sub(r"[^A-Za-z0-9]+", "-", base).strip("-").lower()
+    return f"contrato-{slug}" if slug else f"contrato-{contrato.id}"
+
+
 @contratos_bp.route("/<int:cid>/documento")
 @login_required
 def documento(cid):
@@ -122,8 +168,10 @@ def documento(cid):
   }}
 </style></head><body>
 <div class="toolbar"><a href="{volver}">← Volver</a><span style="flex:1"></span>
+  <button onclick="descargarWord()">📄 Descargar Word</button>
   <button onclick="window.print()">🖨️ Imprimir / Guardar PDF</button></div>
 <div class="hoja">{c.documento_html}</div>
+{_SCRIPT_WORD.replace("NOMBREDOC", _nombre_doc_word(c))}
 </body></html>"""
     return Response(pagina, mimetype="text/html")
 
