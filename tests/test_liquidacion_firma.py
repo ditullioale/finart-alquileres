@@ -172,13 +172,71 @@ def test_email_al_propietario_con_pdf(client, monkeypatch):
     assert enviados[0][1].endswith(".pdf")   # con el PDF adjunto
 
 
-def test_liquidacion_firmada_no_se_borra_sin_confirmar(client):
+def test_liquidacion_firmada_no_se_puede_borrar(client):
+    """Una liquidación firmada NO se borra nunca (ni con confirmación): destruiría la
+    evidencia. El camino correcto es anular."""
     cl, app, ids = client
     lid = _liq_generada(app, cl, "6")
     _firmar(cl, lid)
     cl.post(f"/liquidaciones/{lid}/eliminar", follow_redirects=True)
     with app.app_context():
         assert db.session.get(Liquidacion, lid) is not None   # bloqueada
-    cl.post(f"/liquidaciones/{lid}/eliminar", data={"confirmar_firmada": "1"}, follow_redirects=True)
+    # Incluso forzando el viejo flag, sigue sin borrarse.
+    cl.post(f"/liquidaciones/{lid}/eliminar", data={"confirmar_firmada": "1"},
+            follow_redirects=True)
     with app.app_context():
-        assert db.session.get(Liquidacion, lid) is None        # con confirmación, se borra
+        liq = db.session.get(Liquidacion, lid)
+        assert liq is not None and liq.firma is not None       # firma intacta
+
+
+def test_anular_conserva_evidencia_y_libera_cobros(client):
+    cl, app, ids = client
+    lid = _liq_generada(app, cl, "6b")
+    _firmar(cl, lid)
+    with app.app_context():
+        f = db.session.get(Liquidacion, lid).firma
+        sha_antes, pdf_antes = f.sha256, bool(f.pdf_firmado)
+    # Sin motivo no anula.
+    cl.post(f"/liquidaciones/{lid}/anular", data={}, follow_redirects=True)
+    with app.app_context():
+        assert db.session.get(Liquidacion, lid).anulada is False
+    # Con motivo: anula conservando TODA la evidencia.
+    cl.post(f"/liquidaciones/{lid}/anular",
+            data={"motivo": "Monto mal cargado"}, follow_redirects=True)
+    with app.app_context():
+        liq = db.session.get(Liquidacion, lid)
+        assert liq.anulada is True
+        assert liq.anulacion_motivo == "Monto mal cargado"
+        assert liq.anulada_en is not None
+        # La firma, el PDF y el hash siguen ahí (constancia intacta).
+        assert liq.firma is not None and liq.firma.sha256 == sha_antes
+        assert bool(liq.firma.pdf_firmado) == pdf_antes
+        # Los cobros volvieron a pendientes de liquidar (pagado_al_propietario = None).
+        pend = _pagos_periodo_pendientes(liq)
+        assert pend and all(p.pagado_al_propietario is None for p in pend)
+    # El PDF firmado de la anulada sigue siendo descargable (evidencia accesible).
+    assert cl.get(f"/liquidaciones/{lid}/firmado.pdf").status_code == 200
+
+
+def _pagos_periodo_pendientes(liq):
+    from app.blueprints.liquidaciones import _pagos_periodo
+    return _pagos_periodo(liq.propietario_id, liq.periodo_mes, liq.periodo_anio,
+                          contrato_id=liq.contrato_id)
+
+
+def test_pdf_entra_en_el_hash_y_se_verifica(client):
+    """El hash principal cubre el PDF congelado: alterar el PDF rompe la verificación
+    del PDF, y el hash guardado se recomputa incluyendo pdf_sha256."""
+    cl, app, ids = client
+    lid = _liq_generada(app, cl, "9z")
+    _firmar(cl, lid)
+    with app.app_context():
+        f = db.session.get(Liquidacion, lid).firma
+        import hashlib
+        base = (f.snapshot or "").encode() + (f.trazos or "").encode() + (f.firma_png or b"")
+        esperado = hashlib.sha256(base + (f.pdf_sha256 or "").encode()).hexdigest()
+        assert f.sha256 == esperado            # el hash incluye el PDF
+        assert f.pdf_sha256 and len(f.pdf_sha256) == 64
+    html = cl.get(f"/liquidaciones/{lid}/firma/verificar").get_data(as_text=True)
+    assert "Evidencia íntegra" in html
+    assert "PDF congelado íntegro" in html

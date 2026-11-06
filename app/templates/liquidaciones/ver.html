@@ -74,19 +74,41 @@
   <a class="print" style="text-decoration:none;display:inline-block" href="{{ url_for('liquidaciones.firmado_pdf', liq_id=liq.id) }}">📄 PDF firmado</a>
   <a class="firmada-chip" href="{{ url_for('liquidaciones.firma_verificar', liq_id=liq.id) }}" title="Ver la verificación de la firma">✓ Firmada — verificar</a>
   {% endif %}
-  {% if liq %}
+  {% if liq and liq.firma %}
+  {# Una liquidación FIRMADA no se borra: se ANULA conservando la evidencia. #}
+  <form method="post" action="{{ url_for('liquidaciones.anular', liq_id=liq.id) }}"
+        style="display:inline" id="formAnular">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="motivo" id="motivoAnular">
+    <button type="button" class="del" onclick="anularLiq()"
+            title="Deja la liquidación sin efecto conservando la firma, el PDF y la evidencia">⊘ Anular</button>
+  </form>
+  {% elif liq %}
   <form method="post" action="{{ url_for('liquidaciones.eliminar', liq_id=liq.id) }}"
         style="display:inline"
-        onsubmit="return confirm({% if liq.firma %}'⚠️ Esta liquidación está FIRMADA por el propietario.\n\nBorrarla elimina la constancia de conformidad (y toda la evidencia de la firma). Esta acción no se puede deshacer.\n\n¿Borrar igual?'{% elif liq.facturada %}'⚠️ Esta liquidación tiene una factura de honorarios YA EMITIDA en ARCA.\n\nBorrarla NO anula esa factura (para revertirla hay que hacer una nota de crédito en ARCA). Los cobros vuelven a quedar pendientes de liquidar.\n\n¿Borrar la liquidación igual?'{% else %}'¿Borrar la liquidación {{ liq.numero }}?\n\nLos cobros de este período vuelven a quedar pendientes de liquidar. Esta acción no se puede deshacer.'{% endif %});">
+        onsubmit="return confirm({% if liq.facturada %}'⚠️ Esta liquidación tiene una factura de honorarios YA EMITIDA en ARCA.\n\nBorrarla NO anula esa factura (para revertirla hay que hacer una nota de crédito en ARCA). Los cobros vuelven a quedar pendientes de liquidar.\n\n¿Borrar la liquidación igual?'{% else %}'¿Borrar la liquidación {{ liq.numero }}?\n\nLos cobros de este período vuelven a quedar pendientes de liquidar. Esta acción no se puede deshacer.'{% endif %});">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% if liq.facturada %}<input type="hidden" name="confirmar_facturada" value="1">{% endif %}
-    {% if liq.firma %}<input type="hidden" name="confirmar_firmada" value="1">{% endif %}
     <button type="submit" class="del">🗑️ Borrar</button>
   </form>
   {% endif %}
 </div>
 
 {% if liq %}<div class="aviso">Liquidación <b>{{ liq.numero }}</b>{% if individual %} (individual){% endif %} generada el {{ liq.fecha.strftime('%d/%m/%Y') if liq.fecha }}.</div>{% endif %}
+{% if anuladas %}
+<div class="aviso" style="background:#fff6e5;border-color:#f0d089;color:#8a5a00">
+  <b>⊘ {{ anuladas|length }} liquidación{{ 'es' if anuladas|length > 1 }} anulada{{ 's' if anuladas|length > 1 }} en este período</b> — se conservan como constancia firmada:
+  {% for an in anuladas %}
+  <div style="margin-top:4px">
+    <b>{{ an.numero }}</b> · anulada el {{ an.anulada_en.strftime('%d/%m/%Y %H:%M') if an.anulada_en }}{% if an.anulada_por %} por {{ an.anulada_por }}{% endif %}{% if an.anulacion_motivo %} · motivo: {{ an.anulacion_motivo }}{% endif %}
+    {% if an.firma %}
+    · <a href="{{ url_for('liquidaciones.firmado_pdf', liq_id=an.id) }}">📄 PDF firmado</a>
+    · <a href="{{ url_for('liquidaciones.firma_verificar', liq_id=an.id) }}">✓ verificar firma</a>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
 {% if not items %}<div class="aviso" style="background:#fdecec;border-color:#f0b4b4;color:#9c2020">No hay cobros para este período.</div>{% endif %}
 
 {# Comprobante ya emitido: se muestra SIEMPRE (queda guardado en la liquidación),
@@ -259,6 +281,15 @@ function cancelarFirma(){
         {method:'POST', credentials:'same-origin', headers:{'X-CSRFToken':_csrf}}).catch(function(){});
 }
 {% endif %}
+// Anular una liquidación FIRMADA (no se borra): pide el motivo y envía el form.
+function anularLiq(){
+  var m = prompt('Anular esta liquidación FIRMADA.\n\nSe conserva la constancia (firma, PDF y evidencia) como registro; los cobros vuelven a quedar pendientes para rehacerla.\n\nMotivo de la anulación (queda registrado):');
+  if(m === null) return;
+  m = m.trim();
+  if(!m){ alert('Tenés que indicar un motivo para anular.'); return; }
+  document.getElementById('motivoAnular').value = m;
+  document.getElementById('formAnular').submit();
+}
 // Imprime DOS copias de la liquidación: la 1ª "ORIGINAL — PROPIETARIO" y la 2ª
 // "DUPLICADO — RESPALDO INMOBILIARIA", cada una en su propia hoja. El botón de
 // "Imprimir / PDF" normal sigue sacando una sola copia.

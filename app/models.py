@@ -803,6 +803,15 @@ class Liquidacion(db.Model):
     factura_fecha = db.Column(db.Date)
     factura_detalle = db.Column(db.Text)        # mensaje de error si no se pudo emitir
 
+    # Anulación (NO borrado): una liquidación FIRMADA no se borra -- se deja sin
+    # efecto conservando la constancia de conformidad (firma + PDF + evidencia).
+    # Queda en la base como registro histórico; sus cobros vuelven a pendientes
+    # para poder generar una liquidación nueva que se firme de nuevo.
+    anulada = db.Column(db.Boolean, nullable=False, default=False, server_default="0")
+    anulada_en = db.Column(db.DateTime)         # cuándo se anuló (UTC)
+    anulada_por = db.Column(db.String(120))     # quién la anuló
+    anulacion_motivo = db.Column(db.Text)       # por qué se anuló
+
     propietario = db.relationship("Persona")
     conceptos = db.relationship("ConceptoLiquidacion", back_populates="liquidacion",
                                 cascade="all, delete-orphan", order_by="ConceptoLiquidacion.id")

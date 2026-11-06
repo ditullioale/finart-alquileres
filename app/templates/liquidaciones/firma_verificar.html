@@ -46,6 +46,11 @@
   {% else %}
   <div class="banner bad">⚠️ Cadena de firmas rota — el enlace con la firma anterior no cierra: puede que se haya borrado o alterado una firma del historial.</div>
   {% endif %}
+  {% if pdf_ok is sameas true %}
+  <div class="banner ok">📄 PDF congelado íntegro — el documento firmado coincide con su huella guardada (no se alteró).</div>
+  {% elif pdf_ok is sameas false %}
+  <div class="banner bad">⚠️ El PDF congelado NO coincide con su huella: el documento firmado pudo haber sido modificado.</div>
+  {% endif %}
 
   <h2>Firma</h2>
   <img class="firma-img" src="{{ url_for('liquidaciones.firma_png', liq_id=liq.id) }}" alt="Firma">
@@ -92,13 +97,15 @@
   <div class="grid">
     <div class="k">Guardado al firmar</div><div class="v"><span class="hash">{{ f.sha256 or '—' }}</span></div>
     <div class="k">Recalculado ahora</div><div class="v"><span class="hash">{{ recalc }}</span></div>
+    <div class="k">Hash del PDF congelado</div><div class="v"><span class="hash">{{ f.pdf_sha256 or '—' }}</span></div>
     <div class="k">Enlace anterior (cadena)</div><div class="v"><span class="hash">{{ f.hash_prev or '—' }}</span></div>
     <div class="k">Eslabón de esta firma</div><div class="v"><span class="hash">{{ f.hash_cadena or '—' }}</span></div>
   </div>
 
   <p class="nota">Firma electrónica (Ley 25.506, art. 5). No es firma digital con certificado.
-    El hash SHA-256 cubre lo que se firmó + la trayectoria del trazo + la imagen: si algo
-    cambia, el recalculado deja de coincidir. Toda esta evidencia queda guardada en la base.</p>
+    El hash SHA-256 cubre todo el paquete: lo que se firmó con su detalle + la trayectoria
+    del trazo + la imagen + el PDF congelado. Si algo cambia, el recalculado deja de
+    coincidir. Toda esta evidencia queda guardada en la base.</p>
 </div>
 </body>
 </html>

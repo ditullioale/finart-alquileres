@@ -192,6 +192,7 @@ def _pendientes_facturar_query():
     Sirve para que un facturador caído o un CUIT faltante no queden en el olvido."""
     from sqlalchemy import or_
     return (Liquidacion.query
+            .filter(Liquidacion.anulada.isnot(True))
             .filter(or_(Liquidacion.factura_estado.is_(None),
                         Liquidacion.factura_estado != "emitida"))
             .order_by(Liquidacion.fecha.desc().nullslast(), Liquidacion.id.desc()))
@@ -386,8 +387,13 @@ def ver(pid):
     contrato_id = parse_num(request.args.get("contrato"), entero=True)
     pagos = _pagos_periodo(pid, mes, anio, contrato_id=contrato_id)
     items, ingresos, comision, neto = _detalle(pagos)
-    liq = Liquidacion.query.filter_by(propietario_id=pid, periodo_mes=mes,
-                                      periodo_anio=anio, contrato_id=contrato_id).first()
+    base_q = Liquidacion.query.filter_by(propietario_id=pid, periodo_mes=mes,
+                                         periodo_anio=anio, contrato_id=contrato_id)
+    # La liquidación ACTIVA es la no anulada; las anuladas quedan como historial.
+    liq = (base_q.filter(Liquidacion.anulada.isnot(True))
+           .order_by(Liquidacion.id.desc()).first())
+    anuladas = (base_q.filter(Liquidacion.anulada.is_(True))
+                .order_by(Liquidacion.id.desc()).all())
     conceptos = list(liq.conceptos) if liq else []
     neto_final = round(neto + float(sum(float(c.monto or 0) for c in conceptos)), 2)
     a = Ajustes.get()
@@ -396,7 +402,7 @@ def ver(pid):
                            extras_desglose=_desglose_extras(items),
                            conceptos=conceptos, neto_final=neto_final,
                            neto_letras=pesos_letras(neto_final), mes=mes, anio=anio,
-                           meses=MESES_ES, a=a, liq=liq, hoy=hoy,
+                           meses=MESES_ES, a=a, liq=liq, anuladas=anuladas, hoy=hoy,
                            individual=bool(contrato_id),
                            fact=request.args.get("fact"),
                            facturador_habilitado=facturador.habilitado())
@@ -442,11 +448,13 @@ def eliminar(liq_id):
                         url_for("liquidaciones.ver", pid=pid, mes=mes, anio=anio))
 
     # Una liquidación FIRMADA por el propietario es constancia de su conformidad:
-    # borrarla destruye esa evidencia. Se bloquea salvo confirmación explícita.
-    if liq.firma and not request.form.get("confirmar_firmada"):
+    # NO se borra (borrarla destruiría la evidencia y rompería la cadena de firmas).
+    # Si hubo un error, se usa Anular, que la deja sin efecto conservando todo.
+    if liq.firma:
         flash(f"La liquidación {numero} está FIRMADA por el propietario "
-              f"({liq.firma.firmante or 's/d'}). Borrarla elimina la constancia de "
-              "conformidad. Volvé a confirmar si querés borrarla igual.", "error")
+              f"({liq.firma.firmante or 's/d'}) y no se puede borrar: eso destruiría "
+              "la constancia de conformidad. Usá «Anular» para dejarla sin efecto "
+              "conservando la firma y el documento.", "error")
         return redirect(url_for("liquidaciones.ver", pid=pid, mes=mes, anio=anio,
                                 contrato=contrato_id) if contrato_id else
                         url_for("liquidaciones.ver", pid=pid, mes=mes, anio=anio))
@@ -461,6 +469,54 @@ def eliminar(liq_id):
     flash(f"Liquidación {numero} borrada. Los cobros quedaron pendientes de "
           "liquidar de nuevo.", "ok")
     return redirect(url_for("liquidaciones.index", mes=mes, anio=anio))
+
+
+@liquidaciones_bp.route("/<int:liq_id>/anular", methods=["POST"])
+@login_required
+def anular(liq_id):
+    """Anula una liquidación SIN borrarla: la deja sin efecto conservando la firma,
+    el PDF y toda la evidencia (constancia probatoria intacta). Registra quién la
+    anuló, cuándo y por qué, y libera los cobros para poder generar una liquidación
+    nueva que el propietario firme de nuevo."""
+    liq = db.session.get(Liquidacion, liq_id) or abort(404)
+    pid = liq.propietario_id
+    mes, anio, contrato_id = liq.periodo_mes, liq.periodo_anio, liq.contrato_id
+    numero = liq.numero
+
+    if liq.anulada:
+        flash(f"La liquidación {numero} ya estaba anulada.", "error")
+        return redirect(url_for("liquidaciones.ver", pid=pid, mes=mes, anio=anio,
+                                contrato=contrato_id) if contrato_id else
+                        url_for("liquidaciones.ver", pid=pid, mes=mes, anio=anio))
+
+    motivo = (request.form.get("motivo") or "").strip()
+    if not motivo:
+        flash("Indicá el motivo de la anulación (queda registrado en la evidencia).",
+              "error")
+        return redirect(url_for("liquidaciones.ver", pid=pid, mes=mes, anio=anio,
+                                contrato=contrato_id) if contrato_id else
+                        url_for("liquidaciones.ver", pid=pid, mes=mes, anio=anio))
+
+    liq.anulada = True
+    liq.anulada_en = datetime.utcnow()
+    liq.anulada_por = (getattr(current_user, "nombre", None)
+                       or getattr(current_user, "username", None))
+    liq.anulacion_motivo = motivo
+    # Los cobros vuelven a pendientes de liquidar (la liquidación anulada SE CONSERVA).
+    for p in _pagos_periodo(pid, mes, anio, contrato_id=contrato_id):
+        p.pagado_al_propietario = None
+    db.session.commit()
+
+    aviso = (f"Liquidación {numero} anulada. Se conserva la constancia firmada "
+             "(firma, PDF y evidencia) como registro. ")
+    if liq.facturada:
+        aviso += ("Ojo: la factura de honorarios en ARCA sigue emitida; para "
+                  "revertirla hacé una nota de crédito. ")
+    aviso += "Los cobros quedaron pendientes para generar una liquidación nueva."
+    flash(aviso, "ok")
+    return redirect(url_for("liquidaciones.ver", pid=pid, mes=mes, anio=anio,
+                            contrato=contrato_id) if contrato_id else
+                    url_for("liquidaciones.ver", pid=pid, mes=mes, anio=anio))
 
 
 def _leer_conceptos():
@@ -552,9 +608,24 @@ def _firma_sesion(crear=False):
 
 
 def _snapshot_liq(liq):
-    """Foto de lo que se firma (para congelar e integridad). Solo datos de la
-    liquidación ya guardada, que es inmutable una vez generada."""
+    """Foto de lo que se firma (para congelar e integridad). Incluye el DETALLE
+    completo (línea por línea de cada inmueble + los conceptos extra), no solo los
+    totales: así, ante una impugnación, la evidencia reconstruye por sí sola lo que
+    el propietario aceptó, sin depender de volver a consultar la app."""
     prop = liq.propietario
+    pagos = _pagos_periodo(liq.propietario_id, liq.periodo_mes, liq.periodo_anio,
+                           contrato_id=liq.contrato_id)
+    items, _ing, _com, _net = _detalle(pagos)
+    detalle = [{
+        "inmueble": (it["inmueble"].direccion if it["inmueble"] else None),
+        "inquilino": (it["inquilino"].nombre if it["inquilino"] else None),
+        "periodo": f"{it['pago'].periodo_mes}/{it['pago'].periodo_anio}",
+        "alquiler": it["alquiler"], "comision": it["comision"],
+        "extras": it["extras"], "neto": it["neto"],
+        "gastos": it["gastos"],
+    } for it in items]
+    conceptos = [{"descripcion": c.descripcion, "monto": float(c.monto or 0)}
+                 for c in liq.conceptos]
     return {
         "liquidacion_id": liq.id,
         "numero": liq.numero,
@@ -566,20 +637,30 @@ def _snapshot_liq(liq):
         "total_comision": float(liq.total_comision or 0),
         "total_neto": float(liq.total_neto or 0),
         "fecha": liq.fecha.isoformat() if liq.fecha else None,
+        "detalle": detalle,
+        "conceptos": conceptos,
     }
 
 
-def _pdf_liquidacion_firmada(liq):
-    """Genera el PDF CONGELADO de la liquidación ya firmada (con la firma embebida y
-    el hash impreso). Se guarda tal cual al firmar y después se sirve sin regenerar."""
+def _pdf_liquidacion_firmada(liq, firma=None, sello=None):
+    """Genera el PDF CONGELADO de la liquidación firmada (con la firma embebida y el
+    sello de integridad impreso). Se guarda tal cual al firmar y después se sirve sin
+    regenerar.
+
+    `firma` puede pasarse explícito (objeto aún sin commitear) para poder generar el
+    PDF ANTES de cerrar la firma, y así incluir su hash en el paquete de evidencia.
+    `sello` es la huella del contenido firmado que se imprime en el documento."""
     from xhtml2pdf import pisa
     prop = liq.propietario
     pagos = _pagos_periodo(liq.propietario_id, liq.periodo_mes, liq.periodo_anio,
                            contrato_id=liq.contrato_id)
     items, ingresos, comision, neto = _detalle(pagos)
-    firma = liq.firma
+    if firma is None:
+        firma = liq.firma
     firma_b64 = (base64.b64encode(firma.firma_png).decode()
                  if firma and firma.firma_png else "")
+    if sello is None:
+        sello = (firma.sha256 if firma else "") or ""
     html = render_template(
         "liquidaciones/liquidacion_firmada_pdf.html",
         a=Ajustes.get(), liq=liq, prop=prop, items=items, ingresos=ingresos,
@@ -587,7 +668,7 @@ def _pdf_liquidacion_firmada(liq):
         extras_desglose=_desglose_extras(items),
         neto_final=float(liq.total_neto or 0),
         neto_letras=pesos_letras(float(liq.total_neto or 0)),
-        firma=firma, firma_b64=firma_b64, meses=MESES_ES)
+        firma=firma, firma_b64=firma_b64, sello=sello, meses=MESES_ES)
     buf = BytesIO()
     pisa.CreatePDF(html, dest=buf, encoding="utf-8")
     buf.seek(0)
@@ -727,35 +808,51 @@ def firmar_guardar(liq_id):
     }, ensure_ascii=False)
     consentimiento = (d.get("consentimiento") or "").strip()
     snapshot = json.dumps(_snapshot_liq(liq), sort_keys=True, ensure_ascii=False)
-    # El hash cubre TODO el paquete de evidencia: qué se firmó + trazos + imagen.
-    sha = hashlib.sha256(
+    # Huella del CONTENIDO firmado (qué se firmó + trazos + imagen). Es lo que se
+    # imprime como sello en el PDF (computable antes de generarlo).
+    huella_contenido = hashlib.sha256(
         snapshot.encode("utf-8") + trazos.encode("utf-8") + png).hexdigest()
 
-    # Cadena de firmas (ledger): encadenamos con la ÚLTIMA firma de la inmobiliaria.
-    # Así, borrar o alterar una firma del historial rompe la cadena y se detecta.
-    previa = LiquidacionFirma.query.order_by(LiquidacionFirma.id.desc()).first()
-    hash_prev = previa.hash_cadena if (previa and previa.hash_cadena) else "GENESIS"
-    hash_cadena = hashlib.sha256((hash_prev + sha).encode("utf-8")).hexdigest()
-
+    # Objeto firma en memoria (todavía sin hash final ni commit) para poder generar
+    # el PDF congelado ANTES de cerrar la firma, e incluir su hash en la evidencia.
     firma = LiquidacionFirma(
         liquidacion_id=liq.id, firmante=firmante, firmante_dni=firmante_dni,
         conforme=True, consentimiento=consentimiento, firma_png=png, trazos=trazos,
-        snapshot=snapshot, sha256=sha, hash_prev=hash_prev, hash_cadena=hash_cadena,
-        firmado=datetime.utcnow(),
+        snapshot=snapshot, firmado=datetime.utcnow(),
         ip=request.remote_addr, dispositivo=(request.headers.get("User-Agent") or "")[:300],
         meta=meta,
         registrado_por=(getattr(current_user, "nombre", None)
                         or getattr(current_user, "username", None)))
-    db.session.add(firma)
-    db.session.flush()   # para que liq.firma resuelva al armar el PDF
-    # PDF congelado de la liquidación firmada (best-effort: si falla, la firma igual
-    # queda guardada; la evidencia núcleo es el PNG + trazos + hash).
+
+    # PDF congelado (best-effort): si falla, la firma igual se guarda; la evidencia
+    # núcleo es el PNG + trazos + snapshot con detalle + hash.
+    pdf, pdf_sha = None, None
     try:
-        pdf = _pdf_liquidacion_firmada(liq)
-        firma.pdf_firmado = pdf
-        firma.pdf_sha256 = hashlib.sha256(pdf).hexdigest()
+        pdf = _pdf_liquidacion_firmada(liq, firma=firma, sello=huella_contenido)
+        pdf_sha = hashlib.sha256(pdf).hexdigest()
     except Exception:
-        pass
+        pdf, pdf_sha = None, None
+
+    # Hash PRINCIPAL del paquete de evidencia: snapshot (con detalle) + trazos +
+    # imagen + hash del PDF congelado. Así el documento aceptado entra en la huella.
+    sha = hashlib.sha256(
+        snapshot.encode("utf-8") + trazos.encode("utf-8") + png
+        + (pdf_sha or "").encode("utf-8")).hexdigest()
+
+    # Cadena de firmas (ledger): encadenamos con la ÚLTIMA firma de la inmobiliaria
+    # (la consulta queda filtrada por tenant en app/tenant.py). Borrar o alterar una
+    # firma del historial rompe la cadena y se detecta.
+    previa = LiquidacionFirma.query.order_by(LiquidacionFirma.id.desc()).first()
+    hash_prev = previa.hash_cadena if (previa and previa.hash_cadena) else "GENESIS"
+    hash_cadena = hashlib.sha256((hash_prev + sha).encode("utf-8")).hexdigest()
+
+    firma.sha256 = sha
+    firma.hash_prev = hash_prev
+    firma.hash_cadena = hash_cadena
+    if pdf is not None:
+        firma.pdf_firmado = pdf
+        firma.pdf_sha256 = pdf_sha
+    db.session.add(firma)
     # Limpiar el pendiente de la estación (si vino de ahí).
     s = _firma_sesion()
     if s and s.pendiente_liq_id == liq.id:
@@ -819,11 +916,17 @@ def firma_verificar(liq_id):
     liq = db.session.get(Liquidacion, liq_id) or abort(404)
     f = liq.firma or abort(404)
     # Recalcular el hash sobre lo guardado: si coincide, la evidencia está íntegra.
-    recalc = hashlib.sha256(
-        (f.snapshot or "").encode("utf-8")
-        + (f.trazos or "").encode("utf-8")
-        + (f.firma_png or b"")).hexdigest()
-    integra = (recalc == f.sha256)
+    # Fórmula actual: snapshot (con detalle) + trazos + imagen + hash del PDF.
+    base = (f.snapshot or "").encode("utf-8") + (f.trazos or "").encode("utf-8") + (f.firma_png or b"")
+    recalc = hashlib.sha256(base + (f.pdf_sha256 or "").encode("utf-8")).hexdigest()
+    # Compatibilidad con firmas anteriores, cuyo hash NO incluía el PDF.
+    recalc_legacy = hashlib.sha256(base).hexdigest()
+    integra = (recalc == f.sha256) or (recalc_legacy == f.sha256)
+    # Integridad del PDF congelado: su hash guardado debe coincidir con el del binario.
+    if f.pdf_firmado and f.pdf_sha256:
+        pdf_ok = (hashlib.sha256(f.pdf_firmado).hexdigest() == f.pdf_sha256)
+    else:
+        pdf_ok = None   # no hay PDF congelado que verificar
     # Cadena: recomputar el eslabón propio y verificar el enlace con la firma anterior.
     cadena_propio = hashlib.sha256(
         ((f.hash_prev or "") + (f.sha256 or "")).encode("utf-8")).hexdigest()
@@ -845,7 +948,7 @@ def firma_verificar(liq_id):
         snap = {}
     return render_template("liquidaciones/firma_verificar.html", liq=liq, f=f,
                            meta=meta, snap=snap, integra=integra, recalc=recalc,
-                           cadena_ok=cadena_ok, meses=MESES_ES)
+                           pdf_ok=pdf_ok, cadena_ok=cadena_ok, meses=MESES_ES)
 
 
 # --------------------------------------------------------------------------- #

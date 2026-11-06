@@ -84,8 +84,8 @@
     <div class="firma-cap"><b>{{ firma.firmante or 'Propietario' }}</b>{% if firma.firmante_dni %} — DNI/CUIT {{ firma.firmante_dni }}{% endif %}<br>
       Recibí de conformidad. Firmado el {{ firma.firmado.strftime('%d/%m/%Y %H:%M') if firma.firmado }} UTC · firma electrónica (Ley 25.506).</div>
     <div class="sello">
-      <span class="h">SELLO DE INTEGRIDAD (SHA-256 de la evidencia)</span><br>
-      <span class="hash">{{ firma.sha256 }}</span><br>
+      <span class="h">SELLO DE INTEGRIDAD · huella del contenido firmado (SHA-256)</span><br>
+      <span class="hash">{{ sello or firma.sha256 }}</span><br>
       IP {{ firma.ip or 's/d' }} · {{ firma.dispositivo[:90] if firma.dispositivo else '' }} · registrada por {{ firma.registrado_por or 's/d' }}
     </div>
   </div>
