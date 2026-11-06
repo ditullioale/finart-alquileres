@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Verificación de firma — Liquidación {{ liq.numero }}</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:0;background:#f0f2f6}
+  .toolbar{background:#12263f;color:#fff;padding:10px 16px;display:flex;gap:10px;align-items:center}
+  .toolbar a{color:#cfe0f5;text-decoration:none}
+  .toolbar button{background:#2f6fed;color:#fff;border:0;border-radius:7px;padding:8px 16px;font-weight:600;cursor:pointer}
+  .hoja{max-width:720px;margin:16px auto;background:#fff;padding:24px 26px;border-radius:10px}
+  h1{font-size:19px;margin:0 0 2px}
+  .sub{color:#5b6475;font-size:13px;margin:0 0 14px}
+  .banner{border-radius:10px;padding:12px 14px;font-weight:700;margin-bottom:16px;font-size:14px}
+  .banner.ok{background:#e9f8ef;border:1px solid #a9dcbb;color:#14663a}
+  .banner.bad{background:#fdecec;border:1px solid #f0b4b4;color:#9c2020}
+  .grid{display:grid;grid-template-columns:170px 1fr;gap:6px 14px;font-size:13px;margin:10px 0}
+  .grid .k{color:#5b6475}
+  .grid .v{color:#111;word-break:break-word}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:#5b6475;border-bottom:1px solid #e6e8f2;padding-bottom:5px;margin:20px 0 8px}
+  .firma-img{border:1px solid #d7deea;border-radius:8px;background:#fff;max-width:100%;max-height:220px}
+  .hash{font-family:monospace;font-size:11.5px;word-break:break-all;background:#f6f8fc;padding:6px 8px;border-radius:6px}
+  .nota{font-size:11.5px;color:#6b7890;margin-top:16px;line-height:1.5}
+  @media print{ .toolbar{display:none} body{background:#fff} .hoja{margin:0;max-width:none;border-radius:0} }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <a href="{{ url_for('liquidaciones.ver', pid=liq.propietario_id, mes=liq.periodo_mes, anio=liq.periodo_anio) }}">← Volver</a>
+  <span style="flex:1"></span>
+  <button onclick="window.print()">🖨️ Imprimir</button>
+</div>
+
+<div class="hoja">
+  <h1>Comprobante de verificación de firma</h1>
+  <p class="sub">Liquidación {{ liq.numero }} · Propietario {{ liq.propietario.nombre if liq.propietario else '—' }}</p>
+
+  {% if integra %}
+  <div class="banner ok">✓ Evidencia íntegra — el hash recalculado coincide. La firma y lo firmado no fueron alterados.</div>
+  {% else %}
+  <div class="banner bad">⚠️ El hash NO coincide: la evidencia pudo haber sido modificada después de firmar. Revisar.</div>
+  {% endif %}
+
+  <h2>Firma</h2>
+  <img class="firma-img" src="{{ url_for('liquidaciones.firma_png', liq_id=liq.id) }}" alt="Firma">
+
+  <h2>Quién firmó</h2>
+  <div class="grid">
+    <div class="k">Firmante</div><div class="v">{{ f.firmante or '—' }}</div>
+    <div class="k">DNI / CUIT</div><div class="v">{{ f.firmante_dni or '—' }}</div>
+    <div class="k">Conformidad</div><div class="v">{{ 'Sí, aceptada' if f.conforme else 'No' }}</div>
+  </div>
+
+  <h2>Cuándo y dónde</h2>
+  <div class="grid">
+    <div class="k">Fecha y hora (UTC)</div><div class="v">{{ f.firmado.strftime('%d/%m/%Y %H:%M:%S') if f.firmado }} UTC</div>
+    <div class="k">Hora local declarada</div><div class="v">{{ meta.get('hora_local') or '—' }}</div>
+    <div class="k">Zona horaria</div><div class="v">{{ meta.get('zona_horaria') or '—' }}</div>
+    <div class="k">Dirección IP</div><div class="v">{{ f.ip or '—' }}</div>
+    <div class="k">Registrada por</div><div class="v">{{ f.registrado_por or '—' }}</div>
+  </div>
+
+  <h2>Dispositivo y biometría del trazo</h2>
+  <div class="grid">
+    <div class="k">Tipo de puntero</div><div class="v">{{ meta.get('puntero') or '—' }} (touch = dedo, pen = lápiz, mouse)</div>
+    <div class="k">Pantalla</div><div class="v">{{ meta.get('pantalla') or '—' }}</div>
+    <div class="k">Duración del trazo</div><div class="v">{% if meta.get('duracion_ms') %}{{ (meta.get('duracion_ms')/1000)|round(1) }} s{% else %}—{% endif %}</div>
+    <div class="k">Puntos capturados</div><div class="v">{{ meta.get('puntos') or '—' }}</div>
+    <div class="k">Cantidad de trazos</div><div class="v">{{ meta.get('trazos_n') or '—' }}</div>
+    <div class="k">Idioma / navegador</div><div class="v">{{ meta.get('idioma') or '—' }}</div>
+    <div class="k">Navegador (user-agent)</div><div class="v">{{ f.dispositivo or '—' }}</div>
+  </div>
+
+  <h2>Qué se firmó</h2>
+  <div class="grid">
+    <div class="k">Liquidación N°</div><div class="v">{{ snap.get('numero') or liq.numero }}</div>
+    <div class="k">Período</div><div class="v">{{ snap.get('periodo') or '—' }}</div>
+    <div class="k">Neto recibido</div><div class="v">$ {{ '{:,.2f}'.format(snap.get('total_neto') or 0).replace(',','X').replace('.',',').replace('X','.') }}</div>
+    <div class="k">Comisión</div><div class="v">$ {{ '{:,.2f}'.format(snap.get('total_comision') or 0).replace(',','X').replace('.',',').replace('X','.') }}</div>
+  </div>
+
+  <h2>Texto de conformidad aceptado</h2>
+  <div class="v" style="font-size:12.5px;line-height:1.5">{{ f.consentimiento or '—' }}</div>
+
+  <h2>Sello de integridad (SHA-256)</h2>
+  <div class="grid">
+    <div class="k">Guardado al firmar</div><div class="v"><span class="hash">{{ f.sha256 or '—' }}</span></div>
+    <div class="k">Recalculado ahora</div><div class="v"><span class="hash">{{ recalc }}</span></div>
+  </div>
+
+  <p class="nota">Firma electrónica (Ley 25.506, art. 5). No es firma digital con certificado.
+    El hash SHA-256 cubre lo que se firmó + la trayectoria del trazo + la imagen: si algo
+    cambia, el recalculado deja de coincidir. Toda esta evidencia queda guardada en la base.</p>
+</div>
+</body>
+</html>

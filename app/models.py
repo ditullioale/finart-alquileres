@@ -888,3 +888,49 @@ class OperacionIdem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     clave = db.Column(db.String(120), unique=True, nullable=False, index=True)
     creado = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class LiquidacionFirma(db.Model):
+    """Firma manuscrita digital del PROPIETARIO sobre una liquidación: confirma que
+    recibió su alquiler de conformidad (firma electrónica, Ley 25.506 — no es firma
+    digital con certificado). Una por liquidación. Queda congelada: guarda el PNG de
+    la firma, una foto (snapshot JSON) de lo que se firmó y un hash SHA-256 para que
+    sea evidente si algo se modificó después."""
+    __tablename__ = "liquidaciones_firmas"
+
+    id = db.Column(db.Integer, primary_key=True)
+    inmobiliaria_id = db.Column(db.Integer, db.ForeignKey("inmobiliarias.id"),
+                                index=True, nullable=False)
+    liquidacion_id = db.Column(db.Integer,
+                               db.ForeignKey("liquidaciones.id", ondelete="CASCADE"),
+                               unique=True, nullable=False, index=True)
+    firmante = db.Column(db.String(160))        # nombre del que firma (propietario)
+    firmante_dni = db.Column(db.String(30))     # DNI/CUIT declarado al firmar
+    conforme = db.Column(db.Boolean, default=True)
+    consentimiento = db.Column(db.Text)         # texto EXACTO de conformidad aceptado
+    firma_png = db.Column(db.LargeBinary)       # imagen de la firma (PNG)
+    trazos = db.Column(db.Text)                 # JSON: trayectoria con tiempos (biométrico)
+    snapshot = db.Column(db.Text)               # JSON de lo firmado (nro, neto, items...)
+    sha256 = db.Column(db.String(64))           # hash de snapshot+trazos+firma (integridad)
+    firmado = db.Column(db.DateTime, default=datetime.utcnow)   # UTC (sello del servidor)
+    ip = db.Column(db.String(64))
+    dispositivo = db.Column(db.String(300))     # user-agent del aparato que firmó
+    meta = db.Column(db.Text)                   # JSON: puntero, pantalla, zona horaria, duración...
+    registrado_por = db.Column(db.String(120))  # usuario de la inmobiliaria que la tomó
+
+    liquidacion = db.relationship(
+        "Liquidacion",
+        backref=db.backref("firma", uselist=False, cascade="all, delete-orphan"))
+
+
+class FirmaSesion(db.Model):
+    """Puente PC → celular para firmar en el momento. Hay una por inmobiliaria: la PC
+    deja acá la liquidación que mandó a firmar, y el celular (logueado con la misma
+    cuenta) la consulta cada 1-2 s y la muestra sola. Al firmar o cancelar se limpia."""
+    __tablename__ = "firma_sesiones"
+
+    id = db.Column(db.Integer, primary_key=True)
+    inmobiliaria_id = db.Column(db.Integer, db.ForeignKey("inmobiliarias.id"),
+                                unique=True, nullable=False, index=True)
+    pendiente_liq_id = db.Column(db.Integer, db.ForeignKey("liquidaciones.id"))
+    solicitado = db.Column(db.DateTime, default=datetime.utcnow)

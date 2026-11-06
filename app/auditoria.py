@@ -11,7 +11,8 @@ from . import db
 
 # Entidades que se auditan (por nombre de clase).
 AUDITADAS = {"Persona", "Inmueble", "Contrato", "Pago", "Aumento",
-             "Liquidacion", "ReciboManual", "Usuario", "GasEstado"}
+             "Liquidacion", "ReciboManual", "Usuario", "GasEstado",
+             "LiquidacionFirma"}
 
 
 def _descripcion(obj):

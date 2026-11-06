@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<title>Firmar liquidación {{ liq.numero }}</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:'Segoe UI',system-ui,Arial,sans-serif;margin:0;background:#eef1f7;color:#1a2230}
+  .wrap{max-width:560px;margin:0 auto;padding:14px}
+  .card{background:#fff;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:16px;margin-bottom:12px}
+  h1{font-size:18px;margin:0 0 4px}
+  .sub{color:#5b6475;font-size:13px;margin:0 0 10px}
+  .res{font-size:14px;line-height:1.5}
+  .res b{color:#111}
+  .neto{font-size:20px;font-weight:800;color:#14663a;margin-top:4px}
+  .consent{background:#f6f8fc;border:1px solid #dde3ee;border-radius:10px;padding:11px 12px;font-size:12.5px;color:#36405a;line-height:1.5;margin:10px 0}
+  label.campo{display:block;font-size:12.5px;color:#5b6475;margin:10px 0 3px}
+  input.inp{width:100%;padding:10px 11px;border:1px solid #c7cfdd;border-radius:9px;font-size:15px}
+  .padwrap{position:relative;margin-top:6px}
+  canvas{width:100%;height:220px;background:#fff;border:2px dashed #b9c4d8;border-radius:12px;touch-action:none;display:block}
+  .baseline{position:absolute;left:14px;right:14px;bottom:52px;border-bottom:1px solid #d7deea;pointer-events:none}
+  .hintfirma{position:absolute;left:16px;bottom:34px;color:#aeb7c8;font-size:12px;pointer-events:none}
+  .chk{display:flex;gap:9px;align-items:flex-start;margin-top:12px;font-size:13.5px;line-height:1.4}
+  .chk input{width:20px;height:20px;margin-top:1px;flex:none}
+  .btns{display:flex;gap:10px;margin-top:14px}
+  .btn{flex:1;border:0;border-radius:11px;padding:14px;font-size:15px;font-weight:700;cursor:pointer}
+  .btn.limpiar{background:#eceef7;color:#3a3c56}
+  .btn.firmar{background:#2f6fed;color:#fff}
+  .btn:disabled{opacity:.5}
+  .ok{text-align:center;padding:30px 16px}
+  .ok .big{font-size:48px}
+  .msg{font-size:13px;margin-top:8px;min-height:18px}
+  .err{color:#c0392b}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+{% if ya %}
+  <div class="card ok">
+    <div class="big">✓</div>
+    <h1>Esta liquidación ya está firmada</h1>
+    <p class="sub">Liquidación {{ liq.numero }} — {{ liq.firma.firmante or '' }}.</p>
+  </div>
+{% else %}
+  <div class="card">
+    <h1>Firma de conformidad</h1>
+    <p class="sub">{{ a.nombre if a else '' }} · Liquidación <b>{{ liq.numero }}</b></p>
+    <div class="res">
+      <div><b>Propietario:</b> {{ prop.nombre if prop else '—' }}{% if prop and prop.cuit %} · CUIT {{ prop.cuit }}{% endif %}</div>
+      <div><b>Período:</b> {{ meses[liq.periodo_mes] }} {{ liq.periodo_anio }}</div>
+      <div class="neto">Neto recibido: $ {{ '{:,.2f}'.format(neto).replace(',','X').replace('.',',').replace('X','.') }}</div>
+    </div>
+    <div class="consent" id="consent"></div>
+
+    <label class="campo">Nombre y apellido de quien firma</label>
+    <input class="inp" id="firmante" value="{{ prop.nombre if prop else '' }}">
+    <label class="campo">DNI / CUIT</label>
+    <input class="inp" id="firmanteDni" value="{{ prop.cuit if prop and prop.cuit else '' }}" inputmode="numeric">
+
+    <label class="campo">Firmá en el recuadro (con el dedo o un lápiz):</label>
+    <div class="padwrap">
+      <canvas id="pad"></canvas>
+      <div class="baseline"></div>
+      <div class="hintfirma" id="hintfirma">Firma</div>
+    </div>
+
+    <label class="chk">
+      <input type="checkbox" id="conforme">
+      <span id="chktexto"></span>
+    </label>
+
+    <div class="btns">
+      <button class="btn limpiar" type="button" onclick="limpiar()">Limpiar</button>
+      <button class="btn firmar" id="btnFirmar" type="button" onclick="firmar()" disabled>Firmar</button>
+    </div>
+    <div class="msg err" id="msg"></div>
+  </div>
+{% endif %}
+
+</div>
+
+{% if not ya %}
+<script>
+(function(){
+  var neto = {{ neto|tojson }};
+  var netoLetras = {{ neto_letras|tojson }};
+  var numero = {{ (liq.numero or '')|tojson }};
+  var periodo = {{ (meses[liq.periodo_mes] ~ ' ' ~ liq.periodo_anio)|tojson }};
+  var inmo = {{ (a.nombre if a else '')|tojson }};
+  var netoFmt = '$ ' + Math.round(neto).toLocaleString('es-AR');
+  var CONSENT = 'Declaro recibir de ' + (inmo || 'la administración') + ' la suma de ' +
+    netoFmt + ' (' + netoLetras + ') correspondiente a la Liquidación N° ' + numero +
+    ', período ' + periodo + ', en concepto de alquileres percibidos por mi cuenta y ' +
+    'orden, prestando plena conformidad. Firma electrónica (Ley 25.506).';
+  document.getElementById('consent').textContent = CONSENT;
+  document.getElementById('chktexto').textContent = 'Confirmo que leí y presto conformidad con lo anterior.';
+
+  // ---- Signature pad con captura de trazos y tiempos (biométrico) ----
+  var canvas = document.getElementById('pad');
+  var ctx = canvas.getContext('2d');
+  var trazos = [];        // [[{x,y,t},...], ...]
+  var trazoActual = null;
+  var dibujando = false;
+  var hayFirma = false;
+  var t0 = null;
+  var punteros = {};      // tipos de puntero usados
+
+  function ajustar(){
+    var r = canvas.getBoundingClientRect();
+    var dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(r.width * dpr);
+    canvas.height = Math.round(r.height * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.lineWidth = 2.2; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.strokeStyle='#10203a';
+  }
+  ajustar();
+  window.addEventListener('resize', function(){ var d=trazos.slice(); ajustar(); redibujar(d); });
+
+  function pos(e){
+    var r = canvas.getBoundingClientRect();
+    return { x: +(e.clientX - r.left).toFixed(1), y: +(e.clientY - r.top).toFixed(1), t: Date.now() - t0 };
+  }
+  function redibujar(ts){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ts.forEach(function(tr){
+      if(!tr.length) return;
+      ctx.beginPath(); ctx.moveTo(tr[0].x,tr[0].y);
+      for(var i=1;i<tr.length;i++) ctx.lineTo(tr[i].x,tr[i].y);
+      ctx.stroke();
+    });
+  }
+  canvas.addEventListener('pointerdown', function(e){
+    e.preventDefault(); canvas.setPointerCapture(e.pointerId);
+    if(t0===null) t0 = Date.now();
+    punteros[e.pointerType||'desconocido']=1;
+    dibujando = true; trazoActual = [pos(e)]; trazos.push(trazoActual);
+    document.getElementById('hintfirma').style.display='none';
+  });
+  canvas.addEventListener('pointermove', function(e){
+    if(!dibujando) return; e.preventDefault();
+    var p = pos(e); trazoActual.push(p);
+    var n = trazoActual.length;
+    if(n>=2){ ctx.beginPath(); ctx.moveTo(trazoActual[n-2].x,trazoActual[n-2].y); ctx.lineTo(p.x,p.y); ctx.stroke(); }
+    hayFirma = true; actualizarBoton();
+  });
+  function finTrazo(e){ if(dibujando){ dibujando=false; } }
+  canvas.addEventListener('pointerup', finTrazo);
+  canvas.addEventListener('pointercancel', finTrazo);
+  canvas.addEventListener('pointerleave', finTrazo);
+
+  document.getElementById('conforme').addEventListener('change', actualizarBoton);
+  function actualizarBoton(){
+    document.getElementById('btnFirmar').disabled = !(hayFirma && document.getElementById('conforme').checked);
+  }
+  window.limpiar = function(){
+    trazos=[]; trazoActual=null; hayFirma=false; t0=null;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    document.getElementById('hintfirma').style.display='';
+    actualizarBoton();
+  };
+
+  window.firmar = function(){
+    var btn = document.getElementById('btnFirmar'), msg = document.getElementById('msg');
+    if(btn.disabled) return;
+    msg.textContent='';
+    var puntos = trazos.reduce(function(s,t){return s+t.length;},0);
+    var payload = {
+      firma: canvas.toDataURL('image/png'),
+      trazos: trazos,
+      firmante: document.getElementById('firmante').value.trim(),
+      firmante_dni: document.getElementById('firmanteDni').value.trim(),
+      conforme: document.getElementById('conforme').checked,
+      consentimiento: CONSENT,
+      puntero: Object.keys(punteros).join(','),
+      pantalla: screen.width + 'x' + screen.height,
+      ancho_lienzo: canvas.width, alto_lienzo: canvas.height,
+      zona_horaria: (Intl.DateTimeFormat().resolvedOptions().timeZone || ''),
+      hora_local: new Date().toString(),
+      duracion_ms: (t0 ? Date.now()-t0 : 0),
+      puntos: puntos, trazos_n: trazos.length,
+      idioma: navigator.language || ''
+    };
+    btn.disabled=true; btn.textContent='Firmando…';
+    var tok=document.querySelector('meta[name="csrf-token"]').content;
+    fetch(window.location.pathname, {method:'POST', credentials:'same-origin',
+          headers:{'Content-Type':'application/json','X-CSRFToken':tok},
+          body: JSON.stringify(payload)})
+      .then(function(r){return r.json();})
+      .then(function(j){
+        if(j.ok){
+          document.querySelector('.wrap').innerHTML =
+            '<div class="card ok"><div class="big">✓</div><h1>¡Firmado!</h1>'+
+            '<p class="sub">Gracias. Ya podés devolver el dispositivo.</p></div>';
+          setTimeout(function(){ window.location.href='{{ url_for("liquidaciones.firmar_estacion") }}'; }, 2500);
+        } else {
+          btn.disabled=false; btn.textContent='Firmar';
+          msg.textContent = j.error || 'No se pudo firmar. Reintentá.';
+        }
+      })
+      .catch(function(){ btn.disabled=false; btn.textContent='Firmar'; msg.textContent='Error de conexión.'; });
+  };
+})();
+</script>
+{% endif %}
+</body>
+</html>

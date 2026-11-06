@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <title>Liquidación {{ prop.nombre }} — {{ meses[mes] }} {{ anio }}</title>
 <style>
   body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:0;background:#f0f0f0}
@@ -31,6 +32,16 @@
   .neg{color:#b00}
   .letras{padding:8px 14px;font-size:12px;color:#333}
   .firma{border-top:1px solid #333;width:240px;text-align:center;padding-top:3px;margin:44px 14px 14px}
+  .firma.firmada{margin-top:18px}
+  .firma-img{max-height:72px;max-width:230px;display:block;margin:0 auto 2px}
+  .firma-cap{font-size:9px;color:#666;margin-top:1px}
+  .toolbar .firmar{background:#7a5cff;color:#fff;text-decoration:none;display:inline-block}
+  .toolbar .firmada-chip{background:#1f9d55;color:#fff;text-decoration:none;display:inline-block}
+  .ovf{position:fixed;inset:0;background:rgba(10,20,40,.72);display:none;align-items:center;justify-content:center;z-index:50}
+  .ovf .card{background:#fff;color:#1a2230;border-radius:14px;padding:24px 26px;max-width:380px;text-align:center}
+  .ovf .spin{width:46px;height:46px;border:5px solid #e6e8f2;border-top-color:#7a5cff;border-radius:50%;margin:0 auto 14px;animation:g 1s linear infinite}
+  @keyframes g{to{transform:rotate(360deg)}}
+  .ovf button{margin-top:14px;border:0;border-radius:9px;padding:9px 16px;font-weight:600;cursor:pointer;background:#eceef7;color:#3a3c56}
   .aviso{max-width:800px;margin:10px auto;font-size:12px;color:#14663a;background:#eefaf1;border:1px solid #a9dcbb;padding:8px 12px;border-radius:8px}
   /* Contenedor para la impresión de 2 copias (propietario + respaldo). En pantalla
      está oculto; sólo se usa al imprimir con el botón "Imprimir 2 copias". */
@@ -57,12 +68,18 @@
   <span style="flex:1"></span>
   <button class="print" onclick="window.print()">🖨️ Imprimir / PDF</button>
   <button class="gen" onclick="imprimirDoble()" title="Una copia para el propietario y otra de respaldo para la inmobiliaria">🖨️ Imprimir 2 copias</button>
+  {% if liq and not liq.firma %}
+  <button class="firmar" id="btnEnviarFirma" onclick="enviarFirma()" title="Lo mandás al celular para que el propietario firme con el dedo">📱 Enviar a firmar</button>
+  {% elif liq and liq.firma %}
+  <a class="firmada-chip" href="{{ url_for('liquidaciones.firma_verificar', liq_id=liq.id) }}" title="Ver la verificación de la firma">✓ Firmada — verificar</a>
+  {% endif %}
   {% if liq %}
   <form method="post" action="{{ url_for('liquidaciones.eliminar', liq_id=liq.id) }}"
         style="display:inline"
-        onsubmit="return confirm({% if liq.facturada %}'⚠️ Esta liquidación tiene una factura de honorarios YA EMITIDA en ARCA.\n\nBorrarla NO anula esa factura (para revertirla hay que hacer una nota de crédito en ARCA). Los cobros vuelven a quedar pendientes de liquidar.\n\n¿Borrar la liquidación igual?'{% else %}'¿Borrar la liquidación {{ liq.numero }}?\n\nLos cobros de este período vuelven a quedar pendientes de liquidar. Esta acción no se puede deshacer.'{% endif %});">
+        onsubmit="return confirm({% if liq.firma %}'⚠️ Esta liquidación está FIRMADA por el propietario.\n\nBorrarla elimina la constancia de conformidad (y toda la evidencia de la firma). Esta acción no se puede deshacer.\n\n¿Borrar igual?'{% elif liq.facturada %}'⚠️ Esta liquidación tiene una factura de honorarios YA EMITIDA en ARCA.\n\nBorrarla NO anula esa factura (para revertirla hay que hacer una nota de crédito en ARCA). Los cobros vuelven a quedar pendientes de liquidar.\n\n¿Borrar la liquidación igual?'{% else %}'¿Borrar la liquidación {{ liq.numero }}?\n\nLos cobros de este período vuelven a quedar pendientes de liquidar. Esta acción no se puede deshacer.'{% endif %});">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% if liq.facturada %}<input type="hidden" name="confirmar_facturada" value="1">{% endif %}
+    {% if liq.firma %}<input type="hidden" name="confirmar_firmada" value="1">{% endif %}
     <button type="submit" class="del">🗑️ Borrar</button>
   </form>
   {% endif %}
@@ -187,12 +204,54 @@
       <div class="l neto"><span>Neto a pagar al propietario</span><span>{{ neto_final|money }}</span></div>
     </div>
     <div class="letras">Son: {{ neto_letras }}.</div>
+    {% if liq and liq.firma %}
+    <div class="firma firmada">
+      <img class="firma-img" src="{{ url_for('liquidaciones.firma_png', liq_id=liq.id) }}" alt="Firma">
+      {{ liq.firma.firmante or 'Propietario' }}
+      <div class="firma-cap">Firmado el {{ liq.firma.firmado.strftime('%d/%m/%Y') if liq.firma.firmado }} · firma electrónica (Ley 25.506)</div>
+    </div>
+    {% else %}
     <div class="firma">Firma y aclaración</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="ovf" id="ovfFirma">
+  <div class="card">
+    <div class="spin"></div>
+    <h3 style="margin:0 0 6px">Esperando la firma…</h3>
+    <p style="margin:0;color:#5b6475;font-size:13px">Abrí la <b>Estación de firma</b> en tu celular (si no está abierta) y pasáselo al propietario. Esta pantalla se actualiza sola cuando firme.</p>
+    <button type="button" onclick="cancelarFirma()">Cancelar</button>
   </div>
 </div>
 
 <div id="printCopies"></div>
 <script>
+{% if liq and not liq.firma %}
+// ---- Firma: enviar al celular y esperar (polling) ----
+var _pollFirma = null, _csrf = document.querySelector('meta[name="csrf-token"]').content;
+function enviarFirma(){
+  fetch('{{ url_for("liquidaciones.enviar_firma", liq_id=liq.id) }}',
+        {method:'POST', credentials:'same-origin', headers:{'X-CSRFToken':_csrf}})
+    .then(function(r){return r.json();})
+    .then(function(j){
+      if(!j.ok){ alert(j.error || 'No se pudo enviar.'); return; }
+      document.getElementById('ovfFirma').style.display='flex';
+      _pollFirma = setInterval(function(){
+        fetch('{{ url_for("liquidaciones.firma_estado", liq_id=liq.id) }}', {credentials:'same-origin'})
+          .then(function(r){return r.json();})
+          .then(function(j){ if(j.firmada){ clearInterval(_pollFirma); location.reload(); } })
+          .catch(function(){});
+      }, 2000);
+    }).catch(function(){ alert('Error de conexión.'); });
+}
+function cancelarFirma(){
+  if(_pollFirma) clearInterval(_pollFirma);
+  document.getElementById('ovfFirma').style.display='none';
+  fetch('{{ url_for("liquidaciones.cancelar_firma") }}',
+        {method:'POST', credentials:'same-origin', headers:{'X-CSRFToken':_csrf}}).catch(function(){});
+}
+{% endif %}
 // Imprime DOS copias de la liquidación: la 1ª "ORIGINAL — PROPIETARIO" y la 2ª
 // "DUPLICADO — RESPALDO INMOBILIARIA", cada una en su propia hoja. El botón de
 // "Imprimir / PDF" normal sigue sacando una sola copia.

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Estación de firma</title>
+<style>
+  body{font-family:'Segoe UI',system-ui,Arial,sans-serif;margin:0;background:#12263f;color:#eaf0fb;
+       min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center}
+  .box{max-width:420px;padding:28px}
+  .spin{width:54px;height:54px;border:5px solid rgba(255,255,255,.25);border-top-color:#8fb4ff;
+        border-radius:50%;margin:0 auto 18px;animation:g 1s linear infinite}
+  @keyframes g{to{transform:rotate(360deg)}}
+  h1{font-size:20px;margin:0 0 6px}
+  p{color:#aec3e6;font-size:14px;margin:4px 0}
+  .dot{color:#8fb4ff}
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="spin"></div>
+  <h1>Esperando liquidación para firmar</h1>
+  <p>Dejá esta pantalla abierta. Cuando envíes una liquidación desde la computadora,
+     aparece acá sola para que el propietario firme.</p>
+  <p class="dot" id="estado">Conectado · revisando…</p>
+</div>
+<script>
+(function(){
+  var fallos = 0;
+  function revisar(){
+    fetch('{{ url_for("liquidaciones.firmar_pendiente") }}', {credentials:'same-origin'})
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        fallos = 0;
+        if(j.hay && j.liq_id){
+          document.getElementById('estado').textContent = 'Abriendo liquidación de ' + (j.titulo||'') + '…';
+          window.location.href = '/liquidaciones/' + j.liq_id + '/firmar';
+          return;
+        }
+        document.getElementById('estado').textContent = 'Conectado · esperando…';
+      })
+      .catch(function(){
+        fallos++;
+        document.getElementById('estado').textContent = fallos>2
+          ? 'Sin conexión. Revisá internet o volvé a entrar.' : 'Reintentando…';
+      });
+  }
+  revisar();
+  setInterval(revisar, 1500);
+})();
+</script>
+</body>
+</html>

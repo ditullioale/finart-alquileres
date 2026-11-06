@@ -83,6 +83,7 @@
       <a class="nav-i {{ 'on' if ep in ('contratos.crear','contratos.generador') }}" href="{{ url_for('contratos.crear') }}">{{ icon('file-pen', 16) }}<span>Nuevo contrato</span></a>
       <a class="nav-i {{ 'on' if ep in ('recibos.manuales','recibos.manual_nuevo','recibos.manual_ver') }}" href="{{ url_for('recibos.manuales') }}">{{ icon('receipt', 16) }}<span>Recibos manuales</span></a>
       <a class="nav-i {{ 'on' if 'pagare_manual' in ep or ep=='recibos.pagares_manuales' }}" href="{{ url_for('recibos.pagares_manuales') }}">{{ icon('scroll', 16) }}<span>Pagarés manuales</span></a>
+      <a class="nav-i {{ 'on' if ep and 'firmar' in ep }}" href="{{ url_for('liquidaciones.firmar_estacion') }}">{{ icon('file-pen', 16) }}<span>Estación de firma</span></a>
       <a class="nav-i {{ 'on' if bp=='aumentos' and 'indice' in ep }}" href="{{ url_for('aumentos.indices') }}">{{ icon('bar-chart', 16) }}<span>Índices</span></a>
       <a class="nav-i {{ 'on' if bp=='ajustes' }}" href="{{ url_for('ajustes.index') }}">{{ icon('settings', 16) }}<span>Ajustes</span></a>
       {% if current_user.rol == 'superadmin' %}

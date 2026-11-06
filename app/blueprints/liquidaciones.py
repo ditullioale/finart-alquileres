@@ -1,16 +1,20 @@
 """Liquidaciones a propietarios: por período, todas juntas o individuales."""
-from datetime import date
+from datetime import date, datetime
 
 import os
+import base64
+import hashlib
+import json
 
 from flask import (Blueprint, render_template, redirect, url_for, request,
-                   flash, abort, jsonify)
-from flask_login import login_required
+                   flash, abort, jsonify, make_response)
+from flask_login import login_required, current_user
 
 from .. import db
 from .. import facturador
 from ..idempotencia import nueva_clave, reservar
-from ..models import Contrato, Pago, Persona, Liquidacion, Ajustes, ConceptoLiquidacion
+from ..models import (Contrato, Pago, Persona, Liquidacion, Ajustes,
+                      ConceptoLiquidacion, LiquidacionFirma, FirmaSesion)
 from ..ui import render_ui
 from ..utils import parse_num, pesos_letras, MESES_ES
 
@@ -436,11 +440,21 @@ def eliminar(liq_id):
                                 contrato=contrato_id) if contrato_id else
                         url_for("liquidaciones.ver", pid=pid, mes=mes, anio=anio))
 
+    # Una liquidación FIRMADA por el propietario es constancia de su conformidad:
+    # borrarla destruye esa evidencia. Se bloquea salvo confirmación explícita.
+    if liq.firma and not request.form.get("confirmar_firmada"):
+        flash(f"La liquidación {numero} está FIRMADA por el propietario "
+              f"({liq.firma.firmante or 's/d'}). Borrarla elimina la constancia de "
+              "conformidad. Volvé a confirmar si querés borrarla igual.", "error")
+        return redirect(url_for("liquidaciones.ver", pid=pid, mes=mes, anio=anio,
+                                contrato=contrato_id) if contrato_id else
+                        url_for("liquidaciones.ver", pid=pid, mes=mes, anio=anio))
+
     # Los cobros vuelven a quedar pendientes de liquidar (para poder rehacerla).
     for p in _pagos_periodo(pid, mes, anio, contrato_id=contrato_id):
         p.pagado_al_propietario = None
 
-    db.session.delete(liq)          # los ConceptoLiquidacion se borran en cascada
+    db.session.delete(liq)          # los ConceptoLiquidacion y la firma se borran en cascada
     db.session.commit()
 
     flash(f"Liquidación {numero} borrada. Los cobros quedaron pendientes de "
@@ -519,6 +533,209 @@ def generar():
                                 contrato=contrato_id, fact=fact))
     flash(f"Liquidación {liq.numero} generada (todas juntas) para {prop.nombre}.", "ok")
     return redirect(url_for("liquidaciones.ver", pid=pid, mes=mes, anio=anio, fact=fact))
+
+
+# --------------------------------------------------------------------------- #
+#  Firma manuscrita digital del propietario sobre la liquidación
+#  Flujo automático PC -> celular: la PC "envía a firmar" (deja la liquidación en
+#  FirmaSesion), el celular logueado la muestra sola, el propietario firma, la PC
+#  se entera por polling. Firma electrónica (Ley 25.506), no firma con certificado.
+# --------------------------------------------------------------------------- #
+def _firma_sesion(crear=False):
+    """La fila FirmaSesion de la inmobiliaria actual (una sola; filtrada por tenant)."""
+    s = FirmaSesion.query.first()
+    if not s and crear:
+        s = FirmaSesion(inmobiliaria_id=getattr(current_user, "inmobiliaria_id", None))
+        db.session.add(s)
+    return s
+
+
+def _snapshot_liq(liq):
+    """Foto de lo que se firma (para congelar e integridad). Solo datos de la
+    liquidación ya guardada, que es inmutable una vez generada."""
+    prop = liq.propietario
+    return {
+        "liquidacion_id": liq.id,
+        "numero": liq.numero,
+        "propietario": prop.nombre if prop else None,
+        "cuit": (prop.cuit if prop else None),
+        "periodo": f"{liq.periodo_mes}/{liq.periodo_anio}",
+        "moneda": liq.moneda,
+        "total_ingresos": float(liq.total_ingresos or 0),
+        "total_comision": float(liq.total_comision or 0),
+        "total_neto": float(liq.total_neto or 0),
+        "fecha": liq.fecha.isoformat() if liq.fecha else None,
+    }
+
+
+@liquidaciones_bp.route("/<int:liq_id>/enviar-firma", methods=["POST"])
+@login_required
+def enviar_firma(liq_id):
+    """La PC manda la liquidación al celular para firmarla."""
+    liq = db.session.get(Liquidacion, liq_id) or abort(404)
+    if liq.firma:
+        return jsonify(ok=False, error="Esta liquidación ya está firmada."), 409
+    s = _firma_sesion(crear=True)
+    s.pendiente_liq_id = liq.id
+    s.solicitado = datetime.utcnow()
+    db.session.commit()
+    return jsonify(ok=True)
+
+
+@liquidaciones_bp.route("/firma/cancelar", methods=["POST"])
+@login_required
+def cancelar_firma():
+    """Cancela el pedido de firma pendiente (la PC se arrepiente)."""
+    s = _firma_sesion()
+    if s:
+        s.pendiente_liq_id = None
+        db.session.commit()
+    return jsonify(ok=True)
+
+
+@liquidaciones_bp.route("/<int:liq_id>/firma-estado")
+@login_required
+def firma_estado(liq_id):
+    """La PC consulta si la liquidación ya fue firmada (para actualizarse sola)."""
+    liq = db.session.get(Liquidacion, liq_id) or abort(404)
+    return jsonify(firmada=bool(liq.firma))
+
+
+@liquidaciones_bp.route("/firmar")
+@login_required
+def firmar_estacion():
+    """Pantalla del CELULAR: espera y, cuando la PC envía una liquidación, la muestra
+    sola para firmar. El celular se 'registra' con sólo estar logueado y abrir esto."""
+    return render_template("liquidaciones/firmar_estacion.html")
+
+
+@liquidaciones_bp.route("/firmar/pendiente")
+@login_required
+def firmar_pendiente():
+    """El celular consulta cada 1-2 s si hay una liquidación esperando firma."""
+    s = _firma_sesion()
+    if not s or not s.pendiente_liq_id:
+        return jsonify(hay=False)
+    liq = db.session.get(Liquidacion, s.pendiente_liq_id)
+    if not liq or liq.firma:
+        return jsonify(hay=False)
+    prop = liq.propietario
+    return jsonify(hay=True, liq_id=liq.id,
+                   titulo=(prop.nombre if prop else "Propietario"),
+                   periodo=f"{MESES_ES[liq.periodo_mes]} {liq.periodo_anio}",
+                   neto=float(liq.total_neto or 0), numero=liq.numero)
+
+
+@liquidaciones_bp.route("/<int:liq_id>/firmar")
+@login_required
+def firmar(liq_id):
+    """Pantalla de firma (canvas) de una liquidación puntual, pensada para el celular."""
+    liq = db.session.get(Liquidacion, liq_id) or abort(404)
+    prop = liq.propietario
+    ya = bool(liq.firma)
+    return render_template("liquidaciones/firmar.html", liq=liq, prop=prop, ya=ya,
+                           a=Ajustes.get(), neto=float(liq.total_neto or 0), meses=MESES_ES,
+                           neto_letras=pesos_letras(float(liq.total_neto or 0)))
+
+
+@liquidaciones_bp.route("/<int:liq_id>/firmar", methods=["POST"])
+@login_required
+def firmar_guardar(liq_id):
+    """Guarda la firma del propietario: PNG + snapshot + SHA-256 + IP/dispositivo."""
+    liq = db.session.get(Liquidacion, liq_id) or abort(404)
+    if liq.firma:
+        return jsonify(ok=False, error="Esta liquidación ya está firmada."), 409
+    d = request.get_json(silent=True) or {}
+    if not d.get("conforme"):
+        return jsonify(ok=False, error="Hay que marcar la conformidad para firmar."), 200
+    data_url = (d.get("firma") or "").strip()
+    b64 = data_url.split(",", 1)[1] if "," in data_url else data_url
+    try:
+        png = base64.b64decode(b64)
+    except Exception:
+        png = b""
+    # Backstop anti-firma-en-blanco: un canvas vacío da un PNG muy chico. El gate
+    # real está en el cliente (no deja firmar sin trazos).
+    if len(png) < 800:
+        return jsonify(ok=False, error="La firma está en blanco. Dibujá la firma y reintentá."), 200
+
+    firmante = (d.get("firmante") or (liq.propietario.nombre if liq.propietario else "")).strip()
+    firmante_dni = (d.get("firmante_dni") or (liq.propietario.cuit if liq.propietario else "") or "").strip()
+    # Trazos biométricos (trayectoria con tiempos) y metadatos del dispositivo: toda
+    # la evidencia que podemos juntar para verificar después que la firma es fidedigna.
+    trazos = json.dumps(d.get("trazos") or [], ensure_ascii=False)
+    meta = json.dumps({
+        "puntero": d.get("puntero"),           # touch / pen / mouse
+        "pantalla": d.get("pantalla"),          # ancho x alto
+        "zona_horaria": d.get("zona_horaria"),
+        "hora_local": d.get("hora_local"),
+        "duracion_ms": d.get("duracion_ms"),    # cuánto tardó en firmar
+        "puntos": d.get("puntos"),              # cantidad de puntos capturados
+        "trazos_n": d.get("trazos_n"),          # cantidad de trazos (levantó el dedo)
+        "idioma": d.get("idioma"),
+        "ancho_lienzo": d.get("ancho_lienzo"),
+        "alto_lienzo": d.get("alto_lienzo"),
+    }, ensure_ascii=False)
+    consentimiento = (d.get("consentimiento") or "").strip()
+    snapshot = json.dumps(_snapshot_liq(liq), sort_keys=True, ensure_ascii=False)
+    # El hash cubre TODO el paquete de evidencia: qué se firmó + trazos + imagen.
+    sha = hashlib.sha256(
+        snapshot.encode("utf-8") + trazos.encode("utf-8") + png).hexdigest()
+
+    firma = LiquidacionFirma(
+        liquidacion_id=liq.id, firmante=firmante, firmante_dni=firmante_dni,
+        conforme=True, consentimiento=consentimiento, firma_png=png, trazos=trazos,
+        snapshot=snapshot, sha256=sha, firmado=datetime.utcnow(),
+        ip=request.remote_addr, dispositivo=(request.headers.get("User-Agent") or "")[:300],
+        meta=meta,
+        registrado_por=(getattr(current_user, "nombre", None)
+                        or getattr(current_user, "username", None)))
+    db.session.add(firma)
+    # Limpiar el pendiente de la estación (si vino de ahí).
+    s = _firma_sesion()
+    if s and s.pendiente_liq_id == liq.id:
+        s.pendiente_liq_id = None
+    db.session.commit()
+    return jsonify(ok=True)
+
+
+@liquidaciones_bp.route("/<int:liq_id>/firma.png")
+@login_required
+def firma_png(liq_id):
+    """Sirve la imagen de la firma para mostrarla en la liquidación."""
+    liq = db.session.get(Liquidacion, liq_id) or abort(404)
+    if not (liq.firma and liq.firma.firma_png):
+        abort(404)
+    resp = make_response(liq.firma.firma_png)
+    resp.headers["Content-Type"] = "image/png"
+    resp.headers["Cache-Control"] = "private, max-age=86400"
+    return resp
+
+
+@liquidaciones_bp.route("/<int:liq_id>/firma/verificar")
+@login_required
+def firma_verificar(liq_id):
+    """Comprobante de verificación: muestra TODA la evidencia de la firma y
+    recalcula el hash para confirmar que no se alteró nada."""
+    liq = db.session.get(Liquidacion, liq_id) or abort(404)
+    f = liq.firma or abort(404)
+    # Recalcular el hash sobre lo guardado: si coincide, la evidencia está íntegra.
+    recalc = hashlib.sha256(
+        (f.snapshot or "").encode("utf-8")
+        + (f.trazos or "").encode("utf-8")
+        + (f.firma_png or b"")).hexdigest()
+    integra = (recalc == f.sha256)
+    try:
+        meta = json.loads(f.meta) if f.meta else {}
+    except Exception:
+        meta = {}
+    try:
+        snap = json.loads(f.snapshot) if f.snapshot else {}
+    except Exception:
+        snap = {}
+    return render_template("liquidaciones/firma_verificar.html", liq=liq, f=f,
+                           meta=meta, snap=snap, integra=integra, recalc=recalc,
+                           meses=MESES_ES)
 
 
 # --------------------------------------------------------------------------- #

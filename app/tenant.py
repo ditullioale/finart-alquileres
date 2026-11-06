@@ -39,7 +39,8 @@ _TENANT_MODEL_NAMES = ["Persona", "Inmueble", "Contrato", "Aumento", "Pago",
                        "GasEstado", "ReciboManual", "Liquidacion",
                        "RegistroAuditoria", "DocumentoContrato", "Ajustes",
                        "GasCredencial", "SeguimientoNota", "TareaPendiente",
-                       "ContratoConcepto", "Notificacion"]
+                       "ContratoConcepto", "Notificacion",
+                       "LiquidacionFirma", "FirmaSesion"]
 
 
 _MODELOS_CACHE = None
