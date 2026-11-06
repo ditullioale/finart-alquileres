@@ -938,8 +938,10 @@ class LiquidacionFirma(db.Model):
     email_enviado_at = db.Column(db.DateTime)       # cuándo se mandó el mail (UTC)
     email_abierto_at = db.Column(db.DateTime)       # 1ª apertura detectada (píxel) — indicio
     email_abierto_ip = db.Column(db.String(64))
-    email_confirmado_at = db.Column(db.DateTime)    # clic en "Confirmo recepción" — prueba fuerte
+    email_confirmado_at = db.Column(db.DateTime)    # POST del botón "Confirmo recepción" — prueba fuerte
     email_confirmado_ip = db.Column(db.String(64))
+    email_confirmado_ua = db.Column(db.String(300)) # user-agent de quien confirmó
+    acuse_intentos = db.Column(db.Integer, default=0)   # veces que se pulsó confirmar
 
     liquidacion = db.relationship(
         "Liquidacion",

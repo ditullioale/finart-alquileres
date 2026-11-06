@@ -130,6 +130,9 @@ def create_app(config_class=Config):
     csrf.exempt(app.view_functions["gas.importar"])
     # El cron de reconciliación se autentica por token (X-Reconciliar-Token), no CSRF.
     csrf.exempt(app.view_functions["liquidaciones.reconciliar_cron"])
+    # El acuse de recepción del mail es público (lo abre el propietario sin login) y
+    # se protege por el token secreto del enlace, no por CSRF.
+    csrf.exempt(app.view_functions["liquidaciones.acuse_confirmar_post"])
 
     # Si el usuario debe cambiar su contraseña (p.ej. admin por defecto), se lo
     # obliga a hacerlo antes de usar el resto del sistema.

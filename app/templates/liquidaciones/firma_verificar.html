@@ -77,6 +77,8 @@
     <div class="k">Mail enviado</div><div class="v">{% if f.email_enviado_at %}{{ f.email_enviado_at.strftime('%d/%m/%Y %H:%M:%S') }} UTC{% else %}— (no se envió){% endif %}</div>
     <div class="k">Abierto (píxel)</div><div class="v">{% if f.email_abierto_at %}✓ {{ f.email_abierto_at.strftime('%d/%m/%Y %H:%M:%S') }} UTC{% if f.email_abierto_ip %} · IP {{ f.email_abierto_ip }}{% endif %}{% else %}— sin registro (indicio: puede estar bloqueado por el cliente){% endif %}</div>
     <div class="k">Recepción confirmada</div><div class="v">{% if f.email_confirmado_at %}✓ {{ f.email_confirmado_at.strftime('%d/%m/%Y %H:%M:%S') }} UTC{% if f.email_confirmado_ip %} · IP {{ f.email_confirmado_ip }}{% endif %}{% else %}— todavía no confirmó con el botón del mail{% endif %}</div>
+    {% if f.email_confirmado_ua %}<div class="k">Navegador que confirmó</div><div class="v">{{ f.email_confirmado_ua }}</div>{% endif %}
+    {% if f.acuse_intentos %}<div class="k">Clics en confirmar</div><div class="v">{{ f.acuse_intentos }}</div>{% endif %}
   </div>
 
   <h2>Dispositivo y biometría del trazo</h2>

@@ -38,7 +38,13 @@
 <body>
 <div class="wrap">
 
-{% if ya %}
+{% if anulada %}
+  <div class="card ok">
+    <div class="big">⊘</div>
+    <h1>Esta liquidación fue anulada</h1>
+    <p class="sub">La liquidación {{ liq.numero }} se anuló y no se puede firmar. Consultá con la inmobiliaria.</p>
+  </div>
+{% elif ya %}
   <div class="card ok">
     <div class="big">✓</div>
     <h1>Esta liquidación ya está firmada</h1>
@@ -84,7 +90,7 @@
 
 </div>
 
-{% if not ya %}
+{% if not ya and not anulada %}
 <script>
 (function(){
   var neto = {{ neto|tojson }};

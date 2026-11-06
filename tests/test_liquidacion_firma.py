@@ -191,7 +191,7 @@ def test_email_del_formulario_se_usa_y_se_completa(client, monkeypatch):
         assert liq.propietario.email == "nuevo@mail.com"       # se completó para la próxima
 
 
-def test_acuse_recepcion_pixel_y_confirmacion(client, monkeypatch):
+def test_acuse_pixel_y_confirmacion_solo_por_post(client, monkeypatch):
     import app.emailer as em
     monkeypatch.setattr(em, "enviar_email", lambda *a, **k: True)  # el envío "funciona"
     cl, app, ids = client
@@ -205,18 +205,41 @@ def test_acuse_recepcion_pixel_y_confirmacion(client, monkeypatch):
     # El píxel registra la apertura y devuelve un PNG.
     r = cl.get(f"/liquidaciones/firma/acuse/{token}/abierto.png")
     assert r.status_code == 200 and r.content_type == "image/png"
-    # El botón confirma la recepción y muestra la página.
-    r2 = cl.get(f"/liquidaciones/firma/acuse/{token}/confirmar")
-    assert r2.status_code == 200 and "confirmada" in r2.get_data(as_text=True).lower()
+    # ABRIR el enlace (GET) NO confirma: solo muestra la página con el botón.
+    g = cl.get(f"/liquidaciones/firma/acuse/{token}/confirmar")
+    assert g.status_code == 200 and "Confirmá la recepción" in g.get_data(as_text=True)
+    with app.app_context():
+        assert db.session.get(Liquidacion, lid).firma.email_confirmado_at is None
+    # Solo el POST (el clic real del botón) confirma la recepción.
+    p = cl.post(f"/liquidaciones/firma/acuse/{token}/confirmar")
+    assert p.status_code == 200 and "confirmada" in p.get_data(as_text=True).lower()
     with app.app_context():
         f = db.session.get(Liquidacion, lid).firma
         assert f.email_abierto_at is not None and f.email_confirmado_at is not None
+        assert f.email_confirmado_ua is not None and (f.acuse_intentos or 0) >= 1
     # Token inexistente -> 404.
     assert cl.get("/liquidaciones/firma/acuse/noexiste/confirmar").status_code == 404
     # La verificación refleja el acuse confirmado.
     html = cl.get(f"/liquidaciones/{lid}/firma/verificar").get_data(as_text=True)
     assert "Acuse de recepción del mail" in html
     assert "todavía no confirmó" not in html
+
+
+def test_no_se_firma_ni_se_envia_liquidacion_anulada(client):
+    cl, app, ids = client
+    lid = _liq_generada(app, cl, "an1")
+    # Anulamos una liquidación SIN firma previa (vía POST directo).
+    cl.post(f"/liquidaciones/{lid}/anular", data={"motivo": "prueba"}, follow_redirects=True)
+    with app.app_context():
+        assert db.session.get(Liquidacion, lid).anulada is True
+    # No se puede enviar a firmar ni firmar.
+    assert cl.post(f"/liquidaciones/{lid}/enviar-firma").status_code == 409
+    assert _firmar(cl, lid).status_code == 409
+    # La pantalla de firma avisa que está anulada.
+    g = cl.get(f"/liquidaciones/{lid}/firmar")
+    assert "anulada" in g.get_data(as_text=True).lower()
+    with app.app_context():
+        assert db.session.get(Liquidacion, lid).firma is None
 
 
 def test_liquidacion_firmada_no_se_puede_borrar(client):
