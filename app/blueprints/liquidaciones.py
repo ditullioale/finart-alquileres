@@ -5,10 +5,11 @@ import os
 import base64
 import hashlib
 import json
+import secrets
 from io import BytesIO
 
-from flask import (Blueprint, render_template, redirect, url_for, request,
-                   flash, abort, jsonify, make_response)
+from flask import (Blueprint, render_template, render_template_string, redirect,
+                   url_for, request, flash, abort, jsonify, make_response)
 from flask_login import login_required, current_user
 
 from .. import db
@@ -859,6 +860,7 @@ def firmar_guardar(liq_id):
         firma.pdf_firmado = pdf
         firma.pdf_sha256 = pdf_sha
     firma.firmante_email = firmante_email or None
+    firma.acuse_token = secrets.token_urlsafe(24)   # para el acuse de recepción del mail
     # Si el propietario no tenía email cargado y lo completó al firmar, se lo
     # guardamos para la próxima (no pisa uno ya existente).
     if prop and firmante_email and not prop.email:
@@ -872,7 +874,8 @@ def firmar_guardar(liq_id):
 
     # Email con el PDF firmado (best-effort): le queda una copia independiente en su
     # casilla -> prueba extra de que recibió y aceptó. Va al email que completó al
-    # firmar (o al del propietario si ya estaba cargado).
+    # firmar (o al del propietario si ya estaba cargado). Incluye acuse de recepción:
+    # un píxel de apertura y un botón "Confirmo recepción".
     emailado = False
     try:
         destino = firmante_email or (prop.email if prop else None)
@@ -881,16 +884,97 @@ def firmar_guardar(liq_id):
             a = Ajustes.get()
             inmo = (a.nombre if a and a.nombre else "la administración")
             periodo = f"{MESES_ES[liq.periodo_mes]} {liq.periodo_anio}"
-            cuerpo = (f"Hola {firmante or (prop.nombre if prop else '')}!\n\nAdjuntamos "
-                      f"la liquidación {liq.numero} ({periodo}) que firmaste de "
-                      f"conformidad. Guardala como comprobante.\n\nSaludos,\n{inmo}")
+            hola = firmante or (prop.nombre if prop else "")
+            cuerpo = (f"Hola {hola}!\n\nAdjuntamos la liquidación {liq.numero} "
+                      f"({periodo}) que firmaste de conformidad. Guardala como "
+                      f"comprobante.\n\nSaludos,\n{inmo}")
+            html = _email_html_firmada(firma, hola, liq.numero, periodo, inmo)
             nombre = f"liquidacion-{(liq.numero or liq.id)}-firmada.pdf".replace("/", "-")
             emailado = bool(enviar_email(
                 destino, f"Liquidación firmada {liq.numero} — {inmo}", cuerpo,
-                adjunto=(nombre, firma.pdf_firmado, "application/pdf")))
+                adjunto=(nombre, firma.pdf_firmado, "application/pdf"), html=html))
+            if emailado:
+                firma.email_enviado_at = datetime.utcnow()
+                db.session.commit()
     except Exception:
         emailado = False
     return jsonify(ok=True, emailado=emailado)
+
+
+# 1x1 PNG transparente para el píxel de apertura del mail.
+_PIXEL_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
+
+
+def _email_html_firmada(firma, hola, numero, periodo, inmo):
+    """Cuerpo HTML del mail de liquidación firmada, con acuse de recepción:
+    un botón «Confirmo recepción» (prueba fuerte) y un píxel de apertura (indicio)."""
+    confirm_url = url_for("liquidaciones.acuse_confirmar", token=firma.acuse_token,
+                          _external=True)
+    pixel_url = url_for("liquidaciones.acuse_pixel", token=firma.acuse_token,
+                        _external=True)
+    return f"""\
+<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1a2230;line-height:1.5">
+  <p>Hola {hola}!</p>
+  <p>Adjuntamos la liquidación <b>{numero}</b> ({periodo}) que firmaste de conformidad.
+     Guardala como comprobante.</p>
+  <p style="margin:22px 0">
+    <a href="{confirm_url}" style="background:#1f9d55;color:#fff;text-decoration:none;
+       padding:12px 22px;border-radius:9px;font-weight:700;display:inline-block">
+       Confirmo que recibí la liquidación</a>
+  </p>
+  <p style="color:#5b6475;font-size:12px">Al confirmar dejás registrada la recepción. Si ya lo hiciste, podés ignorar este mensaje.</p>
+  <p style="color:#5b6475;font-size:12px">Saludos,<br>{inmo}</p>
+  <img src="{pixel_url}" width="1" height="1" alt="" style="display:none">
+</div>"""
+
+
+def _firma_por_token(token):
+    if not token:
+        abort(404)
+    return (LiquidacionFirma.query.filter_by(acuse_token=token).first() or abort(404))
+
+
+@liquidaciones_bp.route("/firma/acuse/<token>/abierto.png")
+def acuse_pixel(token):
+    """Píxel de apertura del mail (público, sin login): registra la 1ª apertura.
+    Indicio -- muchos clientes bloquean o precargan imágenes, así que no es prueba."""
+    f = _firma_por_token(token)
+    if not f.email_abierto_at:
+        f.email_abierto_at = datetime.utcnow()
+        f.email_abierto_ip = request.remote_addr
+        db.session.commit()
+    resp = make_response(_PIXEL_PNG)
+    resp.headers["Content-Type"] = "image/png"
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    return resp
+
+
+@liquidaciones_bp.route("/firma/acuse/<token>/confirmar")
+def acuse_confirmar(token):
+    """Botón «Confirmo recepción» del mail (público, sin login): registra fecha e IP.
+    Acción explícita del destinatario -> prueba fuerte de recepción."""
+    f = _firma_por_token(token)
+    if not f.email_confirmado_at:
+        f.email_confirmado_at = datetime.utcnow()
+        f.email_confirmado_ip = request.remote_addr
+        db.session.commit()
+    cuando = f.email_confirmado_at.strftime("%d/%m/%Y %H:%M") if f.email_confirmado_at else ""
+    return render_template_string(_ACUSE_OK_HTML, cuando=cuando, f=f)
+
+
+_ACUSE_OK_HTML = """<!doctype html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recepción confirmada</title></head>
+<body style="font-family:Arial,Helvetica,sans-serif;background:#eef1f7;margin:0;color:#1a2230">
+  <div style="max-width:420px;margin:12vh auto;background:#fff;border-radius:14px;
+       box-shadow:0 2px 12px rgba(0,0,0,.08);padding:28px 26px;text-align:center">
+    <div style="font-size:46px;color:#1f9d55">✓</div>
+    <h1 style="font-size:19px;margin:6px 0 8px">¡Recepción confirmada!</h1>
+    <p style="color:#5b6475;font-size:14px;margin:0">Gracias. Quedó registrada la recepción de la liquidación firmada{% if cuando %} el {{ cuando }} UTC{% endif %}.</p>
+  </div>
+</body></html>"""
 
 
 @liquidaciones_bp.route("/<int:liq_id>/firma.png")

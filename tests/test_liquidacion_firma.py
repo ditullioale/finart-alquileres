@@ -191,6 +191,34 @@ def test_email_del_formulario_se_usa_y_se_completa(client, monkeypatch):
         assert liq.propietario.email == "nuevo@mail.com"       # se completó para la próxima
 
 
+def test_acuse_recepcion_pixel_y_confirmacion(client, monkeypatch):
+    import app.emailer as em
+    monkeypatch.setattr(em, "enviar_email", lambda *a, **k: True)  # el envío "funciona"
+    cl, app, ids = client
+    lid = _liq_generada(app, cl, "ac1")
+    _firmar(cl, lid, firmante_email="dest@mail.com")
+    with app.app_context():
+        f = db.session.get(Liquidacion, lid).firma
+        token = f.acuse_token
+        assert token and f.email_enviado_at is not None
+        assert f.email_abierto_at is None and f.email_confirmado_at is None
+    # El píxel registra la apertura y devuelve un PNG.
+    r = cl.get(f"/liquidaciones/firma/acuse/{token}/abierto.png")
+    assert r.status_code == 200 and r.content_type == "image/png"
+    # El botón confirma la recepción y muestra la página.
+    r2 = cl.get(f"/liquidaciones/firma/acuse/{token}/confirmar")
+    assert r2.status_code == 200 and "confirmada" in r2.get_data(as_text=True).lower()
+    with app.app_context():
+        f = db.session.get(Liquidacion, lid).firma
+        assert f.email_abierto_at is not None and f.email_confirmado_at is not None
+    # Token inexistente -> 404.
+    assert cl.get("/liquidaciones/firma/acuse/noexiste/confirmar").status_code == 404
+    # La verificación refleja el acuse confirmado.
+    html = cl.get(f"/liquidaciones/{lid}/firma/verificar").get_data(as_text=True)
+    assert "Acuse de recepción del mail" in html
+    assert "todavía no confirmó" not in html
+
+
 def test_liquidacion_firmada_no_se_puede_borrar(client):
     """Una liquidación firmada NO se borra nunca (ni con confirmación): destruiría la
     evidencia. El camino correcto es anular."""

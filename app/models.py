@@ -932,6 +932,15 @@ class LiquidacionFirma(db.Model):
     meta = db.Column(db.Text)                   # JSON: puntero, pantalla, zona horaria, duración...
     registrado_por = db.Column(db.String(120))  # usuario de la inmobiliaria que la tomó
 
+    # Acuse de recepción del mail con el PDF firmado. Token secreto (no adivinable)
+    # que viaja en el píxel y en el botón "Confirmo recepción" del correo.
+    acuse_token = db.Column(db.String(64), index=True)
+    email_enviado_at = db.Column(db.DateTime)       # cuándo se mandó el mail (UTC)
+    email_abierto_at = db.Column(db.DateTime)       # 1ª apertura detectada (píxel) — indicio
+    email_abierto_ip = db.Column(db.String(64))
+    email_confirmado_at = db.Column(db.DateTime)    # clic en "Confirmo recepción" — prueba fuerte
+    email_confirmado_ip = db.Column(db.String(64))
+
     liquidacion = db.relationship(
         "Liquidacion",
         backref=db.backref("firma", uselist=False, cascade="all, delete-orphan"))

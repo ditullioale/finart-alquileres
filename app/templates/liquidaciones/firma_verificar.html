@@ -72,6 +72,13 @@
     <div class="k">Registrada por</div><div class="v">{{ f.registrado_por or '—' }}</div>
   </div>
 
+  <h2>Acuse de recepción del mail</h2>
+  <div class="grid">
+    <div class="k">Mail enviado</div><div class="v">{% if f.email_enviado_at %}{{ f.email_enviado_at.strftime('%d/%m/%Y %H:%M:%S') }} UTC{% else %}— (no se envió){% endif %}</div>
+    <div class="k">Abierto (píxel)</div><div class="v">{% if f.email_abierto_at %}✓ {{ f.email_abierto_at.strftime('%d/%m/%Y %H:%M:%S') }} UTC{% if f.email_abierto_ip %} · IP {{ f.email_abierto_ip }}{% endif %}{% else %}— sin registro (indicio: puede estar bloqueado por el cliente){% endif %}</div>
+    <div class="k">Recepción confirmada</div><div class="v">{% if f.email_confirmado_at %}✓ {{ f.email_confirmado_at.strftime('%d/%m/%Y %H:%M:%S') }} UTC{% if f.email_confirmado_ip %} · IP {{ f.email_confirmado_ip }}{% endif %}{% else %}— todavía no confirmó con el botón del mail{% endif %}</div>
+  </div>
+
   <h2>Dispositivo y biometría del trazo</h2>
   <div class="grid">
     <div class="k">Tipo de puntero</div><div class="v">{{ meta.get('puntero') or '—' }} (touch = dedo, pen = lápiz, mouse)</div>
