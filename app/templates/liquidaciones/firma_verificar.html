@@ -28,6 +28,7 @@
 <div class="toolbar">
   <a href="{{ url_for('liquidaciones.ver', pid=liq.propietario_id, mes=liq.periodo_mes, anio=liq.periodo_anio) }}">← Volver</a>
   <span style="flex:1"></span>
+  <a href="{{ url_for('liquidaciones.firmado_pdf', liq_id=liq.id) }}" style="background:#1f9d55;color:#fff;border-radius:7px;padding:8px 16px;font-weight:600;text-decoration:none">📄 PDF firmado</a>
   <button onclick="window.print()">🖨️ Imprimir</button>
 </div>
 

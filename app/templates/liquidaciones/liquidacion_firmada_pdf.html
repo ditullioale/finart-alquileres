@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 1.6cm 1.4cm; }
+  body { font-family: Helvetica, Arial, sans-serif; color: #111; font-size: 10pt; }
+  .doc { border: 1.2pt solid #111; }
+  .cab td { padding: 8pt 10pt; vertical-align: top; }
+  .cab .nom { font-weight: bold; font-size: 12pt; }
+  .cab .datos { font-size: 8.5pt; color: #333; }
+  .tt { text-align: right; font-size: 17pt; font-weight: bold; }
+  .tt .n { font-size: 10pt; font-weight: normal; }
+  .band { border-top: 1.2pt solid #111; border-bottom: 1.2pt solid #111; background: #f2f2f2;
+          text-align: center; font-weight: bold; font-size: 9pt; padding: 4pt 8pt; }
+  .info { padding: 6pt 10pt; font-size: 10pt; border-bottom: 1.2pt solid #111; }
+  table.items { width: 100%; border-collapse: collapse; font-size: 9pt; }
+  table.items th { background: #f7f7f7; border-bottom: 1px solid #ccc; text-align: left;
+                   padding: 4pt 8pt; font-size: 8pt; text-transform: uppercase; color: #555; }
+  table.items td { border-bottom: 1px solid #eee; padding: 4pt 8pt; }
+  .r { text-align: right; }
+  .neg { color: #b00; }
+  .tot td { padding: 3pt 10pt; font-size: 10pt; }
+  .tot .neto td { font-size: 12pt; font-weight: bold; border-top: 1.2pt solid #111; }
+  .letras { padding: 6pt 10pt; font-size: 9pt; }
+  .firma-wrap { border-top: 1.2pt solid #111; padding: 10pt; }
+  .firma-img { max-height: 70pt; }
+  .firma-cap { font-size: 8.5pt; color: #333; }
+  .sello { margin-top: 10pt; border: 1px solid #c9d2e3; background: #f6f8fc; border-radius: 4pt;
+           padding: 7pt 9pt; font-size: 7.5pt; color: #37405a; }
+  .sello .h { font-size: 8pt; color: #5b6475; font-weight: bold; }
+  .hash { font-family: Courier, monospace; font-size: 7pt; word-wrap: break-word; }
+</style>
+</head>
+<body>
+<div class="doc">
+  <table style="width:100%"><tr class="cab">
+    <td>
+      <div class="nom">{{ a.nombre }}</div>
+      <div class="datos">
+        {% if a.direccion %}{{ a.direccion }}<br>{% endif %}
+        {% if a.localidad %}{{ a.localidad }}{% endif %}{% if a.telefono %} · Tel: {{ a.telefono }}{% endif %}<br>
+        {% if a.cuit %}C.U.I.T: {{ a.cuit }}{% endif %}
+      </div>
+    </td>
+    <td class="tt">LIQUIDACIÓN<br><span class="n">{{ liq.numero }}</span><br>
+      <span class="datos">{{ liq.fecha.strftime('%d/%m/%Y') if liq.fecha }}</span></td>
+  </tr></table>
+
+  <div class="band">LIQUIDACIÓN AL PROPIETARIO · PERÍODO {{ meses[liq.periodo_mes]|upper }} {{ liq.periodo_anio }}</div>
+  <div class="info"><b>Propietario:</b> {{ prop.nombre if prop else '—' }}{% if prop and prop.cuit %} · <b>CUIT:</b> {{ prop.cuit }}{% endif %}</div>
+
+  <table class="items">
+    <thead><tr>
+      <th>Inmueble</th><th>Inquilino</th><th>Período</th>
+      <th class="r">Alquiler</th><th class="r">Comisión</th><th class="r">Extras</th><th class="r">Neto</th>
+    </tr></thead>
+    <tbody>
+      {% for it in items %}
+      <tr>
+        <td>{{ it.inmueble.codigo or '' }} {{ it.inmueble.direccion }}</td>
+        <td>{{ it.inquilino.nombre if it.inquilino else '—' }}</td>
+        <td>{{ meses[it.pago.periodo_mes] if it.pago.periodo_mes }} {{ it.pago.periodo_anio }}</td>
+        <td class="r">{{ it.alquiler|money }}</td>
+        <td class="r neg">- {{ it.comision|money }}</td>
+        <td class="r">{% if it.extras %}{{ it.extras|money }}{% else %}—{% endif %}</td>
+        <td class="r">{{ it.neto|money }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <table class="tot" style="width:100%">
+    <tr><td>Total cobrado (alquiler)</td><td class="r">{{ ingresos|money }}</td></tr>
+    <tr><td>Comisión por administración</td><td class="r neg">- {{ comision|money }}</td></tr>
+    {% for e in extras_desglose %}<tr><td>{{ e.descripcion }}</td><td class="r">{{ e.monto|money }}</td></tr>{% endfor %}
+    {% for c in conceptos %}<tr><td>{{ c.descripcion }}</td><td class="r">{{ c.monto|money }}</td></tr>{% endfor %}
+    <tr class="neto"><td>Neto a pagar al propietario</td><td class="r">{{ neto_final|money }}</td></tr>
+  </table>
+  <div class="letras">Son: {{ neto_letras }}.</div>
+
+  <div class="firma-wrap">
+    {% if firma_b64 %}<img class="firma-img" src="data:image/png;base64,{{ firma_b64 }}">{% endif %}
+    <div class="firma-cap"><b>{{ firma.firmante or 'Propietario' }}</b>{% if firma.firmante_dni %} — DNI/CUIT {{ firma.firmante_dni }}{% endif %}<br>
+      Recibí de conformidad. Firmado el {{ firma.firmado.strftime('%d/%m/%Y %H:%M') if firma.firmado }} UTC · firma electrónica (Ley 25.506).</div>
+    <div class="sello">
+      <span class="h">SELLO DE INTEGRIDAD (SHA-256 de la evidencia)</span><br>
+      <span class="hash">{{ firma.sha256 }}</span><br>
+      IP {{ firma.ip or 's/d' }} · {{ firma.dispositivo[:90] if firma.dispositivo else '' }} · registrada por {{ firma.registrado_por or 's/d' }}
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -5,6 +5,7 @@
 {% block crumb %}<b>Plataforma</b>{% endblock %}
 
 {% block acciones %}
+<a class="btn sm" href="{{ url_for('plataforma.backup') }}" title="Descarga un ZIP con toda la base (incluidas las firmas y sus PDFs)">{{ icon('download', 13) }} Descargar respaldo</a>
 <a class="btn pri sm" href="{{ url_for('plataforma.nueva_inmobiliaria') }}">{{ icon('plus', 13) }} Nueva inmobiliaria</a>
 {% endblock %}
 

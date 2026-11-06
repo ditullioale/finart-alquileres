@@ -912,6 +912,8 @@ class LiquidacionFirma(db.Model):
     trazos = db.Column(db.Text)                 # JSON: trayectoria con tiempos (biométrico)
     snapshot = db.Column(db.Text)               # JSON de lo firmado (nro, neto, items...)
     sha256 = db.Column(db.String(64))           # hash de snapshot+trazos+firma (integridad)
+    pdf_firmado = db.Column(db.LargeBinary)     # PDF congelado de la liquidación firmada
+    pdf_sha256 = db.Column(db.String(64))       # hash del PDF congelado
     firmado = db.Column(db.DateTime, default=datetime.utcnow)   # UTC (sello del servidor)
     ip = db.Column(db.String(64))
     dispositivo = db.Column(db.String(300))     # user-agent del aparato que firmó

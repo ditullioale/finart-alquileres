@@ -30,6 +30,8 @@ def upgrade():
         sa.Column("trazos", sa.Text(), nullable=True),
         sa.Column("snapshot", sa.Text(), nullable=True),
         sa.Column("sha256", sa.String(length=64), nullable=True),
+        sa.Column("pdf_firmado", sa.LargeBinary(), nullable=True),
+        sa.Column("pdf_sha256", sa.String(length=64), nullable=True),
         sa.Column("firmado", sa.DateTime(), nullable=True),
         sa.Column("ip", sa.String(length=64), nullable=True),
         sa.Column("dispositivo", sa.String(length=300), nullable=True),

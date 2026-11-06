@@ -71,6 +71,7 @@
   {% if liq and not liq.firma %}
   <button class="firmar" id="btnEnviarFirma" onclick="enviarFirma()" title="Lo mandás al celular para que el propietario firme con el dedo">📱 Enviar a firmar</button>
   {% elif liq and liq.firma %}
+  <a class="print" style="text-decoration:none;display:inline-block" href="{{ url_for('liquidaciones.firmado_pdf', liq_id=liq.id) }}">📄 PDF firmado</a>
   <a class="firmada-chip" href="{{ url_for('liquidaciones.firma_verificar', liq_id=liq.id) }}" title="Ver la verificación de la firma">✓ Firmada — verificar</a>
   {% endif %}
   {% if liq %}

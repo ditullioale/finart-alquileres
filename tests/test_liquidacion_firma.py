@@ -72,6 +72,19 @@ def test_flujo_pc_a_celular(client):
     assert cl.get(f"/liquidaciones/{lid}/firma.png").status_code == 200
 
 
+def test_pdf_firmado_congelado(client):
+    cl, app, ids = client
+    lid = _liq_generada(app, cl, "7")
+    _firmar(cl, lid)
+    with app.app_context():
+        f = db.session.get(Liquidacion, lid).firma
+        assert f.pdf_firmado and len(f.pdf_firmado) > 1000
+        assert len(f.pdf_sha256) == 64
+    r = cl.get(f"/liquidaciones/{lid}/firmado.pdf")
+    assert r.status_code == 200 and r.content_type == "application/pdf"
+    assert r.data[:4] == b"%PDF"
+
+
 def test_no_se_firma_dos_veces(client):
     cl, app, ids = client
     lid = _liq_generada(app, cl, "2")

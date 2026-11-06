@@ -7,11 +7,16 @@ administrar todas las inmobiliarias.
 """
 from functools import wraps
 
-from flask import (Blueprint, redirect, url_for, request,
-                   flash, abort)
-from flask_login import login_required, current_user
+import io
+import json
+import base64
+import zipfile
+import decimal
+from datetime import datetime, date
 
-from datetime import datetime
+from flask import (Blueprint, redirect, url_for, request,
+                   flash, abort, make_response)
+from flask_login import login_required, current_user
 
 from .. import db
 from ..models import Inmobiliaria, Usuario, SolicitudAlta
@@ -37,6 +42,43 @@ def test_sentry():
     Solo el superadmin puede dispararlo. Si Sentry NO está configurado, igual verás
     la página de error del servidor (500); si SÍ está, el error aparece en Sentry."""
     raise RuntimeError("Prueba de Sentry desde /plataforma/test-sentry (ignorar).")
+
+
+def _valor_backup(v):
+    """Serializa para JSON: binarios -> base64, fechas -> ISO, Decimal -> texto."""
+    if isinstance(v, (bytes, bytearray)):
+        return {"__bytes_b64__": base64.b64encode(bytes(v)).decode()}
+    if isinstance(v, (datetime, date)):
+        return v.isoformat()
+    if isinstance(v, decimal.Decimal):
+        return str(v)
+    return v
+
+
+@plataforma_bp.route("/backup")
+@login_required
+@superadmin_required
+def backup():
+    """Respaldo lógico COMPLETO de la base en un ZIP (un JSON por tabla, con los
+    binarios en base64: incluye las firmas y sus PDFs). Pensado como copia de
+    seguridad que te podés guardar vos; para el respaldo automático está Railway.
+    Solo superadmin (ve toda la base, sin filtro de inmobiliaria)."""
+    buf = io.BytesIO()
+    meta = {"generado_utc": datetime.utcnow().isoformat() + "Z", "tablas": []}
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for table in db.metadata.sorted_tables:
+            rows = db.session.execute(table.select()).mappings().all()
+            data = [{k: _valor_backup(v) for k, v in dict(r).items()} for r in rows]
+            z.writestr(f"{table.name}.json",
+                       json.dumps(data, ensure_ascii=False, indent=1))
+            meta["tablas"].append({"tabla": table.name, "filas": len(data)})
+        z.writestr("_backup.json", json.dumps(meta, ensure_ascii=False, indent=1))
+    buf.seek(0)
+    fecha = datetime.utcnow().strftime("%Y%m%d-%H%M")
+    resp = make_response(buf.read())
+    resp.headers["Content-Type"] = "application/zip"
+    resp.headers["Content-Disposition"] = f'attachment; filename="respaldo-finart-{fecha}.zip"'
+    return resp
 
 
 @plataforma_bp.route("/")

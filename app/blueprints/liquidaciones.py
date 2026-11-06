@@ -5,6 +5,7 @@ import os
 import base64
 import hashlib
 import json
+from io import BytesIO
 
 from flask import (Blueprint, render_template, redirect, url_for, request,
                    flash, abort, jsonify, make_response)
@@ -568,6 +569,31 @@ def _snapshot_liq(liq):
     }
 
 
+def _pdf_liquidacion_firmada(liq):
+    """Genera el PDF CONGELADO de la liquidación ya firmada (con la firma embebida y
+    el hash impreso). Se guarda tal cual al firmar y después se sirve sin regenerar."""
+    from xhtml2pdf import pisa
+    prop = liq.propietario
+    pagos = _pagos_periodo(liq.propietario_id, liq.periodo_mes, liq.periodo_anio,
+                           contrato_id=liq.contrato_id)
+    items, ingresos, comision, neto = _detalle(pagos)
+    firma = liq.firma
+    firma_b64 = (base64.b64encode(firma.firma_png).decode()
+                 if firma and firma.firma_png else "")
+    html = render_template(
+        "liquidaciones/liquidacion_firmada_pdf.html",
+        a=Ajustes.get(), liq=liq, prop=prop, items=items, ingresos=ingresos,
+        comision=comision, conceptos=list(liq.conceptos),
+        extras_desglose=_desglose_extras(items),
+        neto_final=float(liq.total_neto or 0),
+        neto_letras=pesos_letras(float(liq.total_neto or 0)),
+        firma=firma, firma_b64=firma_b64, meses=MESES_ES)
+    buf = BytesIO()
+    pisa.CreatePDF(html, dest=buf, encoding="utf-8")
+    buf.seek(0)
+    return buf.read()
+
+
 @liquidaciones_bp.route("/<int:liq_id>/enviar-firma", methods=["POST"])
 @login_required
 def enviar_firma(liq_id):
@@ -691,6 +717,15 @@ def firmar_guardar(liq_id):
         registrado_por=(getattr(current_user, "nombre", None)
                         or getattr(current_user, "username", None)))
     db.session.add(firma)
+    db.session.flush()   # para que liq.firma resuelva al armar el PDF
+    # PDF congelado de la liquidación firmada (best-effort: si falla, la firma igual
+    # queda guardada; la evidencia núcleo es el PNG + trazos + hash).
+    try:
+        pdf = _pdf_liquidacion_firmada(liq)
+        firma.pdf_firmado = pdf
+        firma.pdf_sha256 = hashlib.sha256(pdf).hexdigest()
+    except Exception:
+        pass
     # Limpiar el pendiente de la estación (si vino de ahí).
     s = _firma_sesion()
     if s and s.pendiente_liq_id == liq.id:
@@ -709,6 +744,20 @@ def firma_png(liq_id):
     resp = make_response(liq.firma.firma_png)
     resp.headers["Content-Type"] = "image/png"
     resp.headers["Cache-Control"] = "private, max-age=86400"
+    return resp
+
+
+@liquidaciones_bp.route("/<int:liq_id>/firmado.pdf")
+@login_required
+def firmado_pdf(liq_id):
+    """Descarga el PDF CONGELADO de la liquidación firmada (el documento inmutable)."""
+    liq = db.session.get(Liquidacion, liq_id) or abort(404)
+    f = liq.firma or abort(404)
+    pdf = f.pdf_firmado or _pdf_liquidacion_firmada(liq)   # regenera si no quedó guardado
+    nombre = f"liquidacion-{(liq.numero or liq.id)}-firmada.pdf".replace("/", "-")
+    resp = make_response(pdf)
+    resp.headers["Content-Type"] = "application/pdf"
+    resp.headers["Content-Disposition"] = f'attachment; filename="{nombre}"'
     return resp
 
 
