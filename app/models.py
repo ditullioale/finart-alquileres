@@ -915,6 +915,7 @@ class LiquidacionFirma(db.Model):
                                unique=True, nullable=False, index=True)
     firmante = db.Column(db.String(160))        # nombre del que firma (propietario)
     firmante_dni = db.Column(db.String(30))     # DNI/CUIT declarado al firmar
+    firmante_email = db.Column(db.String(160))  # email declarado al firmar (opcional)
     conforme = db.Column(db.Boolean, default=True)
     consentimiento = db.Column(db.Text)         # texto EXACTO de conformidad aceptado
     firma_png = db.Column(db.LargeBinary)       # imagen de la firma (PNG)

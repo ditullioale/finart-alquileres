@@ -789,8 +789,13 @@ def firmar_guardar(liq_id):
     if len(png) < 800:
         return jsonify(ok=False, error="La firma está en blanco. Dibujá la firma y reintentá."), 200
 
-    firmante = (d.get("firmante") or (liq.propietario.nombre if liq.propietario else "")).strip()
-    firmante_dni = (d.get("firmante_dni") or (liq.propietario.cuit if liq.propietario else "") or "").strip()
+    prop = liq.propietario
+    firmante = (d.get("firmante") or (prop.nombre if prop else "")).strip()
+    firmante_dni = (d.get("firmante_dni") or (prop.cuit if prop else "") or "").strip()
+    # Email que el propietario completa (o confirma) en el panel al firmar. No es
+    # obligatorio: si lo deja, le mandamos el comprobante y, si el propietario no
+    # tenía mail cargado, se lo completamos para la próxima.
+    firmante_email = (d.get("firmante_email") or (prop.email if prop else "") or "").strip()
     # Trazos biométricos (trayectoria con tiempos) y metadatos del dispositivo: toda
     # la evidencia que podemos juntar para verificar después que la firma es fidedigna.
     trazos = json.dumps(d.get("trazos") or [], ensure_ascii=False)
@@ -805,6 +810,7 @@ def firmar_guardar(liq_id):
         "idioma": d.get("idioma"),
         "ancho_lienzo": d.get("ancho_lienzo"),
         "alto_lienzo": d.get("alto_lienzo"),
+        "email": firmante_email,                # email declarado al firmar
     }, ensure_ascii=False)
     consentimiento = (d.get("consentimiento") or "").strip()
     snapshot = json.dumps(_snapshot_liq(liq), sort_keys=True, ensure_ascii=False)
@@ -852,6 +858,11 @@ def firmar_guardar(liq_id):
     if pdf is not None:
         firma.pdf_firmado = pdf
         firma.pdf_sha256 = pdf_sha
+    firma.firmante_email = firmante_email or None
+    # Si el propietario no tenía email cargado y lo completó al firmar, se lo
+    # guardamos para la próxima (no pisa uno ya existente).
+    if prop and firmante_email and not prop.email:
+        prop.email = firmante_email
     db.session.add(firma)
     # Limpiar el pendiente de la estación (si vino de ahí).
     s = _firma_sesion()
@@ -859,22 +870,23 @@ def firmar_guardar(liq_id):
         s.pendiente_liq_id = None
     db.session.commit()
 
-    # Email al propietario con su PDF firmado (best-effort): le queda una copia
-    # independiente en su casilla -> prueba extra de que recibió y aceptó.
+    # Email con el PDF firmado (best-effort): le queda una copia independiente en su
+    # casilla -> prueba extra de que recibió y aceptó. Va al email que completó al
+    # firmar (o al del propietario si ya estaba cargado).
     emailado = False
     try:
-        prop = liq.propietario
-        if prop and prop.email and firma.pdf_firmado:
+        destino = firmante_email or (prop.email if prop else None)
+        if destino and firma.pdf_firmado:
             from ..emailer import enviar_email
             a = Ajustes.get()
             inmo = (a.nombre if a and a.nombre else "la administración")
             periodo = f"{MESES_ES[liq.periodo_mes]} {liq.periodo_anio}"
-            cuerpo = (f"Hola {prop.nombre}!\n\nAdjuntamos la liquidación {liq.numero} "
-                      f"({periodo}) que firmaste de conformidad. Guardala como "
-                      f"comprobante.\n\nSaludos,\n{inmo}")
+            cuerpo = (f"Hola {firmante or (prop.nombre if prop else '')}!\n\nAdjuntamos "
+                      f"la liquidación {liq.numero} ({periodo}) que firmaste de "
+                      f"conformidad. Guardala como comprobante.\n\nSaludos,\n{inmo}")
             nombre = f"liquidacion-{(liq.numero or liq.id)}-firmada.pdf".replace("/", "-")
             emailado = bool(enviar_email(
-                prop.email, f"Liquidación firmada {liq.numero} — {inmo}", cuerpo,
+                destino, f"Liquidación firmada {liq.numero} — {inmo}", cuerpo,
                 adjunto=(nombre, firma.pdf_firmado, "application/pdf")))
     except Exception:
         emailado = False

@@ -172,6 +172,25 @@ def test_email_al_propietario_con_pdf(client, monkeypatch):
     assert enviados[0][1].endswith(".pdf")   # con el PDF adjunto
 
 
+def test_email_del_formulario_se_usa_y_se_completa(client, monkeypatch):
+    """El propietario completa el mail en el panel al firmar: se le manda el PDF a ese
+    mail, queda en la evidencia y, si no tenía mail cargado, se lo completamos."""
+    import app.emailer as em
+    enviados = []
+    monkeypatch.setattr(em, "enviar_email",
+                        lambda destino, asunto, cuerpo, adjunto=None, html=None:
+                        (enviados.append(destino), True)[1])
+    cl, app, ids = client
+    lid = _liq_generada(app, cl, "mail1")   # el propietario se crea SIN email
+    r = _firmar(cl, lid, firmante_email="nuevo@mail.com")
+    assert r.get_json()["emailado"] is True
+    assert enviados and enviados[0] == "nuevo@mail.com"
+    with app.app_context():
+        liq = db.session.get(Liquidacion, lid)
+        assert liq.firma.firmante_email == "nuevo@mail.com"   # queda en la evidencia
+        assert liq.propietario.email == "nuevo@mail.com"       # se completó para la próxima
+
+
 def test_liquidacion_firmada_no_se_puede_borrar(client):
     """Una liquidación firmada NO se borra nunca (ni con confirmación): destruiría la
     evidencia. El camino correcto es anular."""

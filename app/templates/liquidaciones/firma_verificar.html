@@ -59,6 +59,7 @@
   <div class="grid">
     <div class="k">Firmante</div><div class="v">{{ f.firmante or '—' }}</div>
     <div class="k">DNI / CUIT</div><div class="v">{{ f.firmante_dni or '—' }}</div>
+    <div class="k">Email</div><div class="v">{{ f.firmante_email or meta.get('email') or '—' }}</div>
     <div class="k">Conformidad</div><div class="v">{{ 'Sí, aceptada' if f.conforme else 'No' }}</div>
   </div>
 

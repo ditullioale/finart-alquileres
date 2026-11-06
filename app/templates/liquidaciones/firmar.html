@@ -59,6 +59,8 @@
     <input class="inp" id="firmante" value="{{ prop.nombre if prop else '' }}">
     <label class="campo">DNI / CUIT</label>
     <input class="inp" id="firmanteDni" value="{{ (prop.dni or prop.cuit) if prop else '' }}" inputmode="numeric" placeholder="DNI o CUIT de quien firma">
+    <label class="campo">Email (para recibir el comprobante firmado) <span style="color:#9aa3b5">· opcional</span></label>
+    <input class="inp" id="firmanteEmail" value="{{ prop.email if prop else '' }}" type="email" inputmode="email" autocapitalize="off" autocorrect="off" placeholder="tucorreo@ejemplo.com">
 
     <label class="campo">Firmá en el recuadro (con el dedo o un lápiz):</label>
     <div class="padwrap">
@@ -172,6 +174,7 @@
       trazos: trazos,
       firmante: document.getElementById('firmante').value.trim(),
       firmante_dni: document.getElementById('firmanteDni').value.trim(),
+      firmante_email: document.getElementById('firmanteEmail').value.trim(),
       conforme: document.getElementById('conforme').checked,
       consentimiento: CONSENT,
       puntero: Object.keys(punteros).join(','),
