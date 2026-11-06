@@ -731,10 +731,17 @@ def firmar_guardar(liq_id):
     sha = hashlib.sha256(
         snapshot.encode("utf-8") + trazos.encode("utf-8") + png).hexdigest()
 
+    # Cadena de firmas (ledger): encadenamos con la ÚLTIMA firma de la inmobiliaria.
+    # Así, borrar o alterar una firma del historial rompe la cadena y se detecta.
+    previa = LiquidacionFirma.query.order_by(LiquidacionFirma.id.desc()).first()
+    hash_prev = previa.hash_cadena if (previa and previa.hash_cadena) else "GENESIS"
+    hash_cadena = hashlib.sha256((hash_prev + sha).encode("utf-8")).hexdigest()
+
     firma = LiquidacionFirma(
         liquidacion_id=liq.id, firmante=firmante, firmante_dni=firmante_dni,
         conforme=True, consentimiento=consentimiento, firma_png=png, trazos=trazos,
-        snapshot=snapshot, sha256=sha, firmado=datetime.utcnow(),
+        snapshot=snapshot, sha256=sha, hash_prev=hash_prev, hash_cadena=hash_cadena,
+        firmado=datetime.utcnow(),
         ip=request.remote_addr, dispositivo=(request.headers.get("User-Agent") or "")[:300],
         meta=meta,
         registrado_por=(getattr(current_user, "nombre", None)
@@ -754,7 +761,27 @@ def firmar_guardar(liq_id):
     if s and s.pendiente_liq_id == liq.id:
         s.pendiente_liq_id = None
     db.session.commit()
-    return jsonify(ok=True)
+
+    # Email al propietario con su PDF firmado (best-effort): le queda una copia
+    # independiente en su casilla -> prueba extra de que recibió y aceptó.
+    emailado = False
+    try:
+        prop = liq.propietario
+        if prop and prop.email and firma.pdf_firmado:
+            from ..emailer import enviar_email
+            a = Ajustes.get()
+            inmo = (a.nombre if a and a.nombre else "la administración")
+            periodo = f"{MESES_ES[liq.periodo_mes]} {liq.periodo_anio}"
+            cuerpo = (f"Hola {prop.nombre}!\n\nAdjuntamos la liquidación {liq.numero} "
+                      f"({periodo}) que firmaste de conformidad. Guardala como "
+                      f"comprobante.\n\nSaludos,\n{inmo}")
+            nombre = f"liquidacion-{(liq.numero or liq.id)}-firmada.pdf".replace("/", "-")
+            emailado = bool(enviar_email(
+                prop.email, f"Liquidación firmada {liq.numero} — {inmo}", cuerpo,
+                adjunto=(nombre, firma.pdf_firmado, "application/pdf")))
+    except Exception:
+        emailado = False
+    return jsonify(ok=True, emailado=emailado)
 
 
 @liquidaciones_bp.route("/<int:liq_id>/firma.png")
@@ -797,6 +824,17 @@ def firma_verificar(liq_id):
         + (f.trazos or "").encode("utf-8")
         + (f.firma_png or b"")).hexdigest()
     integra = (recalc == f.sha256)
+    # Cadena: recomputar el eslabón propio y verificar el enlace con la firma anterior.
+    cadena_propio = hashlib.sha256(
+        ((f.hash_prev or "") + (f.sha256 or "")).encode("utf-8")).hexdigest()
+    cadena_propio_ok = bool(f.hash_cadena) and (cadena_propio == f.hash_cadena)
+    anterior = (LiquidacionFirma.query.filter(LiquidacionFirma.id < f.id)
+                .order_by(LiquidacionFirma.id.desc()).first())
+    if f.hash_prev == "GENESIS":
+        enlace_ok = anterior is None
+    else:
+        enlace_ok = bool(anterior and anterior.hash_cadena == f.hash_prev)
+    cadena_ok = cadena_propio_ok and enlace_ok
     try:
         meta = json.loads(f.meta) if f.meta else {}
     except Exception:
@@ -807,7 +845,7 @@ def firma_verificar(liq_id):
         snap = {}
     return render_template("liquidaciones/firma_verificar.html", liq=liq, f=f,
                            meta=meta, snap=snap, integra=integra, recalc=recalc,
-                           meses=MESES_ES)
+                           cadena_ok=cadena_ok, meses=MESES_ES)
 
 
 # --------------------------------------------------------------------------- #

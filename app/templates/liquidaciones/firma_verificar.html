@@ -41,6 +41,11 @@
   {% else %}
   <div class="banner bad">⚠️ El hash NO coincide: la evidencia pudo haber sido modificada después de firmar. Revisar.</div>
   {% endif %}
+  {% if cadena_ok %}
+  <div class="banner ok">🔗 Cadena de firmas intacta — esta firma encadena correctamente con la anterior (no se borró ni se reordenó ninguna).</div>
+  {% else %}
+  <div class="banner bad">⚠️ Cadena de firmas rota — el enlace con la firma anterior no cierra: puede que se haya borrado o alterado una firma del historial.</div>
+  {% endif %}
 
   <h2>Firma</h2>
   <img class="firma-img" src="{{ url_for('liquidaciones.firma_png', liq_id=liq.id) }}" alt="Firma">
@@ -87,6 +92,8 @@
   <div class="grid">
     <div class="k">Guardado al firmar</div><div class="v"><span class="hash">{{ f.sha256 or '—' }}</span></div>
     <div class="k">Recalculado ahora</div><div class="v"><span class="hash">{{ recalc }}</span></div>
+    <div class="k">Enlace anterior (cadena)</div><div class="v"><span class="hash">{{ f.hash_prev or '—' }}</span></div>
+    <div class="k">Eslabón de esta firma</div><div class="v"><span class="hash">{{ f.hash_cadena or '—' }}</span></div>
   </div>
 
   <p class="nota">Firma electrónica (Ley 25.506, art. 5). No es firma digital con certificado.

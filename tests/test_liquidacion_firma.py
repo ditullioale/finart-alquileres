@@ -120,6 +120,58 @@ def test_verificacion_detecta_integridad(client):
     assert "NO coincide" in html2
 
 
+def test_cadena_de_firmas_encadena_y_detecta_borrado(client):
+    cl, app, ids = client
+    l1 = _liq_generada(app, cl, "8a"); _firmar(cl, l1)
+    l2 = _liq_generada(app, cl, "8b"); _firmar(cl, l2)
+    with app.app_context():
+        f1 = db.session.get(Liquidacion, l1).firma
+        f2 = db.session.get(Liquidacion, l2).firma
+        # (la base de los tests es compartida, así que f1 no es necesariamente la
+        # génesis; lo que importa es que f2 encadene con f1)
+        assert f1.hash_cadena and f2.hash_prev == f1.hash_cadena
+    # la verificación de f2 muestra la cadena intacta
+    assert "Cadena de firmas intacta" in cl.get(f"/liquidaciones/{l2}/firma/verificar").get_data(as_text=True)
+    # si se borra la firma anterior, la cadena de f2 se detecta rota
+    with app.app_context():
+        liq1 = db.session.get(Liquidacion, l1)
+        db.session.delete(liq1.firma); db.session.commit()
+    assert "Cadena de firmas rota" in cl.get(f"/liquidaciones/{l2}/firma/verificar").get_data(as_text=True)
+
+
+def test_email_al_propietario_con_pdf(client, monkeypatch):
+    import app.emailer as em
+    enviados = []
+    monkeypatch.setattr(em, "enviar_email",
+                        lambda destino, asunto, cuerpo, adjunto=None, html=None:
+                        (enviados.append((destino, adjunto[0] if adjunto else None)), True)[1])
+    cl, app, ids = client
+    # propietario con email
+    with app.app_context():
+        prop = Persona(nombre="Prop Mail", dni="74001", cuit="20740010",
+                       email="propmail@mail.com", es_propietario=True)
+        inq = Persona(nombre="Inq Mail", dni="74002", es_inquilino=True)
+        db.session.add_all([prop, inq]); db.session.commit()
+        inm = Inmueble(direccion="Casa Mail", tipo="Casa", propietario_id=prop.id, comision_pct=8)
+        db.session.add(inm); db.session.commit()
+        c = Contrato(inmueble_id=inm.id, inquilino_id=inq.id, propietario_id=prop.id,
+                     fecha_inicio=date(2026, 1, 1), precio_inicial=500000, precio_actual=500000,
+                     estado="Vigente", metodo_ajuste="sin_ajuste", comision_pct=8)
+        db.session.add(c); db.session.commit()
+        pid, cid = prop.id, c.id
+    hoy = date.today()
+    cl.post("/cobros/rapido", json={"cid": cid, "mes": hoy.month, "anio": hoy.year,
+                                    "precio": 500000, "pagado": 500000})
+    cl.post("/liquidaciones/generar", data={"propietario_id": pid, "mes": hoy.month,
+                                            "anio": hoy.year}, follow_redirects=True)
+    with app.app_context():
+        lid = Liquidacion.query.filter_by(propietario_id=pid).first().id
+    r = _firmar(cl, lid)
+    assert r.get_json()["emailado"] is True
+    assert enviados and enviados[0][0] == "propmail@mail.com"
+    assert enviados[0][1].endswith(".pdf")   # con el PDF adjunto
+
+
 def test_liquidacion_firmada_no_se_borra_sin_confirmar(client):
     cl, app, ids = client
     lid = _liq_generada(app, cl, "6")

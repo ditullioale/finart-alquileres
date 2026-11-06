@@ -58,7 +58,7 @@
     <label class="campo">Nombre y apellido de quien firma</label>
     <input class="inp" id="firmante" value="{{ prop.nombre if prop else '' }}">
     <label class="campo">DNI / CUIT</label>
-    <input class="inp" id="firmanteDni" value="{{ prop.cuit if prop and prop.cuit else '' }}" inputmode="numeric">
+    <input class="inp" id="firmanteDni" value="{{ (prop.dni or prop.cuit) if prop else '' }}" inputmode="numeric" placeholder="DNI o CUIT de quien firma">
 
     <label class="campo">Firmá en el recuadro (con el dedo o un lápiz):</label>
     <div class="padwrap">
