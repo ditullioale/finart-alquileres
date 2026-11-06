@@ -32,7 +32,23 @@
   .letras{padding:8px 14px;font-size:12px;color:#333}
   .firma{border-top:1px solid #333;width:240px;text-align:center;padding-top:3px;margin:44px 14px 14px}
   .aviso{max-width:800px;margin:10px auto;font-size:12px;color:#14663a;background:#eefaf1;border:1px solid #a9dcbb;padding:8px 12px;border-radius:8px}
-  @media print{ .toolbar,.aviso{display:none} body{background:#fff} .hoja{margin:0;max-width:none;padding:0} }
+  /* Contenedor para la impresión de 2 copias (propietario + respaldo). En pantalla
+     está oculto; sólo se usa al imprimir con el botón "Imprimir 2 copias". */
+  #printCopies{display:none}
+  #printCopies .doc{margin:0 auto;max-width:800px}
+  .rotulo{font-weight:bold;text-align:center;letter-spacing:1px;font-size:12px;margin:0 0 8px}
+  @media print{
+    .toolbar,.aviso{display:none} body{background:#fff} .hoja{margin:0;max-width:none;padding:0}
+    @page{size:A4;margin:1.4cm}
+    /* Impresión simple (botón "Imprimir / PDF"): sale la hoja como siempre. */
+    /* Impresión doble: se oculta la hoja y salen las dos copias rotuladas, cada
+       una en su propia página, con su espacio de firma. */
+    body.modo-doble .hoja{display:none}
+    body.modo-doble #printCopies{display:block}
+    body.modo-doble #printCopies .copia{page-break-inside:avoid}
+    body.modo-doble #printCopies .copia + .copia{page-break-before:always}
+    body.modo-doble #printCopies .doc{max-width:none}
+  }
 </style>
 </head>
 <body>
@@ -40,6 +56,7 @@
   <a href="{{ url_for('liquidaciones.gestionar', pid=prop.id, mes=mes, anio=anio) }}">← Volver</a>
   <span style="flex:1"></span>
   <button class="print" onclick="window.print()">🖨️ Imprimir / PDF</button>
+  <button class="gen" onclick="imprimirDoble()" title="Una copia para el propietario y otra de respaldo para la inmobiliaria">🖨️ Imprimir 2 copias</button>
   {% if liq %}
   <form method="post" action="{{ url_for('liquidaciones.eliminar', liq_id=liq.id) }}"
         style="display:inline"
@@ -173,5 +190,26 @@
     <div class="firma">Firma y aclaración</div>
   </div>
 </div>
+
+<div id="printCopies"></div>
+<script>
+// Imprime DOS copias de la liquidación: la 1ª "ORIGINAL — PROPIETARIO" y la 2ª
+// "DUPLICADO — RESPALDO INMOBILIARIA", cada una en su propia hoja. El botón de
+// "Imprimir / PDF" normal sigue sacando una sola copia.
+function imprimirDoble(){
+  var doc = document.querySelector('.hoja .doc');
+  if(!doc){ window.print(); return; }
+  var html = doc.outerHTML;
+  document.getElementById('printCopies').innerHTML =
+    '<div class="copia"><div class="rotulo">ORIGINAL — PROPIETARIO</div>' + html + '</div>' +
+    '<div class="copia"><div class="rotulo">DUPLICADO — RESPALDO INMOBILIARIA</div>' + html + '</div>';
+  document.body.classList.add('modo-doble');
+  window.print();
+}
+window.addEventListener('afterprint', function(){
+  document.body.classList.remove('modo-doble');
+  document.getElementById('printCopies').innerHTML = '';
+});
+</script>
 </body>
 </html>
