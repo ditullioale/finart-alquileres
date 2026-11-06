@@ -221,7 +221,11 @@
   <div class="card">
     <div class="spin"></div>
     <h3 style="margin:0 0 6px">Esperando la firma…</h3>
-    <p style="margin:0;color:#5b6475;font-size:13px">Abrí la <b>Estación de firma</b> en tu celular (si no está abierta) y pasáselo al propietario. Esta pantalla se actualiza sola cuando firme.</p>
+    <p style="margin:0 0 10px;color:#5b6475;font-size:13px">Pasale el celular al propietario con la <b>Estación de firma</b> abierta. Esta pantalla se actualiza sola cuando firme.</p>
+    <div style="border-top:1px solid #eef0f6;padding-top:10px">
+      <img id="qrFirma" alt="QR" style="width:150px;height:150px">
+      <div style="font-size:12px;color:#5b6475;margin-top:4px">📷 ¿El cel no la tiene abierta? Escaneá este QR para abrir la Estación de firma.</div>
+    </div>
     <button type="button" onclick="cancelarFirma()">Cancelar</button>
   </div>
 </div>
@@ -237,6 +241,8 @@ function enviarFirma(){
     .then(function(r){return r.json();})
     .then(function(j){
       if(!j.ok){ alert(j.error || 'No se pudo enviar.'); return; }
+      var qr=document.getElementById('qrFirma');
+      if(qr && !qr.src){ qr.src='{{ url_for("liquidaciones.firmar_qr") }}'; }
       document.getElementById('ovfFirma').style.display='flex';
       _pollFirma = setInterval(function(){
         fetch('{{ url_for("liquidaciones.firma_estado", liq_id=liq.id) }}', {credentials:'same-origin'})

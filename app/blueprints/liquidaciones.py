@@ -635,6 +635,29 @@ def firmar_estacion():
     return render_template("liquidaciones/firmar_estacion.html")
 
 
+@liquidaciones_bp.route("/firmar/qr.svg")
+@login_required
+def firmar_qr():
+    """QR que apunta a la Estación de firma, para abrirla rápido en el celular
+    (escaneás el QR de la PC y el cel abre la pantalla de espera)."""
+    try:
+        import qrcode
+        import qrcode.image.svg
+    except Exception:
+        abort(404)
+    url = url_for("liquidaciones.firmar_estacion", _external=True)
+    qr = qrcode.QRCode(box_size=10, border=2, image_factory=qrcode.image.svg.SvgImage)
+    qr.add_data(url)
+    qr.make(fit=True)
+    buf = BytesIO()
+    qr.make_image().save(buf)
+    buf.seek(0)
+    resp = make_response(buf.read())
+    resp.headers["Content-Type"] = "image/svg+xml"
+    resp.headers["Cache-Control"] = "private, max-age=3600"
+    return resp
+
+
 @liquidaciones_bp.route("/firmar/pendiente")
 @login_required
 def firmar_pendiente():

@@ -21,5 +21,7 @@ cryptography>=42
 requests>=2.31
 # Monitoreo de errores en producción (opcional, se activa con SENTRY_DSN):
 sentry-sdk[flask]>=2.0
+# Código QR para abrir la Estación de firma en el celular (SVG, sin Pillow):
+qrcode>=7.4
 
 requests>=2.31
