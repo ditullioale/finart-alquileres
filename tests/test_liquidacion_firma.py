@@ -120,6 +120,25 @@ def test_verificacion_detecta_integridad(client):
     assert "NO coincide" in html2
 
 
+def test_verificacion_detecta_alteracion_de_evidencia(client):
+    """El hash cubre TODO el paquete: alterar un dato que no está en el snapshot
+    (p. ej. el firmante o la IP) también rompe la verificación."""
+    cl, app, ids = client
+    lid = _liq_generada(app, cl, "pkg1")
+    _firmar(cl, lid)
+    assert "Evidencia íntegra" in cl.get(f"/liquidaciones/{lid}/firma/verificar").get_data(as_text=True)
+    with app.app_context():
+        f = db.session.get(Liquidacion, lid).firma
+        f.firmante = (f.firmante or "") + " ADULTERADO"
+        db.session.commit()
+    assert "NO coincide" in cl.get(f"/liquidaciones/{lid}/firma/verificar").get_data(as_text=True)
+    # Revertir para no romper otras verificaciones sobre la misma base compartida.
+    with app.app_context():
+        f = db.session.get(Liquidacion, lid).firma
+        f.firmante = (f.firmante or "").replace(" ADULTERADO", "")
+        db.session.commit()
+
+
 def test_cadena_de_firmas_encadena_y_detecta_borrado(client):
     cl, app, ids = client
     l1 = _liq_generada(app, cl, "8a"); _firmar(cl, l1)
@@ -295,17 +314,16 @@ def _pagos_periodo_pendientes(liq):
 
 
 def test_pdf_entra_en_el_hash_y_se_verifica(client):
-    """El hash principal cubre el PDF congelado: alterar el PDF rompe la verificación
-    del PDF, y el hash guardado se recomputa incluyendo pdf_sha256."""
+    """El hash del paquete probatorio incluye el pdf_sha256: se recomputa con el
+    helper y coincide; la verificación muestra evidencia y PDF íntegros."""
+    from app.blueprints.liquidaciones import _verificar_firma
     cl, app, ids = client
     lid = _liq_generada(app, cl, "9z")
     _firmar(cl, lid)
     with app.app_context():
         f = db.session.get(Liquidacion, lid).firma
-        import hashlib
-        base = (f.snapshot or "").encode() + (f.trazos or "").encode() + (f.firma_png or b"")
-        esperado = hashlib.sha256(base + (f.pdf_sha256 or "").encode()).hexdigest()
-        assert f.sha256 == esperado            # el hash incluye el PDF
+        recalc, integra = _verificar_firma(f)
+        assert integra and recalc == f.sha256      # el paquete (con pdf_sha256) coincide
         assert f.pdf_sha256 and len(f.pdf_sha256) == 64
     html = cl.get(f"/liquidaciones/{lid}/firma/verificar").get_data(as_text=True)
     assert "Evidencia íntegra" in html

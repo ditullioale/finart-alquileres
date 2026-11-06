@@ -644,6 +644,53 @@ def _snapshot_liq(liq):
     }
 
 
+def _paquete_probatorio(snapshot, trazos, png_sha, pdf_sha, firmante, dni, email,
+                        conforme, consentimiento, firmado_iso, ip, dispositivo, meta):
+    """SHA-256 sobre el paquete probatorio COMPLETO (JSON canónico, claves ordenadas).
+
+    Cubre todo lo que acredita la firma: lo firmado (snapshot con detalle), los trazos
+    y la imagen (por su hash), y además firmante, DNI, email, consentimiento, fecha,
+    IP, dispositivo, metadatos y el hash del PDF congelado. El PDF entra por su hash
+    (no sus bytes) para evitar la dependencia circular: el PDF embebe la firma y el
+    sello de contenido. Se usa idéntico al firmar y al verificar."""
+    paquete = {
+        "version": 2,
+        "snapshot": snapshot or "",
+        "trazos": trazos or "",
+        "firma_png_sha256": png_sha or "",
+        "pdf_sha256": pdf_sha or "",
+        "firmante": firmante or "",
+        "firmante_dni": dni or "",
+        "firmante_email": email or "",
+        "conforme": bool(conforme),
+        "consentimiento": consentimiento or "",
+        "firmado_utc": firmado_iso or "",
+        "ip": ip or "",
+        "dispositivo": dispositivo or "",
+        "meta": meta or "",
+    }
+    return hashlib.sha256(
+        json.dumps(paquete, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+
+
+def _verificar_firma(f):
+    """Recalcula el hash del paquete probatorio y lo compara con el guardado.
+    Devuelve (recalc, integra). Acepta firmas anteriores (fórmulas v1) por
+    compatibilidad: v2 = paquete completo; v1b = snapshot+trazos+png+pdf; v1a = sin pdf."""
+    png_sha = hashlib.sha256(f.firma_png).hexdigest() if f.firma_png else ""
+    recalc = _paquete_probatorio(
+        snapshot=f.snapshot, trazos=f.trazos, png_sha=png_sha, pdf_sha=f.pdf_sha256,
+        firmante=f.firmante, dni=f.firmante_dni, email=f.firmante_email,
+        conforme=f.conforme, consentimiento=f.consentimiento,
+        firmado_iso=f.firmado.isoformat() if f.firmado else "",
+        ip=f.ip, dispositivo=f.dispositivo, meta=f.meta)
+    base = (f.snapshot or "").encode("utf-8") + (f.trazos or "").encode("utf-8") + (f.firma_png or b"")
+    legacy_b = hashlib.sha256(base + (f.pdf_sha256 or "").encode("utf-8")).hexdigest()
+    legacy_a = hashlib.sha256(base).hexdigest()
+    integra = f.sha256 in (recalc, legacy_b, legacy_a)
+    return recalc, integra
+
+
 def _pdf_liquidacion_firmada(liq, firma=None, sello=None):
     """Genera el PDF CONGELADO de la liquidación firmada (con la firma embebida y el
     sello de integridad impreso). Se guarda tal cual al firmar y después se sirve sin
@@ -846,11 +893,17 @@ def firmar_guardar(liq_id):
     except Exception:
         pdf, pdf_sha = None, None
 
-    # Hash PRINCIPAL del paquete de evidencia: snapshot (con detalle) + trazos +
-    # imagen + hash del PDF congelado. Así el documento aceptado entra en la huella.
-    sha = hashlib.sha256(
-        snapshot.encode("utf-8") + trazos.encode("utf-8") + png
-        + (pdf_sha or "").encode("utf-8")).hexdigest()
+    # Hash PRINCIPAL sobre TODO el paquete probatorio (JSON canónico): no solo el
+    # snapshot con detalle + trazos + imagen, sino también firmante, DNI, email,
+    # consentimiento, fecha de firma, IP, dispositivo, metadatos y el hash del PDF
+    # congelado. Así ninguno de esos datos puede alterarse sin romper la huella.
+    firma.firmante_email = firmante_email or None
+    png_sha = hashlib.sha256(png).hexdigest()
+    sha = _paquete_probatorio(
+        snapshot=snapshot, trazos=trazos, png_sha=png_sha, pdf_sha=pdf_sha,
+        firmante=firmante, dni=firmante_dni, email=firmante_email, conforme=True,
+        consentimiento=consentimiento, firmado_iso=firma.firmado.isoformat(),
+        ip=firma.ip, dispositivo=firma.dispositivo, meta=meta)
 
     # Cadena de firmas (ledger): encadenamos con la ÚLTIMA firma de la inmobiliaria
     # (la consulta queda filtrada por tenant en app/tenant.py). Borrar o alterar una
@@ -865,7 +918,6 @@ def firmar_guardar(liq_id):
     if pdf is not None:
         firma.pdf_firmado = pdf
         firma.pdf_sha256 = pdf_sha
-    firma.firmante_email = firmante_email or None
     firma.acuse_token = secrets.token_urlsafe(24)   # para el acuse de recepción del mail
     # Si el propietario no tenía email cargado y lo completó al firmar, se lo
     # guardamos para la próxima (no pisa uno ya existente).
@@ -1083,13 +1135,8 @@ def firma_verificar(liq_id):
     recalcula el hash para confirmar que no se alteró nada."""
     liq = db.session.get(Liquidacion, liq_id) or abort(404)
     f = liq.firma or abort(404)
-    # Recalcular el hash sobre lo guardado: si coincide, la evidencia está íntegra.
-    # Fórmula actual: snapshot (con detalle) + trazos + imagen + hash del PDF.
-    base = (f.snapshot or "").encode("utf-8") + (f.trazos or "").encode("utf-8") + (f.firma_png or b"")
-    recalc = hashlib.sha256(base + (f.pdf_sha256 or "").encode("utf-8")).hexdigest()
-    # Compatibilidad con firmas anteriores, cuyo hash NO incluía el PDF.
-    recalc_legacy = hashlib.sha256(base).hexdigest()
-    integra = (recalc == f.sha256) or (recalc_legacy == f.sha256)
+    # Recalcular el hash del paquete probatorio y compararlo con el guardado.
+    recalc, integra = _verificar_firma(f)
     # Integridad del PDF congelado: su hash guardado debe coincidir con el del binario.
     if f.pdf_firmado and f.pdf_sha256:
         pdf_ok = (hashlib.sha256(f.pdf_firmado).hexdigest() == f.pdf_sha256)

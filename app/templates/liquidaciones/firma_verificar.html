@@ -113,9 +113,10 @@
   </div>
 
   <p class="nota">Firma electrónica (Ley 25.506, art. 5). No es firma digital con certificado.
-    El hash SHA-256 cubre todo el paquete: lo que se firmó con su detalle + la trayectoria
-    del trazo + la imagen + el PDF congelado. Si algo cambia, el recalculado deja de
-    coincidir. Toda esta evidencia queda guardada en la base.</p>
+    El hash SHA-256 cubre todo el paquete probatorio: lo firmado con su detalle, los
+    trazos y la imagen, y además firmante, DNI, email, consentimiento, fecha, IP,
+    dispositivo, metadatos y el hash del PDF congelado. Si cualquiera de esos datos
+    cambia, el recalculado deja de coincidir. Toda esta evidencia queda guardada en la base.</p>
 </div>
 </body>
 </html>
