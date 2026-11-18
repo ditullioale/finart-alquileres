@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Generador de Contratos de Locación</title>
+<title>Contrato de locación</title>
 <style>
   :root{--b:#1f3a5f;--a:#2f6fed;--bd:#cfd8e3;--warn:#8a5a00;--warnbg:#fff6e0;}
   *{box-sizing:border-box}
@@ -256,7 +256,19 @@
           <div><label>Meses de alquiler por pagaré</label><input id="pagMeses" type="number" min="1" value="10"></div>
           <div><label>Lugar de pago</label><input id="pagLugar" value="Rosario"></div>
         </div>
-        <div class="hint">Se genera un pagaré por cada fiador, por el equivalente a esa cantidad de meses (cláusula 17). Vencimiento siempre <b>a la vista</b>.</div>
+        <div class="row">
+          <div><label>Fecha de libramiento</label><input id="pagFecha" type="date">
+            <div class="hint">Vacío = usa la fecha de firma del contrato.</div></div>
+          <div><label>Vencimiento</label>
+            <select id="pagVenc" onchange="togglePagVenc()">
+              <option value="vista">A la vista</option>
+              <option value="fecha">A fecha determinada</option>
+              <option value="blanco">En blanco (a completar a mano)</option>
+            </select></div>
+        </div>
+        <div id="pagVencFechaWrap" style="display:none"><label>Fecha de vencimiento</label><input id="pagVencFecha" type="date"></div>
+        <div class="chk"><input type="checkbox" id="pagVincular" checked><label for="pagVincular" style="margin:0">Vincular los pagarés a este contrato (frase "en garantía")</label></div>
+        <div class="hint">Se genera un pagaré por cada fiador, por el equivalente a esa cantidad de meses. Si <b>destildás</b> "vincular", se quita la frase que dice que fue librado en garantía del contrato de locación.</div>
       </fieldset>
 
       </div>
@@ -302,7 +314,7 @@
           <button class="btn sec mini" id="btnHtml" onclick="descargar()">⬇️ HTML</button>
         </div>
         <div class="hint" style="padding:6px 12px;margin:0;background:#eef4ff;border-bottom:1px solid var(--bd);color:#3a5a86">
-          ✏️ Podés <b>editar el texto directamente</b> acá antes de imprimir o guardar. El <b>contrato</b> y los <b>pagarés</b> se imprimen por separado (elegí la pestaña): el contrato sale en <b>3 copias</b> y cada pagaré en su propia hoja. Para el contrato, en el diálogo elegí <b>“Doble faz / Two-sided”</b>.
+          ✏️ Podés <b>editar el texto directamente</b> acá antes de imprimir o guardar. El <b>contrato</b> y los <b>pagarés</b> se imprimen por separado (elegí la pestaña): el contrato sale en <b>3 copias</b> y cada pagaré en su propia hoja. Para el contrato, en el diálogo elegí <b>“Doble faz / Two-sided”</b>. Para que <b>no salga la URL ni el título</b> en el papel, en el diálogo destildá <b>“Encabezados y pies de página”</b> (Headers and footers).
         </div>
         <div class="tabs">
           <button class="tab active" id="tabC" onclick="verTab('contrato')">Contrato</button>
@@ -325,8 +337,13 @@ function addFiador(d){
   const div=document.createElement('div');div.className='card';
   div.innerHTML=`<h4>Fiador ${id} <button class="btn sec mini" style="float:right" onclick="this.closest('.card').remove()">✕</button></h4>
     <label>Nombre y apellido</label><input class="f-nombre" value="${d.nombre||''}">
-    <div class="row"><div><label>D.N.I.</label><input class="f-dni" value="${d.dni||''}"></div>
+    <div class="row3"><div><label>D.N.I.</label><input class="f-dni" value="${d.dni||''}"></div>
+    <div><label>Género (p/CUIT)</label><select class="f-genero"><option value="m"${d.genero==='m'?' selected':''}>Masc (20)</option><option value="f"${d.genero==='f'?' selected':''}>Fem (27)</option></select></div>
     <div><label>Teléfono</label><input class="f-tel" value="${d.tel||''}"></div></div>
+    <label>C.U.I.T. / C.U.I.L.</label>
+    <div class="cuit-row"><input class="f-cuit" value="${d.cuit||''}" placeholder="XX-XXXXXXXX-X">
+    <button type="button" class="btn sec mini" onclick="calcCuitCard(this)" title="Calcular desde el DNI y el género">Averiguar</button></div>
+    <div class="tools"><a onclick="verBcraCard(this)">🏦 Ver situación crediticia (BCRA)</a></div>
     <label>Domicilio</label><input class="f-dom" value="${d.dom||''}">
     <label>Email</label><input class="f-email" value="${d.email||''}">
     <label>Acredita solvencia con</label><input class="f-solvencia" value="${d.solvencia||''}" placeholder="Ej: Empleado en... / Propietario de inmueble en...">`;
@@ -336,6 +353,7 @@ function getFiadores(){
   return [...document.querySelectorAll('#fiadores .card')].map(c=>({
     nombre:c.querySelector('.f-nombre').value.trim(),
     dni:c.querySelector('.f-dni').value.trim(),
+    cuit:c.querySelector('.f-cuit').value.trim(),
     dom:c.querySelector('.f-dom').value.trim(),
     email:c.querySelector('.f-email').value.trim(),
     tel:c.querySelector('.f-tel').value.trim(),
@@ -349,8 +367,13 @@ function addCoLoc(d){
   const div=document.createElement('div');div.className='card';
   div.innerHTML=`<h4>Locador ${id+1} <button class="btn sec mini" style="float:right" onclick="this.closest('.card').remove()">✕</button></h4>
     <label>Nombre y apellido</label><input class="cl-nombre" value="${d.nombre||''}">
-    <div class="row"><div><label>D.N.I.</label><input class="cl-dni" value="${d.dni||''}"></div>
+    <div class="row3"><div><label>D.N.I.</label><input class="cl-dni" value="${d.dni||''}"></div>
+    <div><label>Género (p/CUIT)</label><select class="cl-genero"><option value="m"${d.genero==='m'?' selected':''}>Masc (20)</option><option value="f"${d.genero==='f'?' selected':''}>Fem (27)</option></select></div>
     <div><label>Email</label><input class="cl-email" value="${d.email||''}"></div></div>
+    <label>C.U.I.T. / C.U.I.L.</label>
+    <div class="cuit-row"><input class="cl-cuit" value="${d.cuit||''}" placeholder="XX-XXXXXXXX-X">
+    <button type="button" class="btn sec mini" onclick="calcCuitCard(this)" title="Calcular desde el DNI y el género">Averiguar</button></div>
+    <div class="tools"><a onclick="verBcraCard(this)">🏦 Ver situación crediticia (BCRA)</a></div>
     <label>Domicilio</label><input class="cl-dom" value="${d.dom||''}">`;
   document.getElementById('coLocadores').appendChild(div);
 }
@@ -358,6 +381,7 @@ function getCoLoc(){
   return [...document.querySelectorAll('#coLocadores .card')].map(c=>({
     nombre:c.querySelector('.cl-nombre').value.trim(),
     dni:c.querySelector('.cl-dni').value.trim(),
+    cuit:c.querySelector('.cl-cuit').value.trim(),
     dom:c.querySelector('.cl-dom').value.trim(),
     email:c.querySelector('.cl-email').value.trim(),
   })).filter(x=>x.nombre);
@@ -369,8 +393,12 @@ function addCoLat(d){
   div.innerHTML=`<h4>Locatario ${id+1} <button class="btn sec mini" style="float:right" onclick="this.closest('.card').remove()">✕</button></h4>
     <label>Nombre y apellido</label><input class="ct-nombre" value="${d.nombre||''}">
     <div class="row3"><div><label>D.N.I.</label><input class="ct-dni" value="${d.dni||''}"></div>
-    <div><label>C.U.I.L./C.U.I.T.</label><input class="ct-cuil" value="${d.cuil||''}"></div>
+    <div><label>Género (p/CUIT)</label><select class="ct-genero"><option value="m"${d.genero==='m'?' selected':''}>Masc (20)</option><option value="f"${d.genero==='f'?' selected':''}>Fem (27)</option></select></div>
     <div><label>Email</label><input class="ct-email" value="${d.email||''}"></div></div>
+    <label>C.U.I.L. / C.U.I.T.</label>
+    <div class="cuit-row"><input class="ct-cuil" value="${d.cuil||''}" placeholder="XX-XXXXXXXX-X">
+    <button type="button" class="btn sec mini" onclick="calcCuitCard(this)" title="Calcular desde el DNI y el género">Averiguar</button></div>
+    <div class="tools"><a onclick="verBcraCard(this)">🏦 Ver situación crediticia (BCRA)</a></div>
     <label>Domicilio</label><input class="ct-dom" value="${d.dom||''}">`;
   document.getElementById('coLocatarios').appendChild(div);
 }
@@ -420,12 +448,12 @@ function generar(){
     ? 'sin actualización durante la vigencia del contrato.'
     : `con un aumento acumulativo y progresivo que se aplicará cada ${numLetras(parseInt(V('ajusteMeses')))} meses y hasta finalizar el contrato. Dicho ajuste deberá ser calculado utilizando el índice ${ajIdx}${ajIdx==='I.C.L'?', conformado por partes iguales por las variaciones mensuales del índice de precios al consumidor (IPC) y la remuneración imponible promedio de los trabajadores estables (RIPTE), elaborado y publicado mensualmente por el Banco Central de la República Argentina (BCRA). En caso de que este índice dejara de publicarse se utilizará en forma subsidiaria, a elección del locador, los índices Casa Propia o I.P.C.':'.'}`;
 
-  const fiadorEnc = fiadores.map(f=>`<b>${f.nombre}</b>, D.N.I. ${f.dni||'—'}, con domicilio en ${f.dom||'—'}${f.email?`, correo electrónico ${f.email}`:''}${f.tel?`, tel ${f.tel}`:''}${f.solvencia?`, que acredita solvencia con ${f.solvencia}`:''}`).join('; ');
+  const fiadorEnc = fiadores.map(f=>`<b>${f.nombre}</b>, D.N.I. ${f.dni||'—'}${f.cuit?`, C.U.I.T. ${f.cuit}`:''}, con domicilio en ${f.dom||'—'}${f.email?`, correo electrónico ${f.email}`:''}${f.tel?`, tel ${f.tel}`:''}${f.solvencia?`, que acredita solvencia con ${f.solvencia}`:''}`).join('; ');
 
   // Todas las personas de cada lado: el titular del formulario + los agregados.
-  const locadores = [{nombre:V('locNombre')||'________', dni:V('locDni'), dom:V('locDom'), email:V('locEmail')}].concat(getCoLoc());
+  const locadores = [{nombre:V('locNombre')||'________', dni:V('locDni'), cuit:V('locCuit'), dom:V('locDom'), email:V('locEmail')}].concat(getCoLoc());
   const locatarios = [{nombre:V('latNombre')||'________', dni:V('latDni'), cuil:V('latCuil'), dom:V('latDom'), email:V('latEmail')}].concat(getCoLat());
-  const descLoc = l=>`<b>${l.nombre}</b>, titular de D.N.I. ${l.dni||'—'}, con domicilio en ${l.dom||'—'}`;
+  const descLoc = l=>`<b>${l.nombre}</b>, titular de D.N.I. ${l.dni||'—'}${l.cuit?`, C.U.I.T. ${l.cuit}`:''}, con domicilio en ${l.dom||'—'}`;
   const descLat = l=>`<b>${l.nombre}</b>, titular de D.N.I. ${l.dni||'—'}${l.cuil?`, C.U.I.L. ${l.cuil}`:''}, con domicilio en ${l.dom||'—'}${l.email?` (mail ${l.email})`:''}`;
   const varios = 'en forma conjunta, indistinta y solidaria, ';
   const locSeg = locadores.map(descLoc).join('; y ') + `, en adelante ${locadores.length>1?varios:''}el <b>Locador</b>`;
@@ -468,12 +496,19 @@ function generar(){
   // PAGARÉS EN GARANTÍA (uno por fiador, cada uno en su propia hoja al imprimir)
   const monto=canon*pagMeses;
   const lugar=V('pagLugar')||V('ciudadFirma')||'________';
-  const fechaPg=fechaTexto(V('fechaFirma'));
-  let ph='<h2 style="margin-bottom:18px">PAGARÉS EN GARANTÍA</h2>';
+  const fechaPg=fechaTexto(V('pagFecha')||V('fechaFirma'));
+  const vincular=document.getElementById('pagVincular')?document.getElementById('pagVincular').checked:true;
+  const vencMode=V('pagVenc')||'vista';
+  let vencHtml;
+  if(vencMode==='fecha') vencHtml=`<span><b>Vencimiento:</b> ${V('pagVencFecha')?fechaTexto(V('pagVencFecha')):'____ de __________ de ______'}</span>`;
+  else if(vencMode==='blanco') vencHtml=`<span><b>Vencimiento:</b> ______________________</span>`;
+  else vencHtml=`<span><b>Vencimiento:</b> A LA VISTA</span>`;
+  let ph=`<h2 style="margin-bottom:18px">${vincular?'PAGARÉS EN GARANTÍA':'PAGARÉS'}</h2>`;
   if(!fiadores.length)ph+='<p style="color:#889">Agregá al menos un fiador para generar pagarés.</p>';
   fiadores.forEach((f)=>{
     const payee = locPayee || '.....................................................';
     const letras = pesosLetras(monto);
+    const garantia = vincular ? ` Librado en garantía de las obligaciones emergentes del contrato de locación del inmueble sito en ${V('inmDir')||'________'}${V('inmCiudad')?', '+V('inmCiudad'):''}.` : '';
     ph+=`<div class="pagare">
       <div class="cab">
         <div class="ti">PAGARÉ<small>SIN PROTESTO</small></div>
@@ -481,10 +516,10 @@ function generar(){
       </div>
       <div class="meta">
         <span>${lugar}, ${fechaPg}.</span>
-        <span><b>Vencimiento:</b> A LA VISTA</span>
+        ${vencHtml}
       </div>
-      <div class="cuerpo">Quien suscribe, <b>${f.nombre}</b>, D.N.I. N.º ${f.dni||'____________'}, con domicilio en ${f.dom||'____________'}, por medio del presente <b>PAGARÉ SIN PROTESTO</b> (art. 50 del Decreto Ley N.º 5965/63) pagaré a ${payee} o a su orden, la cantidad de <b>${letras} ($ ${fmt(monto)})</b>, por igual valor recibido a mi entera satisfacción. Pagadero en ${lugar}. Librado en garantía de las obligaciones emergentes del contrato de locación del inmueble sito en ${V('inmDir')||'________'}${V('inmCiudad')?', '+V('inmCiudad'):''}.</div>
-      <div class="firma-pg"><b>${f.nombre}</b><br>Fiador/a — D.N.I. ${f.dni||'____________'}</div>
+      <div class="cuerpo">Quien suscribe, <b>${f.nombre}</b>, D.N.I. N.º ${f.dni||'____________'}, con domicilio en ${f.dom||'____________'}, por medio del presente <b>PAGARÉ SIN PROTESTO</b> (art. 50 del Decreto Ley N.º 5965/63) pagaré a ${payee} o a su orden, la cantidad de <b>${letras} ($ ${fmt(monto)})</b>, por igual valor recibido a mi entera satisfacción. Pagadero en ${lugar}.${garantia}</div>
+      <div class="firma-pg"><b>${f.nombre}</b><br>${vincular?'Fiador/a — ':''}D.N.I. ${f.dni||'____________'}</div>
     </div>`;
   });
   document.getElementById('pagares').innerHTML=ph;
@@ -672,12 +707,19 @@ function _armarPagares(){
 function _armarSegunPestana(){ if(_enPagares())_armarPagares(); else _armarCopias(); }
 // El botón imprime lo que estás viendo (contrato o pagarés), por separado.
 function imprimir(){_armarSegunPestana();window.print();}
+// El navegador agrega al imprimir un encabezado (el título de la página) y un pie
+// (la URL). Blanqueamos el título antes de imprimir para que NO diga "Generador de
+// Contratos de Locación". La URL del pie solo se saca desde el diálogo de impresión
+// (destildar "Encabezados y pies de página" / "Headers and footers").
+var _tituloPrev=null;
 window.addEventListener('beforeprint',function(){
   const pc=document.getElementById('printCopies');
   if(!pc.innerHTML.trim()) _armarSegunPestana();
+  if(_tituloPrev===null){ _tituloPrev=document.title; document.title=' '; }
 });
 window.addEventListener('afterprint',function(){
   document.getElementById('printCopies').innerHTML='';
+  if(_tituloPrev!==null){ document.title=_tituloPrev; _tituloPrev=null; }
 });
 function descargarWord(){
   // Documento aparte: exporta lo que estás viendo (contrato o pagarés).
@@ -695,6 +737,7 @@ function descargarWord(){
     +`.firmas{margin-top:50pt}`
     +`.firma{border-top:1px solid #333;text-align:center;padding-top:6pt}`
     +`.pagare{border:1.5px solid #222;padding:16pt 20pt;margin:0 0 18pt;page-break-after:always}`
+    +`.pagare:last-child{page-break-after:auto}`
     +`.pagare .cab{border-bottom:2px solid #222;padding-bottom:8pt;margin-bottom:10pt}`
     +`.pagare .ti{font-size:18pt;font-weight:bold}`
     +`.pagare .ti small{display:block;font-size:9pt;font-weight:bold}`
@@ -720,6 +763,7 @@ function descargar(){
   h2{text-align:center}ol li{margin:9px 0}.firmas{display:grid;grid-template-columns:1fr 1fr;gap:34px;margin-top:50px}
   .firma{border-top:1px solid #333;text-align:center;padding-top:6px}
   .pagare{border:1.5px solid #222;padding:26px 30px;margin:0 0 28px;page-break-after:always}
+  .pagare:last-child{page-break-after:auto}
   .pagare .cab{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #222;padding-bottom:12px;margin-bottom:16px}
   .pagare .cab .ti{font-size:22px;font-weight:800;letter-spacing:2px}
   .pagare .cab .ti small{display:block;font-size:10.5px;font-weight:700;letter-spacing:3px;color:#555;margin-top:4px}
@@ -731,6 +775,10 @@ function descargar(){
   const b=new Blob([html],{type:'text/html'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=enP?'pagares.html':'contrato-de-locacion.html';a.click();
 }
 
+function togglePagVenc(){
+  var sel=document.getElementById('pagVenc'); var wrap=document.getElementById('pagVencFechaWrap');
+  if(wrap) wrap.style.display = (sel && sel.value==='fecha') ? 'block' : 'none';
+}
 function cargarEjemplo(){
   const s=(id,v)=>document.getElementById(id).value=v;
   s('ciudadFirma','Rosario');s('fechaFirma','2024-08-01');
@@ -751,7 +799,7 @@ function cargarEjemplo(){
   addFiador({nombre:'CALZETTI ROMINA BELEN',dni:'35.447.345',dom:'calle Viamonte 3721 de la ciudad de Rosario',email:'romina.b.calzetti@hotmail.com',tel:'341-6603555'});
   generar();
 }
-function limpiar(){document.querySelectorAll('input,textarea').forEach(e=>{if(e.type==='checkbox')e.checked=false;else if(e.type!=='button')e.value=''});document.getElementById('fiadores').innerHTML='';nFiador=0;addFiador();document.getElementById('coLocadores').innerHTML='';nCoLoc=0;document.getElementById('coLocatarios').innerHTML='';nCoLat=0;document.getElementById('contrato').innerHTML='<p style="text-align:center;color:#889">Completá el formulario y presioná Generar documentos.</p>';document.getElementById('pagares').innerHTML='';}
+function limpiar(){document.querySelectorAll('input,textarea').forEach(e=>{if(e.type==='checkbox')e.checked=false;else if(e.type!=='button')e.value=''});document.getElementById('fiadores').innerHTML='';nFiador=0;addFiador();document.getElementById('coLocadores').innerHTML='';nCoLoc=0;document.getElementById('coLocatarios').innerHTML='';nCoLat=0;document.getElementById('contrato').innerHTML='<p style="text-align:center;color:#889">Completá el formulario y presioná Generar documentos.</p>';document.getElementById('pagares').innerHTML='';var pv=document.getElementById('pagVincular');if(pv)pv.checked=true;togglePagVenc();}
 
 addFiador();
 // cargar clave guardada si existe
@@ -780,11 +828,35 @@ function calcCuit(who){
   if(!cuit){alert('Cargá primero el DNI (7 u 8 dígitos).');return;}
   document.getElementById(who==='loc'?'locCuit':'latCuil').value=cuit;
 }
+// Helpers para las tarjetas dinámicas (fiadores, co-locadores, co-locatarios):
+// encuentran el CUIT/DNI/género dentro de la tarjeta sin importar el prefijo.
+function _campoCard(el, clases){
+  var c=el.closest('.card'); if(!c) return null;
+  for(var i=0;i<clases.length;i++){ var q=c.querySelector(clases[i]); if(q) return q; }
+  return null;
+}
+function calcCuitCard(btn){
+  var inp=_campoCard(btn,['.f-cuit','.ct-cuil','.cl-cuit']);
+  var dni=_campoCard(btn,['.f-dni','.ct-dni','.cl-dni']);
+  var gen=_campoCard(btn,['.f-genero','.ct-genero','.cl-genero']);
+  if(!inp){return;}
+  var cuit=calcularCuit(dni?dni.value:'', gen?gen.value:'m');
+  if(!cuit){alert('Cargá primero el DNI (7 u 8 dígitos).');return;}
+  inp.value=cuit;
+}
+function verBcraCard(a){
+  var inp=_campoCard(a,['.f-cuit','.ct-cuil','.cl-cuit']);
+  verBcraCuit(inp?inp.value:'');
+}
 function _plata(n){ return (n||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
-async function verBcra(who){
-  var cuit=_digs(document.getElementById(who==='loc'?'locCuit':'latCuil').value);
+function verBcra(who){
+  verBcraCuit(document.getElementById(who==='loc'?'locCuit':'latCuil').value);
+}
+async function verBcraCuit(cuitRaw){
+  var cuit=_digs(cuitRaw);
   var panel=document.getElementById('bcraPanel');
   panel.style.display='block'; panel.className='valPanel';
+  try{ panel.scrollIntoView({behavior:'smooth',block:'nearest'}); }catch(e){}
   if(cuit.length!==11){ panel.className='valPanel warn'; panel.innerHTML='<div class="head"><span class="dot"></span> Averiguá o cargá primero el CUIT (11 dígitos).</div>'; return; }
   panel.innerHTML='<div class="head"><span class="dot"></span> Consultando BCRA…</div>';
   try{
