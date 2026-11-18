@@ -149,8 +149,12 @@ def documento(cid):
   .toolbar{{background:#12263f;color:#fff;padding:10px 16px;display:flex;gap:10px;align-items:center;font-family:Arial}}
   .toolbar a{{color:#cfe0f5;text-decoration:none}}
   .toolbar button{{background:#2f6fed;color:#fff;border:0;border-radius:7px;padding:8px 16px;font-weight:600;cursor:pointer}}
-  .hoja{{max-width:820px;margin:16px auto;background:#fff;padding:40px 46px;font-size:12pt;line-height:1.5;text-align:justify}}
-  .hoja h2{{text-align:center}} .hoja ol li{{margin:9px 0}}
+  .hoja{{max-width:820px;margin:16px auto;background:#fff;padding:40px 46px;font-family:"Times New Roman",Georgia,serif;font-size:12.5pt;line-height:1.5;text-align:justify;hyphens:auto;-webkit-hyphens:auto}}
+  .hoja h2{{text-align:center}}
+  .hoja .titulo{{text-align:center;margin:0 0 20px}} .hoja .titulo h2{{font-size:17pt;letter-spacing:2px;margin:0}} .hoja .titulo .sub{{font-size:10.5pt;letter-spacing:3px;color:#555;text-transform:uppercase;margin-top:4px}} .hoja .titulo .rule{{height:2px;background:#222;width:90px;margin:10px auto 0}}
+  .hoja ol{{padding-left:0;margin:12px 0;list-style-position:inside}} .hoja ol li{{margin:10px 0;text-indent:2em}} .hoja ol li::marker{{font-weight:bold}}
+  .hoja .firmas{{display:grid;grid-template-columns:1fr 1fr;gap:30px 54px;margin-top:44px}}
+  .hoja .firma{{text-align:center;font-size:11pt;page-break-inside:avoid}} .hoja .firma .linea{{height:56px;border-bottom:1px solid #222;margin-bottom:5px}} .hoja .firma .nom{{font-weight:bold}} .hoja .firma .rol{{font-size:9pt;letter-spacing:2px;text-transform:uppercase;color:#444}} .hoja .firma .dni{{font-size:9.5pt;color:#555}}
   .hoja .pagare{{border:1.5px solid #222;padding:26px 30px;margin:22px 0}}
   .hoja .pagare .cab{{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #222;padding-bottom:12px;margin-bottom:16px}}
   .hoja .pagare .cab .ti{{font-size:22px;font-weight:800;letter-spacing:2px;line-height:1.05}}
