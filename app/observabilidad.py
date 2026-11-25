@@ -71,14 +71,21 @@ def init_sentry(app):
         tasa = float(os.environ.get("SENTRY_TRACES", "0") or 0)
     except (TypeError, ValueError):
         tasa = 0.0
-    sentry_sdk.init(
-        dsn=dsn,
-        integrations=[FlaskIntegration()],
-        traces_sample_rate=tasa,
-        environment=(os.environ.get("RAILWAY_ENVIRONMENT_NAME")
-                     or os.environ.get("ENV", "production")),
-        send_default_pii=False,
-    )
+    try:
+        sentry_sdk.init(
+            dsn=dsn,
+            integrations=[FlaskIntegration()],
+            traces_sample_rate=tasa,
+            environment=(os.environ.get("RAILWAY_ENVIRONMENT_NAME")
+                         or os.environ.get("ENV", "production")),
+            send_default_pii=False,
+        )
+    except Exception as e:  # noqa: BLE001
+        # El monitoreo NUNCA debe tirar abajo la app: si Sentry falla al iniciar
+        # (p. ej. una versión nueva incompatible de sentry-sdk), seguimos sin él
+        # en vez de impedir el arranque del servidor.
+        app.logger.warning("No se pudo iniciar Sentry (%s); la app sigue sin monitoreo.", e)
+        return
 
     @app.before_request
     def _etiquetar():
