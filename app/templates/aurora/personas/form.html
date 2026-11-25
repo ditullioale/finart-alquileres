@@ -39,8 +39,14 @@
       <div class="field"><label>Localidad</label>
         <input class="inp" name="localidad" value="{{ persona.localidad or '' }}"></div>
 
-      <div class="field"><label>Condición IVA</label>
-        <input class="inp" name="cond_iva" value="{{ persona.cond_iva or 'Consumidor Final' }}"></div>
+      <div class="field"><label>Condición IVA (frente al IVA)</label>
+        {% set ci = persona.cond_iva or 'Consumidor Final' %}
+        {% set opts = ['Consumidor Final','Responsable Inscripto','Responsable Monotributo','IVA Sujeto Exento'] %}
+        <select class="inp" name="cond_iva">
+          {% for o in opts %}<option {{ 'selected' if ci==o }}>{{ o }}</option>{% endfor %}
+          {% if ci not in opts %}<option selected>{{ ci }}</option>{% endif %}
+        </select>
+        <div style="font-size:11px;color:#6b7890;margin-top:3px">Se transmite a ARCA al facturar (RG 5616). Ante la duda, Consumidor Final.</div></div>
 
       <div class="field"><label>Teléfono</label>
         <input class="inp" name="telefono" id="telefono" value="{{ persona.telefono or '' }}"

@@ -51,6 +51,10 @@
         <span>Emitir la <b>factura de honorarios en ARCA</b> por la comisión al generar.
           <span class="mut" style="display:block;font-size:12px">Si no lo tildás, la liquidación queda generada y la podés facturar después desde «Pendientes de facturar».</span></span>
       </label>
+      <div style="font-size:12px;margin-top:6px;color:#8a5a00;background:#fff6e0;border:1px solid #e8cf8a;border-radius:7px;padding:7px 10px">
+        A ARCA se informará la <b>condición frente al IVA</b> del propietario: <b>{{ prop.cond_iva or 'Consumidor Final' }}</b> (RG 5616).
+        Si no es correcta, cambiala en la ficha del propietario antes de facturar.
+      </div>
       {% endif %}
       <div class="formbtns" style="align-items:center">
         <span style="margin-right:auto">Neto a pagar: <b>$ <span id="netoPrev">{{ neto|money }}</span></b></span>

@@ -19,8 +19,13 @@
     <div class="full"><label>Domicilio</label>
       <input name="domicilio" value="{{ persona.domicilio or '' }}"></div>
     <div><label>Localidad</label><input name="localidad" value="{{ persona.localidad or '' }}"></div>
-    <div><label>Condición IVA</label>
-      <input name="cond_iva" value="{{ persona.cond_iva or 'Consumidor Final' }}"></div>
+    <div><label>Condición IVA (frente al IVA)</label>
+      {% set ci = persona.cond_iva or 'Consumidor Final' %}
+      {% set opts = ['Consumidor Final','Responsable Inscripto','Responsable Monotributo','IVA Sujeto Exento'] %}
+      <select name="cond_iva">
+        {% for o in opts %}<option {{ 'selected' if ci==o }}>{{ o }}</option>{% endfor %}
+        {% if ci not in opts %}<option selected>{{ ci }}</option>{% endif %}
+      </select></div>
     <div><label>Teléfono</label>
       <input name="telefono" id="telefono" value="{{ persona.telefono or '' }}"
              placeholder="Ej: 11 2345-6789">
