@@ -152,6 +152,8 @@ def documento(cid):
   .hoja{{max-width:820px;margin:16px auto;background:#fff;padding:40px 46px;font-family:"Times New Roman",Georgia,serif;font-size:12.5pt;line-height:1.5;text-align:justify;hyphens:auto;-webkit-hyphens:auto}}
   .hoja h2{{text-align:center}}
   .hoja .titulo{{text-align:center;margin:0 0 20px}} .hoja .titulo h2{{font-size:17pt;letter-spacing:2px;margin:0}} .hoja .titulo .sub{{font-size:10.5pt;letter-spacing:3px;color:#555;text-transform:uppercase;margin-top:4px}} .hoja .titulo .rule{{height:2px;background:#222;width:90px;margin:10px auto 0}}
+  .hoja .membrete{{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2.5px solid #12263f;padding-bottom:8px;margin:0 0 6px}} .hoja .membrete .marca{{font-family:Georgia,serif;font-size:20pt;font-weight:bold;color:#12263f;letter-spacing:1px}} .hoja .membrete .datos{{font-family:Arial,sans-serif;font-size:8.5pt;color:#555;text-align:right;line-height:1.45}} .hoja .membrete .datos b{{color:#222}}
+  .hoja .clausula{{margin:11px 0;text-align:justify;text-indent:2em}} .hoja .clausula .ep{{font-weight:bold;text-indent:0}}
   .hoja ol{{padding-left:0;margin:12px 0;list-style-position:inside}} .hoja ol li{{margin:10px 0;text-indent:2em}} .hoja ol li::marker{{font-weight:bold}}
   .hoja .firmas{{display:grid;grid-template-columns:1fr 1fr;gap:30px 54px;margin-top:44px}}
   .hoja .firma{{text-align:center;font-size:11pt;page-break-inside:avoid}} .hoja .firma .linea{{height:56px;border-bottom:1px solid #222;margin-bottom:5px}} .hoja .firma .nom{{font-weight:bold}} .hoja .firma .rol{{font-size:9pt;letter-spacing:2px;text-transform:uppercase;color:#444}} .hoja .firma .dni{{font-size:9.5pt;color:#555}}
@@ -677,7 +679,7 @@ def _generador_html():
     function guardarEnSistema(){
       // Si el documento no fue generado, avisar y ofrecer generarlo primero.
       const cont = document.getElementById('contrato');
-      const generado = cont && cont.querySelector('ol');
+      const generado = cont && (cont.querySelector('.clausula') || cont.querySelector('ol'));
       if(!generado){
         const r = confirm('Todavía no generaste el documento. Sin él, el contrato se guarda pero no vas a poder verlo/imprimirlo después.\\n\\nAceptar: generar y guardar ahora.\\nCancelar: guardar igual (sin documento).');
         if(r){ generar(); }
