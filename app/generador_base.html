@@ -96,18 +96,20 @@
     body *{visibility:hidden}
     #printCopies,#printCopies *{visibility:visible}
     #printCopies{position:absolute;left:0;top:0;width:100%}
-    /* Cada copia del contrato / cada pagaré arranca en una hoja nueva por su
-       FRENTE (recto). Con doble faz, nada queda pegado al dorso de lo anterior.
-       (En impresión de una sola cara puede intercalar una hoja en blanco: es el
-       precio de garantizar que cada documento empiece en hoja nueva.) */
-    #printCopies .copia{break-before:right;page-break-before:right}
-    #printCopies .copia:first-child{break-before:auto;page-break-before:auto}
-    /* Ocultar del todo la interfaz para que en el papel salga SOLO el contrato:
-       barra de guardado (.no-print), encabezado, navegación del asistente,
-       pestañas, toolbar y paneles de revisión. display:none evita que un
-       elemento fijo/sticky se cuele igual (como pasaba con el botón). */
+    /* CONTRATO (3 copias): una hoja en blanco entre copias. Así, al imprimir en
+       DOBLE FAZ, ninguna copia comparte hoja con otra -> el final de una copia no
+       cae en el dorso de la hoja donde empieza la siguiente. */
+    #printCopies .sep-hoja{break-before:page;page-break-before:always;break-after:page;page-break-after:always;height:1px}
+    /* PAGARÉS: uno por hoja (cada uno es un instrumento independiente). */
+    #printCopies .pagina{break-before:page;page-break-before:always}
+    #printCopies .pagina:first-child{break-before:auto;page-break-before:auto}
+    /* Ocultar del todo la interfaz para que en el papel salga SOLO el documento. */
     .no-print,header,.wz-nav,.toolbar,.tabs,#valPanel,#bcraPanel,#aiPanel{display:none!important}
     #wzPrev,#wzGen,#wzNext{display:none!important}
+    /* El cierre (frase de conformidad + firmas) no se parte ni cae solo en una
+       hoja sin texto: las firmas viajan junto al texto del cierre. */
+    .doc .cierre{break-inside:avoid;page-break-inside:avoid}
+    .doc .firma{break-inside:avoid;page-break-inside:avoid}
     .pagare{page-break-inside:avoid}
     @page{size:A4;margin:2cm}
   }
@@ -279,6 +281,9 @@
             </select></div>
         </div>
         <div id="pagVencFechaWrap" style="display:none"><label>Fecha de vencimiento</label><input id="pagVencFecha" type="date"></div>
+        <div id="pagVistaWrap"><label>Ampliar el plazo de presentación al cobro (años)</label>
+          <input id="pagVistaAnios" type="number" min="1" value="3">
+          <div class="hint">Solo para pagarés <b>a la vista</b>. Por ley se presentan dentro de 1 año; el librador puede ampliar ese plazo (arts. 36 y 103, Dec-Ley 5965/63). Dejá <b>0</b> para no ampliarlo.</div></div>
         <div class="chk"><input type="checkbox" id="pagVincular" checked><label for="pagVincular" style="margin:0">Vincular los pagarés a este contrato (frase "en garantía")</label></div>
         <div class="hint">Se genera un pagaré por cada fiador, por el equivalente a esa cantidad de meses. Si <b>destildás</b> "vincular", se quita la frase que dice que fue librado en garantía del contrato de locación.</div>
       </fieldset>
@@ -320,13 +325,14 @@
       <div id="aiPanel" class="valPanel" style="display:none"></div>
       <div class="out">
         <div class="toolbar">
-          <button class="btn mini" id="btnImprimir" onclick="imprimir()">🖨️ Imprimir contrato (3 copias)</button>
+          <button class="btn mini" onclick="imprimirContrato()">🖨️ Imprimir contrato (3 copias)</button>
+          <button class="btn mini" onclick="imprimirPagares()">🖨️ Imprimir pagarés (1 x hoja)</button>
           <button class="btn sec mini" id="btnWord" onclick="descargarWord()">📄 Descargar Word</button>
           <button class="btn sec mini" onclick="copiar()">📋 Copiar texto</button>
           <button class="btn sec mini" id="btnHtml" onclick="descargar()">⬇️ HTML</button>
         </div>
         <div class="hint" style="padding:6px 12px;margin:0;background:#eef4ff;border-bottom:1px solid var(--bd);color:#3a5a86">
-          ✏️ Podés <b>editar el texto directamente</b> acá antes de imprimir o guardar. El <b>contrato</b> y los <b>pagarés</b> se imprimen por separado (elegí la pestaña): el contrato sale en <b>3 copias</b> y cada pagaré en su propia hoja. Para el contrato, en el diálogo elegí <b>“Doble faz / Two-sided”</b>. Para que <b>no salga la URL ni el título</b> en el papel, en el diálogo destildá <b>“Encabezados y pies de página”</b> (Headers and footers).
+          ✏️ Podés <b>editar el texto directamente</b> acá antes de imprimir o guardar. El <b>contrato</b> sale en <b>3 copias</b> (elegí <b>“Doble faz / Two-sided”</b> en el diálogo) y <b>cada pagaré en su propia hoja</b> (para pagarés conviene <b>una sola cara</b>). Cada botón imprime lo suyo sin importar la pestaña. Para que <b>no salga la URL ni el título</b>, destildá <b>“Encabezados y pies de página”</b>.
         </div>
         <div class="tabs">
           <button class="tab active" id="tabC" onclick="verTab('contrato')">Contrato</button>
@@ -497,11 +503,13 @@ function generar(){
     <li>Todos los contratantes se someten, para cualquier divergencia, a la jurisdicción de los tribunales ordinarios de ${V('ciudadFirma')||'Rosario'}, renunciando al derecho a recusar sin causa. Alternativamente, podrán someter la cuestión al Tribunal de Arbitraje del Colegio de Abogados de ${V('ciudadFirma')||'Rosario'}, conforme su reglamento.</li>
     <li>Las partes constituyen domicilios especiales: a) el LOCADOR en su domicilio real y en la casilla ${V('locEmail')||'________'}; b) ${elLa} ${locatario} en el inmueble locado y en su casilla de mail; y los FIADORES en los domicilios denunciados y sus correos. Las comunicaciones podrán efectuarse por vía electrónica y se tendrán por válidas y plenamente eficaces (art. 75 CCyC).</li>
   </ol>
+  <div class="cierre">
   <p>En prueba de conformidad, se firman tres ejemplares de un mismo tenor y a un solo efecto, quedando el original en poder del Locador, una copia en poder ${gf?'de la Locataria':'del Locatario'} y otra copia en poder del/los Fiador/es.</p>
   <div class="firmas">
     ${locadores.map(l=>`<div class="firma"><div class="linea"></div><div class="nom">${l.nombre||'________________'}</div><div class="rol">Locador</div>${l.dni?`<div class="dni">D.N.I. ${l.dni}</div>`:''}</div>`).join('')}
     ${locatarios.map(l=>`<div class="firma"><div class="linea"></div><div class="nom">${l.nombre||'________________'}</div><div class="rol">${locatario}</div>${l.dni?`<div class="dni">D.N.I. ${l.dni}</div>`:''}</div>`).join('')}
     ${fiadores.map(f=>`<div class="firma"><div class="linea"></div><div class="nom">${f.nombre}</div><div class="rol">Fiador/a</div>${f.dni?`<div class="dni">D.N.I. ${f.dni}</div>`:''}</div>`).join('')}
+  </div>
   </div>`;
   document.getElementById('contrato').innerHTML=c;
 
@@ -511,10 +519,16 @@ function generar(){
   const fechaPg=fechaTexto(V('pagFecha')||V('fechaFirma'));
   const vincular=document.getElementById('pagVincular')?document.getElementById('pagVincular').checked:true;
   const vencMode=V('pagVenc')||'vista';
+  const vistaAnios=parseInt(V('pagVistaAnios'))||0;
   let vencHtml;
   if(vencMode==='fecha') vencHtml=`<span><b>Vencimiento:</b> ${V('pagVencFecha')?fechaTexto(V('pagVencFecha')):'____ de __________ de ______'}</span>`;
   else if(vencMode==='blanco') vencHtml=`<span><b>Vencimiento:</b> ______________________</span>`;
   else vencHtml=`<span><b>Vencimiento:</b> A LA VISTA</span>`;
+  // Pagaré a la vista: el librador puede ampliar el plazo legal de presentación al
+  // cobro (1 año) -> cláusula opcional (arts. 36 y 103 del Dec-Ley 5965/63).
+  const vistaClausula = (vencMode==='vista' && vistaAnios>0)
+    ? ` Conforme a los artículos 36 y 103 del Decreto Ley N.º 5965/63, se amplía a ${numLetras(vistaAnios)} (${vistaAnios}) año${vistaAnios>1?'s':''}, contados desde la fecha de libramiento, el plazo para la presentación al pago del presente pagaré librado a la vista.`
+    : '';
   let ph=`<h2 style="margin-bottom:18px">${vincular?'PAGARÉS EN GARANTÍA':'PAGARÉS'}</h2>`;
   if(!fiadores.length)ph+='<p style="color:#889">Agregá al menos un fiador para generar pagarés.</p>';
   fiadores.forEach((f)=>{
@@ -530,7 +544,7 @@ function generar(){
         <span>${lugar}, ${fechaPg}.</span>
         ${vencHtml}
       </div>
-      <div class="cuerpo">Quien suscribe, <b>${f.nombre}</b>, D.N.I. N.º ${f.dni||'____________'}, con domicilio en ${f.dom||'____________'}, por medio del presente <b>PAGARÉ SIN PROTESTO</b> (art. 50 del Decreto Ley N.º 5965/63) pagaré a ${payee} o a su orden, la cantidad de <b>${letras} ($ ${fmt(monto)})</b>, por igual valor recibido a mi entera satisfacción. Pagadero en ${lugar}.${garantia}</div>
+      <div class="cuerpo">Quien suscribe, <b>${f.nombre}</b>, D.N.I. N.º ${f.dni||'____________'}, con domicilio en ${f.dom||'____________'}, por medio del presente <b>PAGARÉ SIN PROTESTO</b> (art. 50 del Decreto Ley N.º 5965/63) pagaré a ${payee} o a su orden, la cantidad de <b>${letras} ($ ${fmt(monto)})</b>, por igual valor recibido a mi entera satisfacción. Pagadero en ${lugar}.${garantia}${vistaClausula}</div>
       <div class="firma-pg"><b>${f.nombre}</b><br>${vincular?'Fiador/a — ':''}D.N.I. ${f.dni||'____________'}</div>
     </div>`;
   });
@@ -702,7 +716,10 @@ function _enPagares(){return document.getElementById('pagares').style.display!==
 function _armarCopias(){
   const c=document.getElementById('contrato').innerHTML;
   let all='';
-  for(let i=0;i<3;i++) all+=`<div class="copia"><div class="doc">${c}</div></div>`;
+  for(let i=0;i<3;i++){
+    if(i>0) all+='<div class="sep-hoja">&nbsp;</div>';   // hoja en blanco entre copias
+    all+=`<div class="copia"><div class="doc">${c}</div></div>`;
+  }
   document.getElementById('printCopies').innerHTML=all;
 }
 // Pagarés: cada uno en su propia hoja (son instrumentos independientes). Nunca
@@ -712,13 +729,25 @@ function _armarPagares(){
   tmp.innerHTML=document.getElementById('pagares').innerHTML;
   const items=tmp.querySelectorAll('.pagare');
   let all='';
-  items.forEach(el=>{ all+=`<div class="copia"><div class="doc">${el.outerHTML}</div></div>`; });
+  items.forEach(el=>{ all+=`<div class="copia pagina"><div class="doc">${el.outerHTML}</div></div>`; });
   document.getElementById('printCopies').innerHTML=all
     || `<div class="copia"><div class="doc">${tmp.innerHTML}</div></div>`;
 }
 function _armarSegunPestana(){ if(_enPagares())_armarPagares(); else _armarCopias(); }
-// El botón imprime lo que estás viendo (contrato o pagarés), por separado.
+// El botón (Ctrl+P) imprime lo que estás viendo (contrato o pagarés).
 function imprimir(){_armarSegunPestana();window.print();}
+// Botones explícitos: imprimen SIEMPRE lo suyo, sin depender de la pestaña activa.
+function _hayContrato(){ var c=document.getElementById('contrato'); return c && c.querySelector('ol'); }
+function imprimirContrato(){
+  if(!_hayContrato()){ alert('Primero generá el contrato (botón "Generar documentos").'); return; }
+  _armarCopias(); window.print();
+}
+function imprimirPagares(){
+  if(!document.getElementById('pagares').querySelector('.pagare')){
+    alert('No hay pagarés para imprimir. Generá el contrato con al menos un fiador cargado.'); return;
+  }
+  _armarPagares(); window.print();
+}
 // El navegador agrega al imprimir un encabezado (el título de la página) y un pie
 // (la URL). Blanqueamos el título antes de imprimir para que NO diga "Generador de
 // Contratos de Locación". La URL del pie solo se saca desde el diálogo de impresión
@@ -798,8 +827,11 @@ function descargar(){
 }
 
 function togglePagVenc(){
-  var sel=document.getElementById('pagVenc'); var wrap=document.getElementById('pagVencFechaWrap');
+  var sel=document.getElementById('pagVenc');
+  var wrap=document.getElementById('pagVencFechaWrap');
   if(wrap) wrap.style.display = (sel && sel.value==='fecha') ? 'block' : 'none';
+  var vw=document.getElementById('pagVistaWrap');
+  if(vw) vw.style.display = (!sel || sel.value==='vista') ? 'block' : 'none';
 }
 function cargarEjemplo(){
   const s=(id,v)=>document.getElementById(id).value=v;
